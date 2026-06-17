@@ -7,21 +7,21 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=6.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=7.0">
 </head>
 <body>
 
     <header>
         <div class="logo-area">
             <div class="logo-indicator"></div>
-            <h1>Адмін-панель Verification Bot</h1>
+            <h1>Адмін-панель <span class="hide-mobile">Verification Bot</span></h1>
         </div>
         <div class="header-controls">
             <button class="btn btn-secondary btn-sm" id="sound-toggle-btn" onclick="toggleSound()">
-                🔊 Звук увімкнено
+                🔊 <span class="hide-mobile">Звук увімкнено</span>
             </button>
             <div class="status-badge" id="bot-status">
-                Синхронізація...
+                <span class="status-dot-inline" style="background:#f59e0b;box-shadow:0 0 8px #f59e0b;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span class="hide-mobile" style="margin-left:8px;">Синхронізація...</span>
             </div>
         </div>
     </header>
@@ -412,11 +412,11 @@
             const btn = document.getElementById('sound-toggle-btn');
             if (btn) {
                 if (soundEnabled) {
-                    btn.innerText = '🔊 Звук увімкнено';
+                    btn.innerHTML = '🔊 <span class="hide-mobile">Звук увімкнено</span>';
                     btn.classList.remove('sound-disabled');
                     initAudio();
                 } else {
-                    btn.innerText = '🔇 Звук вимкнено';
+                    btn.innerHTML = '🔇 <span class="hide-mobile">Звук вимкнено</span>';
                     btn.classList.add('sound-disabled');
                 }
             }
@@ -713,14 +713,15 @@
                 const statusBadge = document.getElementById('bot-status');
                 if (statusBadge) {
                     if (statusData.bot_configured) {
-                        statusBadge.innerText = 'Бот Онлайн';
-                        statusBadge.className = 'status-badge';
+                        statusBadge.innerHTML = '<span class="status-dot-inline" style="background:#10b981;box-shadow:0 0 8px #10b981;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span class="hide-mobile" style="margin-left:8px;">Бот Онлайн</span>';
                         statusBadge.style.color = '#10b981';
                         statusBadge.style.borderColor = 'rgba(16, 185, 129, 0.2)';
                         statusBadge.style.background = 'rgba(16, 185, 129, 0.1)';
                     } else {
-                        statusBadge.innerText = 'Помилка бота';
+                        statusBadge.innerHTML = '<span class="status-dot-inline" style="background:#ef4444;box-shadow:0 0 8px #ef4444;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span class="hide-mobile" style="margin-left:8px;">Помилка бота</span>';
                         statusBadge.style.color = '#ef4444';
+                        statusBadge.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                        statusBadge.style.background = 'rgba(239, 68, 68, 0.1)';
                     }
                 }
 
@@ -842,8 +843,10 @@
                 console.error("Помилка опитування API:", err);
                 const statusBadge = document.getElementById('bot-status');
                 if (statusBadge) {
-                    statusBadge.innerText = 'Помилка мережі';
+                    statusBadge.innerHTML = '<span class="status-dot-inline" style="background:#ef4444;box-shadow:0 0 8px #ef4444;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span class="hide-mobile" style="margin-left:8px;">Помилка мережі</span>';
                     statusBadge.style.color = '#ef4444';
+                    statusBadge.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                    statusBadge.style.background = 'rgba(239, 68, 68, 0.1)';
                 }
             }
         }
