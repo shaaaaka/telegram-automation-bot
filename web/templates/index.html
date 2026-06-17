@@ -343,10 +343,27 @@
         let tempSelectedLines = {};  // client_id -> lineId (string)
         let tempMessageInputs = {};  // client_id -> string (text typed in textarea)
         let expandedSessions = new Set(); // Сет збереження розкритих карток клієнтів (по client_id)
+        try {
+            const storedExpanded = JSON.parse(localStorage.getItem('expandedSessions') || '[]');
+            expandedSessions = new Set(storedExpanded);
+        } catch (e) {
+            console.error("Failed to load expandedSessions:", e);
+        }
         
         // SLA та сповіщення
         let statusTransitionTimes = {}; // client_id -> Timestamp (Date.now())
+        try {
+            statusTransitionTimes = JSON.parse(localStorage.getItem('statusTransitionTimes') || '{}');
+        } catch (e) {
+            console.error("Failed to load statusTransitionTimes:", e);
+        }
+
         let previousSessionStates = {}; // client_id -> status
+        try {
+            previousSessionStates = JSON.parse(localStorage.getItem('previousSessionStates') || '{}');
+        } catch (e) {
+            console.error("Failed to load previousSessionStates:", e);
+        }
         let previousUnroutedCount = 0;
         let lastFetchedSessions = [];   // Кеш останнього запиту для швидкої фільтрації
         let lastUnroutedCodes = [];     // Кеш останніх нерозподілених кодів
@@ -485,6 +502,9 @@
                 expandedSessions.add(clientId);
                 if (card) card.classList.add('expanded');
             }
+            try {
+                localStorage.setItem('expandedSessions', JSON.stringify(Array.from(expandedSessions)));
+            } catch (e) {}
         }
 
         // Парсинг та форматування ПІБ зі збережених даних клієнта
@@ -723,8 +743,10 @@
                         if (!isInitialFetch) {
                             playNewClient = true;
                         }
-                        // Встановлюємо таймер початку
-                        statusTransitionTimes[s.client_id] = Date.now();
+                        // Встановлюємо таймер початку (тільки якщо він ще не встановлений)
+                        if (!statusTransitionTimes[s.client_id]) {
+                            statusTransitionTimes[s.client_id] = Date.now();
+                        }
                     } else if (oldStatus !== s.status) {
                         // Змінився статус сесії
                         if (s.status === 'waiting_code') {
@@ -744,6 +766,26 @@
                         delete statusTransitionTimes[id];
                     }
                 });
+
+                // Видаляємо завершені сесії з розгорнутих карток
+                let expandedChanged = false;
+                expandedSessions.forEach(id => {
+                    if (!currentIds.includes(parseInt(id))) {
+                        expandedSessions.delete(id);
+                        expandedChanged = true;
+                    }
+                });
+                if (expandedChanged) {
+                    try {
+                        localStorage.setItem('expandedSessions', JSON.stringify(Array.from(expandedSessions)));
+                    } catch (e) {}
+                }
+
+                // Зберігаємо стани в localStorage для персистентності при перезавантаженні сторінки
+                try {
+                    localStorage.setItem('statusTransitionTimes', JSON.stringify(statusTransitionTimes));
+                    localStorage.setItem('previousSessionStates', JSON.stringify(previousSessionStates));
+                } catch (e) {}
 
                 // Програвання звуку
                 if (playNewClient) {

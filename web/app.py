@@ -158,10 +158,35 @@ async def save_client_banks(client_id: int, body: BanksSelection):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    selected_str = ",".join(body.selected_banks)
-    # Зберігаємо вибрані банки та ініціалізуємо залишкові банки
-    await db.update_session_banks(client_id, selected_str, selected_str)
-    return {"status": "success", "selected_banks": body.selected_banks}
+    # Розраховуємо новий список залишкових банків (щоб не скидати пройдений статус інших банків)
+    old_selected_str = session['selected_banks']
+    old_selected = old_selected_str.split(",") if old_selected_str else []
+    
+    old_remaining_str = session['remaining_banks']
+    old_remaining = old_remaining_str.split(",") if old_remaining_str else []
+    
+    new_selected = body.selected_banks
+    
+    # Автоматично зберігаємо вже завершені/пройдені банки в списку обраних.
+    # Завершені банки - це ті, які були в old_selected, але відсутні в old_remaining.
+    completed_banks = [bank for bank in old_selected if bank not in old_remaining]
+    for bank in completed_banks:
+        if bank not in new_selected:
+            new_selected.append(bank)
+            
+    new_remaining = []
+    
+    for bank in new_selected:
+        if bank in old_remaining:
+            new_remaining.append(bank)
+        elif bank not in old_selected:
+            new_remaining.append(bank)
+            
+    selected_str = ",".join(new_selected)
+    remaining_str = ",".join(new_remaining)
+    
+    await db.update_session_banks(client_id, selected_str, remaining_str)
+    return {"status": "success", "selected_banks": new_selected}
 
 @app.post("/api/sessions/{client_id}/banks/readd")
 async def readd_session_bank(client_id: int, bank: str):
