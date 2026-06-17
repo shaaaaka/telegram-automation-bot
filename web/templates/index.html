@@ -1115,8 +1115,7 @@
                 let assignmentHTML = '';
                 const selectedBanksStr = session.selected_banks;
                 const selected = selectedBanksStr ? selectedBanksStr.split(',').filter(Boolean) : [];
-                const remainingBanksStr = session.remaining_banks;
-                const remaining = remainingBanksStr ? remainingBanksStr.split(',').filter(Boolean) : [];
+                const remaining = remainingList;
 
                 if (selected.length === 0) {
                     assignmentHTML = `
