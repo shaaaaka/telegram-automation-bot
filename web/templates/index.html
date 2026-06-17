@@ -1072,7 +1072,7 @@
                 }
                 
                 const customOrder = ["PUMB", "bank.kd", "IziBank", "EcoBank", "Alliance", "LvivBank", "AmoBank"];
-                const allPossibleBanks = Array.from(new Set([...availableBanks, ...selectedList]))
+                const allPossibleBanks = Array.from(new Set([...customOrder, ...availableBanks, ...selectedList]))
                     .filter(Boolean)
                     .sort((a, b) => {
                         const idxA = customOrder.findIndex(x => x.toLowerCase() === a.toLowerCase());
