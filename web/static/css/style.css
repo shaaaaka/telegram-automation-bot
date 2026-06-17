@@ -1272,6 +1272,7 @@ input[type=number] {
     position: relative;
     flex-grow: 1;
     font-family: var(--font-family);
+    min-width: 0;
 }
 
 .custom-select-trigger {
@@ -1288,6 +1289,16 @@ input[type=number] {
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
     transition: all 0.3s var(--transition-curve);
     user-select: none;
+    overflow: hidden;
+}
+
+.custom-select-trigger span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+    text-align: left;
+    margin-right: 8px;
 }
 
 .custom-select-trigger:hover {
