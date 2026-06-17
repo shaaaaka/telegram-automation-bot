@@ -588,25 +588,62 @@ h1 {
 }
 
 /* Completed states for selected banks */
-.bank-chip.completed {
-    opacity: 0.65;
-    background: rgba(16, 185, 129, 0.06) !important;
-    border-color: rgba(16, 185, 129, 0.35) !important;
-    color: rgba(16, 185, 129, 0.9) !important;
-    box-shadow: none !important;
-}
-
-.bank-chip.completed:hover {
-    opacity: 1;
-    background: rgba(16, 185, 129, 0.12) !important;
-    border-color: rgba(16, 185, 129, 0.5) !important;
+.bank-chip.success-done {
+    background: rgba(16, 185, 129, 0.08) !important;
+    border-color: rgba(16, 185, 129, 0.45) !important;
     color: #10b981 !important;
+    cursor: default !important;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.1) !important;
+    font-weight: 600;
+}
+.bank-chip.success-done:hover {
+    transform: none !important;
+    background: rgba(16, 185, 129, 0.08) !important;
+    border-color: rgba(16, 185, 129, 0.45) !important;
 }
 
-.completed-icon {
+.bank-chip.failure-done {
+    background: rgba(239, 68, 68, 0.08) !important;
+    border-color: rgba(239, 68, 68, 0.45) !important;
+    color: #ef4444 !important;
+    cursor: default !important;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.1) !important;
+    font-weight: 600;
+}
+.bank-chip.failure-done:hover {
+    transform: none !important;
+    background: rgba(239, 68, 68, 0.08) !important;
+    border-color: rgba(239, 68, 68, 0.45) !important;
+}
+
+.bank-chip.released-done {
+    background: rgba(99, 102, 241, 0.04) !important;
+    border-color: rgba(99, 102, 241, 0.25) !important;
+    color: #a5b4fc !important;
+    cursor: pointer !important;
+}
+.bank-chip.released-done:hover {
+    background: rgba(99, 102, 241, 0.1) !important;
+    border-color: rgba(99, 102, 241, 0.45) !important;
+    color: #c7d2fe !important;
+    transform: translateY(-1px);
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.15) !important;
+}
+
+.status-icon-done {
     font-weight: bold;
     color: var(--accent-success);
-    margin-right: 2px;
+    margin-right: 4px;
+}
+.status-icon-fail {
+    font-weight: bold;
+    color: var(--accent-danger);
+    margin-right: 4px;
+}
+.status-icon-released {
+    font-weight: bold;
+    color: #a5b4fc;
+    margin-right: 4px;
 }
 
 /* Assignment layouts */

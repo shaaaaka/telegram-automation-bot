@@ -121,7 +121,29 @@ async def get_sessions():
         conn.row_factory = aiosqlite.Row
         async with conn.execute("SELECT * FROM sessions WHERE status != 'completed' ORDER BY created_at DESC") as cursor:
             rows = await cursor.fetchall()
-            return [dict(row) for row in rows]
+            
+            sessions_list = []
+            for row in rows:
+                session_dict = dict(row)
+                client_id = session_dict['client_id']
+                
+                # Запит на отримання останніх завершених спроб верифікації
+                async with conn.execute("""
+                    SELECT bank, status FROM bank_verifications 
+                    WHERE client_id = ? AND status != 'pending'
+                    ORDER BY id ASC
+                """, (client_id,)) as v_cursor:
+                    v_rows = await v_cursor.fetchall()
+                    bank_statuses = {}
+                    for v_row in v_rows:
+                        status = v_row['status']
+                        if status == 'failure':
+                            status = 'banned'
+                        bank_statuses[v_row['bank']] = status
+                    session_dict['bank_statuses'] = bank_statuses
+                
+                sessions_list.append(session_dict)
+            return sessions_list
 
 @app.get("/api/banks")
 async def get_banks():
@@ -279,48 +301,63 @@ async def complete_bank(client_id: int, result: str = "success"):
         except Exception:
             pass
 
+    # 2. Звільняємо лінію відповідно та логуємо
     if result in ("success", "release"):
-        # 2. Звільняємо лінію відповідно
         line_status = 'success' if result == 'success' else 'available'
         await db.set_line_status(line_id, line_status)
         await db.log_verification_end(client_id, bank_name, result)
+    else:
+        # Failure / Banned
+        await db.set_line_status(line_id, 'banned')
+        await db.log_verification_end(client_id, bank_name, 'banned')
 
-        # Оновлюємо статус сесії на 'registered' та скидаємо line_id
-        async with aiosqlite.connect(DB_FILE) as db_conn:
-            await db_conn.execute("UPDATE sessions SET line_id = NULL, client_message_id = NULL, status = 'registered' WHERE client_id = ?", (client_id,))
-            await db_conn.commit()
+    # Оновлюємо статус сесії на 'registered' та скидаємо line_id
+    async with aiosqlite.connect(DB_FILE) as db_conn:
+        await db_conn.execute("UPDATE sessions SET line_id = NULL, client_message_id = NULL, status = 'registered' WHERE client_id = ?", (client_id,))
+        await db_conn.commit()
 
-        # 3. Видаляємо пройдений банк з решти
-        remaining_banks_str = session['remaining_banks']
-        remaining = remaining_banks_str.split(",") if remaining_banks_str else []
-        if bank_name in remaining:
-            remaining.remove(bank_name)
+    # 3. Видаляємо пройдений/відкинутий банк з решти
+    remaining_banks_str = session['remaining_banks']
+    remaining = remaining_banks_str.split(",") if remaining_banks_str else []
+    if bank_name in remaining:
+        remaining.remove(bank_name)
+    
+    new_remaining_str = ",".join(remaining)
+    await db.update_session_banks(client_id, session['selected_banks'], new_remaining_str)
+
+    # 4. Перевіряємо чи це був останній банк
+    if not remaining:
+        # Завершуємо роботу повністю
+        try:
+            await bot.send_message(
+                chat_id=client_id,
+                text="Роботу завершено. Дякуємо за співпрацю.",
+                parse_mode="Markdown"
+            )
+        except Exception:
+            pass
+        await db.close_session(client_id)
         
-        new_remaining_str = ",".join(remaining)
-        await db.update_session_banks(client_id, session['selected_banks'], new_remaining_str)
-
-        # 4. Перевіряємо чи це був останній банк
-        if not remaining:
-            # Завершуємо роботу повністю
+        # Повідомляємо адміна в Telegram
+        try:
+            await bot.send_message(chat_id=ADMIN_ID, text=f"Верифікацію для клієнта @{session['username']} успішно завершено по всіх банках через веб-панель!")
+        except Exception:
+            pass
+        
+        return {"status": "completed_all"}
+    else:
+        # Очікування наступного банку або заміна номера після відмови
+        if result == "failure":
             try:
                 await bot.send_message(
                     chat_id=client_id,
-                    text="Роботу завершено. Дякуємо за співпрацю.",
+                    text=f"На жаль, виникла помилка з цим номером (відмова банку {bank_name}). Будь ласка, зачекайте, ми призначимо вам новий номер для цього банку.",
                     parse_mode="Markdown"
                 )
             except Exception:
                 pass
-            await db.close_session(client_id)
-            
-            # Повідомляємо адміна в Telegram
-            try:
-                await bot.send_message(chat_id=ADMIN_ID, text=f"Верифікацію для клієнта @{session['username']} успішно завершено по всіх банках через веб-панель!")
-            except Exception:
-                pass
-            
-            return {"status": "completed_all"}
+            return {"status": "line_rejected", "remaining_banks": new_remaining_str}
         else:
-            # Очікування наступного банку
             try:
                 await bot.send_message(
                     chat_id=client_id,
@@ -330,28 +367,6 @@ async def complete_bank(client_id: int, result: str = "success"):
             except Exception:
                 pass
             return {"status": "completed_bank", "remaining_banks": new_remaining_str}
-    else:
-        # Відмова (Failure)
-        # 2. Позначаємо лінію як капут/banned
-        await db.set_line_status(line_id, 'banned')
-        await db.log_verification_end(client_id, bank_name, 'banned')
-
-        # Оновлюємо статус сесії на 'registered' та скидаємо line_id (але банк НЕ видаляємо з решти)
-        async with aiosqlite.connect(DB_FILE) as db_conn:
-            await db_conn.execute("UPDATE sessions SET line_id = NULL, client_message_id = NULL, status = 'registered' WHERE client_id = ?", (client_id,))
-            await db_conn.commit()
-
-        # Повідомляємо клієнта про відмову та заміну номера
-        try:
-            await bot.send_message(
-                chat_id=client_id,
-                text=f"На жаль, виникла помилка з цим номером (відмова банку {bank_name}). Будь ласка, зачекайте, ми призначимо вам новий номер для цього банку.",
-                parse_mode="Markdown"
-            )
-        except Exception:
-            pass
-
-        return {"status": "line_rejected", "remaining_banks": session['remaining_banks']}
 
 @app.post("/api/sessions/{client_id}/terminate")
 async def terminate_session(client_id: int):

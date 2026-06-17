@@ -1076,6 +1076,7 @@
                 
                 const remainingBanksStr = session.remaining_banks;
                 const remainingList = remainingBanksStr ? remainingBanksStr.split(',').filter(Boolean) : [];
+                const bankStatuses = session.bank_statuses || {};
                 
                 const customOrder = ["PUMB", "bank.kd", "IziBank", "EcoBank", "Alliance", "LvivBank", "AmoBank"];
                 const allPossibleBanks = Array.from(new Set([...customOrder, ...availableBanks, ...selectedList]))
@@ -1099,14 +1100,32 @@
                     if (isSelected) {
                         chipClasses += ' selected';
                     }
+                    
+                    let statusIcon = '';
+                    let onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
+                    
                     if (isCompleted) {
-                        chipClasses += ' completed';
+                        const status = bankStatuses[bank] || 'released';
+                        if (status === 'success') {
+                            chipClasses += ' success-done';
+                            statusIcon = '<span class="status-icon-done">✓</span> ';
+                            onclickAttr = ''; // Non-clickable
+                        } else if (status === 'banned' || status === 'failure') {
+                            chipClasses += ' failure-done';
+                            statusIcon = '<span class="status-icon-fail">✗</span> ';
+                            onclickAttr = ''; // Non-clickable
+                        } else {
+                            // released / simply completed
+                            chipClasses += ' released-done';
+                            statusIcon = '<span class="status-icon-released">↺</span> ';
+                            onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`; // Clickable to re-add
+                        }
                     }
 
                     bankChipsHTML += `
-                        <div class="${chipClasses}" onclick="toggleBankChip(this, ${session.client_id}, '${bank}', ${isCompleted})">
+                        <div class="${chipClasses}" ${onclickAttr}>
                             <input type="checkbox" data-bank="${bank}" ${isSelected ? 'checked' : ''} style="display: none;">
-                            ${isCompleted ? '<span class="completed-icon">✓</span> ' : ''}${bank}
+                            ${statusIcon}${bank}
                         </div>
                     `;
                 });
@@ -1298,8 +1317,8 @@
         }
 
         // Візуальне тоглення чіпсів та миттєве автозбереження
-        async function toggleBankChip(element, clientId, bank, isCompleted = false) {
-            if (isCompleted) {
+        async function toggleBankChip(element, clientId, bank, action = '') {
+            if (action === 'readd') {
                 try {
                     const res = await fetch(`/api/sessions/${clientId}/banks/readd?bank=${encodeURIComponent(bank)}`, {
                         method: 'POST'

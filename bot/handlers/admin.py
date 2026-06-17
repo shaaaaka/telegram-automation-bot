@@ -447,15 +447,25 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot):
             await show_next_assignment_menu(callback.message, client_id, edit=False)
     else:
         # Відмова (Failure)
-        # 2. Позначаємо лінію як заблоковану (banned)
+        # 2. Позначаємо лінію як заблоковану (banned) та логуємо
         await db.set_line_status(line_id, 'banned')
+        await db.log_verification_end(client_id, bank_name, 'banned')
 
-        # Оновлюємо статус сесії в БД на 'registered' (але банк залишається в решті)
+        # Оновлюємо статус сесії в БД на 'registered'
         import aiosqlite
         from bot.config import DB_FILE
         async with aiosqlite.connect(DB_FILE) as db_conn:
             await db_conn.execute("UPDATE sessions SET line_id = NULL, client_message_id = NULL, status = 'registered' WHERE client_id = ?", (client_id,))
             await db_conn.commit()
+
+        # 3. Вилучаємо пройдений bank зі списку залишкових банків
+        remaining_banks_str = session['remaining_banks']
+        remaining = remaining_banks_str.split(",") if remaining_banks_str else []
+        if bank_name in remaining:
+            remaining.remove(bank_name)
+
+        new_remaining_str = ",".join(remaining)
+        await db.update_session_banks(client_id, session['selected_banks'], new_remaining_str)
 
         # Прибираємо кнопки з повідомлення завершення
         await callback.message.edit_reply_markup(reply_markup=None)
@@ -465,18 +475,34 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot):
             parse_mode="Markdown"
         )
 
-        # Повідомляємо клієнта про заміну номера
-        try:
-            await bot.send_message(
-                chat_id=client_id,
-                text=f"На жаль, виникла помилка з цим номером (відмова банку {bank_name}). Будь ласка, зачекайте, ми призначимо вам новий номер для цього банку.",
-                parse_mode="Markdown"
-            )
-        except Exception as e:
-            print(f"Не вдалося надіслати клієнту повідомлення про відмову: {e}")
+        # 4. Перевіряємо чи залишилися ще банки для проходження
+        if not remaining:
+            try:
+                await bot.send_message(
+                    chat_id=client_id,
+                    text="Роботу завершено. Дякуємо за співпрацю.",
+                    parse_mode="Markdown"
+                )
+            except Exception as e:
+                print(f"Не вдалося надіслати клієнту повідомлення про завершення: {e}")
 
-        # Показуємо меню вибору лінії знову
-        await show_next_assignment_menu(callback.message, client_id, edit=False)
+            await db.close_session(client_id)
+            await callback.message.answer(
+                f"Верифікацію для клієнта @{session['username']} завершено по всіх банках після відмови в останньому. Сесію закрито."
+            )
+        else:
+            # Повідомляємо клієнта про заміну номера
+            try:
+                await bot.send_message(
+                    chat_id=client_id,
+                    text=f"На жаль, виникла помилка з цим номером (відмова банку {bank_name}). Будь ласка, зачекайте, ми призначимо вам новий номер для цього банку.",
+                    parse_mode="Markdown"
+                )
+            except Exception as e:
+                print(f"Не вдалося надіслати клієнту повідомлення про відмову: {e}")
+
+            # Показуємо меню вибору лінії знову
+            await show_next_assignment_menu(callback.message, client_id, edit=False)
 
     await callback.answer("Виконано!")
 
