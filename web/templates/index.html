@@ -1074,6 +1074,9 @@
                     selectedList = session.selected_banks ? session.selected_banks.split(',') : [];
                 }
                 
+                const remainingBanksStr = session.remaining_banks;
+                const remainingList = remainingBanksStr ? remainingBanksStr.split(',').filter(Boolean) : [];
+                
                 const customOrder = ["PUMB", "bank.kd", "IziBank", "EcoBank", "Alliance", "LvivBank", "AmoBank"];
                 const allPossibleBanks = Array.from(new Set([...customOrder, ...availableBanks, ...selectedList]))
                     .filter(Boolean)
@@ -1088,11 +1091,22 @@
 
                 allPossibleBanks.forEach(bank => {
                     const isSelected = selectedList.includes(bank);
+                    const isRemaining = remainingList.includes(bank);
+                    const isCompleted = isSelected && !isRemaining;
                     const bankClass = getBankClass(bank);
+                    
+                    let chipClasses = `bank-chip ${bankClass}`;
+                    if (isSelected) {
+                        chipClasses += ' selected';
+                    }
+                    if (isCompleted) {
+                        chipClasses += ' completed';
+                    }
+
                     bankChipsHTML += `
-                        <div class="bank-chip ${bankClass} ${isSelected ? 'selected' : ''}" onclick="toggleBankChip(this, ${session.client_id}, '${bank}')">
+                        <div class="${chipClasses}" onclick="toggleBankChip(this, ${session.client_id}, '${bank}', ${isCompleted})">
                             <input type="checkbox" data-bank="${bank}" ${isSelected ? 'checked' : ''} style="display: none;">
-                            ${bank}
+                            ${isCompleted ? '<span class="completed-icon">✓</span> ' : ''}${bank}
                         </div>
                     `;
                 });
@@ -1285,7 +1299,25 @@
         }
 
         // Візуальне тоглення чіпсів та миттєве автозбереження
-        async function toggleBankChip(element, clientId, bank) {
+        async function toggleBankChip(element, clientId, bank, isCompleted = false) {
+            if (isCompleted) {
+                try {
+                    const res = await fetch(`/api/sessions/${clientId}/banks/readd?bank=${encodeURIComponent(bank)}`, {
+                        method: 'POST'
+                    });
+                    if (res.ok) {
+                        showToast(`Банк ${bank} знову додано до списку проходження!`, "success");
+                        pollData();
+                    } else {
+                        showToast("Помилка при спробі додати банк назад", "error");
+                    }
+                } catch (err) {
+                    console.error("Не вдалося додати банк назад:", err);
+                    showToast("Не вдалося зв'язатися з сервером", "error");
+                }
+                return;
+            }
+
             const checkbox = element.querySelector('input');
             const container = document.getElementById(`banks-checkboxes-${clientId}`);
             if (!container) return;

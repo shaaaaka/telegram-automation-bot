@@ -141,6 +141,24 @@ async def save_client_banks(client_id: int, body: BanksSelection):
     await db.update_session_banks(client_id, selected_str, selected_str)
     return {"status": "success", "selected_banks": body.selected_banks}
 
+@app.post("/api/sessions/{client_id}/banks/readd")
+async def readd_session_bank(client_id: int, bank: str):
+    """Додавання банку назад до списку залишкових (remaining_banks)"""
+    session = await db.get_session(client_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    remaining_str = session['remaining_banks']
+    remaining = remaining_str.split(",") if remaining_str else []
+    
+    if bank not in remaining:
+        remaining.append(bank)
+        
+    # Зберігаємо оновлений список
+    new_remaining_str = ",".join(remaining)
+    await db.update_session_banks(client_id, session['selected_banks'], new_remaining_str)
+    return {"status": "success", "remaining_banks": new_remaining_str}
+
 @app.post("/api/sessions/{client_id}/assign")
 async def assign_line(client_id: int, body: LineAssignment):
     """Призначення телефонної лінії для клієнта через веб-інтерфейс"""

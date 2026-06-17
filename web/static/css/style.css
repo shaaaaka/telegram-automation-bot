@@ -587,6 +587,28 @@ h1 {
     font-weight: 600;
 }
 
+/* Completed states for selected banks */
+.bank-chip.completed {
+    opacity: 0.65;
+    background: rgba(16, 185, 129, 0.06) !important;
+    border-color: rgba(16, 185, 129, 0.35) !important;
+    color: rgba(16, 185, 129, 0.9) !important;
+    box-shadow: none !important;
+}
+
+.bank-chip.completed:hover {
+    opacity: 1;
+    background: rgba(16, 185, 129, 0.12) !important;
+    border-color: rgba(16, 185, 129, 0.5) !important;
+    color: #10b981 !important;
+}
+
+.completed-icon {
+    font-weight: bold;
+    color: var(--accent-success);
+    margin-right: 2px;
+}
+
 /* Assignment layouts */
 .assignment-box {
     background: rgba(255, 255, 255, 0.01);
