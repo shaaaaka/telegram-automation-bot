@@ -194,7 +194,7 @@
                     <label class="switch-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">Нагадування</span>
                         <div class="switch">
-                            <input type="checkbox" id="settings-reminders-enabled" onchange="toggleReminderInputs()">
+                            <input type="checkbox" id="settings-reminders-enabled" onchange="toggleReminderInputs(true)">
                             <span class="slider"></span>
                         </div>
                     </label>
@@ -1599,7 +1599,7 @@
             }
         }
 
-        function toggleReminderInputs() {
+        async function toggleReminderInputs(isManual = false) {
             const enabled = document.getElementById('settings-reminders-enabled').checked;
             document.getElementById('settings-reminder-delay').disabled = !enabled;
             document.getElementById('settings-reminder-text').disabled = !enabled;
@@ -1609,6 +1609,29 @@
             } else {
                 document.getElementById('settings-reminder-delay').setAttribute('required', '');
                 document.getElementById('settings-reminder-text').setAttribute('required', '');
+            }
+
+            if (isManual) {
+                const delay = document.getElementById('settings-reminder-delay').value || '5';
+                const text = document.getElementById('settings-reminder-text').value || '';
+                const enabledStr = enabled ? '1' : '0';
+
+                try {
+                    const res = await fetch('/api/settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            reminder_delay_minutes: String(delay),
+                            reminder_text: text,
+                            reminders_enabled: enabledStr
+                        })
+                    });
+                    if (res.ok) {
+                        showToast(enabled ? "Нагадування увімкнено!" : "Нагадування повністю вимкнено!", "success");
+                    }
+                } catch (err) {
+                    console.error("Не вдалося зберегти стан нагадувань:", err);
+                }
             }
         }
 
