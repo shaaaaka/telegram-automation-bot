@@ -1,0 +1,18 @@
+# Введіть ваші лінії у форматі: Line [Номер_Лінії] Return:  [Номер_Телефону] [Назва_Банку]
+# Знак # на початку рядка означає коментар (бот його ігноруватиме)
+
+Line 21 Return:  380961175561 PUMB
+Line 22 Return:  380961175562 bank.kd
+Line 23 Return:  380961175563 EcoBank
+Line 24 Return:  380961175564 IziBank
+Line 25 Return:  380961175565 NovaPay
+Line 26 Return:  380961175566 OBank
+Line 27 Return:  380961175567 AmoBank
+Line 28 Return:  380961175568 LvivBank
+Line 29 Return:  380961175569 Alliance
+Line 30 Return:  380961175570 Alliance
+Line 31 Return:  380961175571 Alliance
+Line 32 Return:  380961175572 bank.kd
+Line 33 Return:  380961175573 bank.kd
+Line 34 Return:  380961175574 bank.kd
+Line 35 Return:  380961175575 IziBank

@@ -1,0 +1,22 @@
+# Python virtual environment
+.venv/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local database
+bot.db
+
+# Private environment variables
+.env
+
+# Local logs
+*.log
+
+# Scratch scripts
+scratch/
