@@ -1649,45 +1649,29 @@ input[type=number] {
         padding: 16px;
     }
     
-    /* Table Responsive Cards Layout */
-    .lines-table, .lines-table thead, .lines-table tbody, .lines-table th, .lines-table td, .lines-table tr {
-        display: block;
+    /* Table Responsive Scrollable Layout */
+    .lines-list-container {
+        overflow-x: auto !important;
+    }
+    .lines-table {
+        display: table !important;
+        min-width: 580px !important;
+        font-size: 0.85rem !important;
     }
     .lines-table thead {
-        display: none;
+        display: table-header-group !important;
     }
-    .lines-table tbody tr {
-        margin-bottom: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
-        padding: 12px;
-        background: rgba(255, 255, 255, 0.015);
+    .lines-table tbody {
+        display: table-row-group !important;
     }
-    .lines-table td {
-        border: none !important;
-        padding: 6px 0 !important;
-        white-space: normal !important;
-        overflow: visible !important;
-        text-overflow: clip !important;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+    .lines-table tr {
+        display: table-row !important;
     }
-    .lines-table td:first-child { border-left: none !important; border-radius: 0; }
-    .lines-table td:last-child { border-right: none !important; border-radius: 0; }
-    
-    /* Phone Lines Table */
-    #lines-table-body td:nth-child(1)::before { content: "ID: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
-    #lines-table-body td:nth-child(2)::before { content: "Телефон: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
-    #lines-table-body td:nth-child(3)::before { content: "Банк: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
-    #lines-table-body td:nth-child(4)::before { content: "Статус: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
-    #lines-table-body td:nth-child(5)::before { content: "Дія: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
-    
-    /* Bank Performance Stats Table */
-    #stats-banks-table-body td:nth-child(1)::before { content: "Банк: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
-    #stats-banks-table-body td:nth-child(2)::before { content: "Запитів: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
-    #stats-banks-table-body td:nth-child(3)::before { content: "Успішно: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
-    #stats-banks-table-body td:nth-child(4)::before { content: "Відмов: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
-    #stats-banks-table-body td:nth-child(5)::before { content: "CR: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
-    #stats-banks-table-body td:nth-child(6)::before { content: "Сер. час: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
+    .lines-table th, .lines-table td {
+        display: table-cell !important;
+        padding: 8px 10px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
 }
