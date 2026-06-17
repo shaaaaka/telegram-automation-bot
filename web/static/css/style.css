@@ -960,7 +960,7 @@ textarea:focus {
     margin-top: 15px;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 900px) {
     .add-line-form {
         grid-template-columns: 1fr;
     }
@@ -1612,7 +1612,7 @@ input[type=number] {
     }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 900px) {
     .container {
         margin: 15px auto;
         padding: 0 12px;
