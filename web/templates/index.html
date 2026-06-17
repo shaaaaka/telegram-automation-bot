@@ -1691,11 +1691,14 @@
                 keys.forEach(key => {
                     const template = data.templates[key];
                     const tr = document.createElement('tr');
+                    const escapedCommand = (template.command || '').replace(/'/g, "\\'");
+                    const escapedText = (template.text || '').replace(/'/g, "\\'");
                     tr.innerHTML = `
                         <td style="font-weight: 600;">${key}</td>
                         <td style="font-family: monospace; font-size: 0.85rem; color: var(--accent-primary);">${template.command}</td>
                         <td style="font-size: 0.85rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${template.text}">${template.text}</td>
                         <td>
+                            <button class="btn btn-primary btn-sm" onclick="editTemplate('${key}', '${escapedCommand}', '${escapedText}')" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;">Редагувати</button>
                             <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${key}')" style="padding: 4px 8px; font-size: 0.75rem;">Видалити</button>
                         </td>
                     `;
@@ -1773,11 +1776,45 @@
             }
         }
 
+        function editTemplate(key, command, text) {
+            document.getElementById('template-key').value = key;
+            document.getElementById('template-key').disabled = true;
+            document.getElementById('template-command').value = command;
+            document.getElementById('template-text').value = text;
+            
+            document.querySelector('#add-template-form button[type="submit"]').textContent = 'Зберегти';
+            document.querySelector('.divider-top .section-label').textContent = 'Редагувати шаблон';
+            
+            if (!document.getElementById('cancel-edit-btn')) {
+                const cancelBtn = document.createElement('button');
+                cancelBtn.type = 'button';
+                cancelBtn.id = 'cancel-edit-btn';
+                cancelBtn.className = 'btn btn-secondary btn-sm';
+                cancelBtn.style.height = '38px';
+                cancelBtn.style.marginLeft = '8px';
+                cancelBtn.textContent = 'Скасувати';
+                cancelBtn.onclick = resetTemplateForm;
+                document.getElementById('add-template-form').appendChild(cancelBtn);
+            }
+        }
+
+        function resetTemplateForm() {
+            document.getElementById('add-template-form').reset();
+            document.getElementById('template-key').disabled = false;
+            document.querySelector('#add-template-form button[type="submit"]').textContent = 'Додати';
+            document.querySelector('.divider-top .section-label').textContent = 'Додати новий шаблон';
+            const cancelBtn = document.getElementById('cancel-edit-btn');
+            if (cancelBtn) {
+                cancelBtn.remove();
+            }
+        }
+
         async function handleAddTemplate(event) {
             event.preventDefault();
             const key = document.getElementById('template-key').value.trim();
             const command = document.getElementById('template-command').value.trim();
             const text = document.getElementById('template-text').value.trim();
+            const isEdit = document.getElementById('template-key').disabled;
 
             try {
                 const res = await fetch('/api/settings/templates', {
@@ -1786,8 +1823,8 @@
                     body: JSON.stringify({ key, command, text })
                 });
                 if (res.ok) {
-                    showToast(`Шаблон ${key} додано!`, "success");
-                    document.getElementById('add-template-form').reset();
+                    showToast(isEdit ? `Шаблон ${key} оновлено!` : `Шаблон ${key} додано!`, "success");
+                    resetTemplateForm();
                     loadSettings();
                 } else {
                     const err = await res.json();
