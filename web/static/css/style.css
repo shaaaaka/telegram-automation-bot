@@ -507,7 +507,7 @@ h1 {
 
 .banks-checkboxes {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 6px;
     margin-bottom: 12px;
 }
@@ -1561,4 +1561,112 @@ input[type=number] {
     transform: translateX(20px);
     background-color: #ffffff;
     box-shadow: 0 0 8px #ffffff;
+}
+
+/* --- Mobile Responsive Enhancements --- */
+@media (max-width: 768px) {
+    header {
+        padding: 14px 16px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    .logo-area {
+        justify-content: center;
+    }
+    .header-controls {
+        justify-content: space-between;
+        width: 100%;
+    }
+}
+
+@media (max-width: 600px) {
+    .container {
+        margin: 15px auto;
+        padding: 0 12px;
+    }
+    .panel {
+        padding: 16px;
+        border-radius: 16px;
+    }
+    .tabs-nav {
+        gap: 6px;
+        justify-content: space-around;
+    }
+    .tab-btn {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        flex-grow: 1;
+        justify-content: center;
+    }
+    
+    /* Session Card Responsive Layout */
+    .card-header-bar {
+        padding: 16px;
+        display: grid;
+        grid-template-areas: 
+            "left right"
+            "center center";
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+    }
+    .header-left {
+        grid-area: left;
+    }
+    .header-right {
+        grid-area: right;
+        align-self: center;
+    }
+    .header-center {
+        grid-area: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 4px;
+        justify-content: flex-start;
+    }
+    .session-card.expanded .card-body-details {
+        padding: 16px;
+    }
+    
+    /* Table Responsive Cards Layout */
+    .lines-table, .lines-table thead, .lines-table tbody, .lines-table th, .lines-table td, .lines-table tr {
+        display: block;
+    }
+    .lines-table thead {
+        display: none;
+    }
+    .lines-table tbody tr {
+        margin-bottom: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.015);
+    }
+    .lines-table td {
+        border: none !important;
+        padding: 6px 0 !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .lines-table td:first-child { border-left: none !important; border-radius: 0; }
+    .lines-table td:last-child { border-right: none !important; border-radius: 0; }
+    
+    /* Phone Lines Table */
+    #lines-table-body td:nth-child(1)::before { content: "ID: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
+    #lines-table-body td:nth-child(2)::before { content: "Телефон: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
+    #lines-table-body td:nth-child(3)::before { content: "Банк: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
+    #lines-table-body td:nth-child(4)::before { content: "Статус: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
+    #lines-table-body td:nth-child(5)::before { content: "Дія: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
+    
+    /* Bank Performance Stats Table */
+    #stats-banks-table-body td:nth-child(1)::before { content: "Банк: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
+    #stats-banks-table-body td:nth-child(2)::before { content: "Запитів: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
+    #stats-banks-table-body td:nth-child(3)::before { content: "Успішно: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
+    #stats-banks-table-body td:nth-child(4)::before { content: "Відмов: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
+    #stats-banks-table-body td:nth-child(5)::before { content: "CR: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
+    #stats-banks-table-body td:nth-child(6)::before { content: "Сер. час: "; color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
 }
