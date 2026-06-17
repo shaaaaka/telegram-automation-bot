@@ -7,6 +7,7 @@ from aiogram import Bot, Dispatcher
 from bot.config import BOT_TOKEN
 from bot.database import init_db
 from bot.handlers import client, admin, giver
+from bot.scheduler import auto_reminder_loop
 from web.app import app as web_app, set_bot
 
 # Налаштування логування
@@ -46,10 +47,11 @@ async def main():
         # Очищуємо накопичені повідомлення перед запуском (щоб не відповідати на старі)
         await bot.delete_webhook(drop_pending_updates=True)
         
-        # Запускаємо і бота, і веб-сервер паралельно
+        # Запускаємо і бота, і веб-сервер, і планувальник нагадувань паралельно
         await asyncio.gather(
             dp.start_polling(bot),
-            server.serve()
+            server.serve(),
+            auto_reminder_loop(bot)
         )
     finally:
         await bot.session.close()

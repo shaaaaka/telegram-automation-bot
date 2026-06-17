@@ -155,8 +155,9 @@ async def assign_line(client_id: int, body: LineAssignment):
     if not line_info or line_info['status'] != 'available':
         raise HTTPException(status_code=400, detail="Line is busy or does not exist")
 
-    # 1. Записуємо призначення у БД
+    # 1. Записуємо призначення у БД та логуємо у статистику
     await db.assign_line_to_session(client_id, body.line_id)
+    await db.log_verification_start(client_id, session['username'], line_info['bank'], line_info['phone_number'])
 
     # 2. Відправляємо клієнту номер та кнопку в Telegram
     markup = InlineKeyboardMarkup(inline_keyboard=[
@@ -164,7 +165,7 @@ async def assign_line(client_id: int, body: LineAssignment):
     ])
     
     bank_name = line_info['bank']
-    template = get_bank_template(bank_name)
+    template = await db.get_bank_template_db(bank_name)
     
     message_text = (
         f"Банк: *{bank_name}*\n"
@@ -176,7 +177,7 @@ async def assign_line(client_id: int, body: LineAssignment):
     try:
         # Спочатку надсилаємо шаблон (інструкцію/фото завантаження додатку), якщо він є
         if template:
-            key, _ = get_bank_template_with_key(bank_name)
+            key, _ = await db.get_bank_template_with_key_db(bank_name)
             photo_path = get_template_photo(key) if key else None
             caption_text = template['text']  # Прибираємо команду /ЗАВАНТАЖ...
             if photo_path:
@@ -264,6 +265,7 @@ async def complete_bank(client_id: int, result: str = "success"):
         # 2. Звільняємо лінію відповідно
         line_status = 'success' if result == 'success' else 'available'
         await db.set_line_status(line_id, line_status)
+        await db.log_verification_end(client_id, bank_name, result)
 
         # Оновлюємо статус сесії на 'registered' та скидаємо line_id
         async with aiosqlite.connect(DB_FILE) as db_conn:
@@ -314,6 +316,7 @@ async def complete_bank(client_id: int, result: str = "success"):
         # Відмова (Failure)
         # 2. Позначаємо лінію як капут/banned
         await db.set_line_status(line_id, 'banned')
+        await db.log_verification_end(client_id, bank_name, 'banned')
 
         # Оновлюємо статус сесії на 'registered' та скидаємо line_id (але банк НЕ видаляємо з решти)
         async with aiosqlite.connect(DB_FILE) as db_conn:
@@ -425,3 +428,62 @@ async def send_client_message(client_id: int, body: ClientMessage):
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send message: {str(e)}")
+
+class AppSettingsUpdate(BaseModel):
+    reminder_delay_minutes: str
+    reminder_text: str
+
+class BankTemplateUpdate(BaseModel):
+    key: str
+    command: str
+    text: str
+
+@app.get("/api/stats")
+async def get_stats_endpoint():
+    """Отримання статистики верифікацій"""
+    try:
+        stats = await db.get_statistics()
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
+
+@app.get("/api/settings")
+async def get_settings_endpoint():
+    """Отримання налаштувань та шаблонів банків"""
+    try:
+        settings = await db.get_all_settings()
+        templates = await db.get_all_bank_templates()
+        return {
+            "settings": settings,
+            "templates": templates
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get settings: {str(e)}")
+
+@app.post("/api/settings")
+async def update_settings_endpoint(body: AppSettingsUpdate):
+    """Оновлення загальних налаштувань"""
+    try:
+        await db.set_setting("reminder_delay_minutes", body.reminder_delay_minutes)
+        await db.set_setting("reminder_text", body.reminder_text)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")
+
+@app.post("/api/settings/templates")
+async def update_template_endpoint(body: BankTemplateUpdate):
+    """Оновлення або додавання шаблону банку"""
+    try:
+        await db.save_bank_template(body.key, body.command, body.text)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save bank template: {str(e)}")
+
+@app.delete("/api/settings/templates/{key}")
+async def delete_template_endpoint(key: str):
+    """Видалення шаблону банку"""
+    try:
+        await db.delete_bank_template(key)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete bank template: {str(e)}")

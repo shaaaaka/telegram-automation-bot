@@ -28,78 +28,226 @@
 
     <div class="container">
         
-        <!-- Черга нерозподілених кодів -->
-        <div class="unrouted-container" id="unrouted-box">
-            <div class="unrouted-title">
-                🔔 Нерозподілені SMS-коди від постачальника
-            </div>
-            <div class="unrouted-list" id="unrouted-list-items">
-                <!-- Заповнюється динамічно JS -->
-            </div>
+        <!-- Навігація по вкладках -->
+        <div class="tabs-nav">
+            <button class="tab-btn active" id="tab-btn-control" onclick="switchTab('control')">
+                🔌 Керування
+            </button>
+            <button class="tab-btn" id="tab-btn-stats" onclick="switchTab('stats')">
+                📊 Статистика
+            </button>
+            <button class="tab-btn" id="tab-btn-settings" onclick="switchTab('settings')">
+                ⚙️ Налаштування
+            </button>
         </div>
 
-        <div class="dashboard-grid">
-            
-            <!-- Ліва колонка: Клієнти / Сесії -->
-            <div class="panel">
-                <div class="panel-header">
-                    <h2 class="panel-title">Активні сесії</h2>
-                    <span id="active-sessions-count" class="active-count-text">Активних: 0</span>
+        <!-- Вкладка 1: Керування -->
+        <div id="tab-content-control" class="tab-content active">
+            <!-- Черга нерозподілених кодів -->
+            <div class="unrouted-container" id="unrouted-box">
+                <div class="unrouted-title">
+                    🔔 Нерозподілені SMS-коди від постачальника
                 </div>
-
-                <div class="sessions-list" id="sessions-container">
+                <div class="unrouted-list" id="unrouted-list-items">
                     <!-- Заповнюється динамічно JS -->
                 </div>
             </div>
 
-            <!-- Права колонка: База ліній -->
-            <div class="panel panel-lines">
-                <div class="panel-header">
-                    <h2 class="panel-title">Телефонні лінії</h2>
-                </div>
+            <div class="dashboard-grid">
                 
-                <div class="lines-filter">
-                    <button class="btn btn-secondary btn-sm" id="filter-all-btn" onclick="setLinesFilter('all')">Всі</button>
-                    <button class="btn btn-secondary btn-sm" id="filter-free-btn" onclick="setLinesFilter('free')">Вільні</button>
-                    <button class="btn btn-secondary btn-sm" id="filter-busy-btn" onclick="setLinesFilter('busy')">Зайняті</button>
-                    <button class="btn btn-secondary btn-sm" id="filter-success-btn" onclick="setLinesFilter('success')">Успішні</button>
-                    <button class="btn btn-secondary btn-sm" id="filter-banned-btn" onclick="setLinesFilter('banned')">Відмови</button>
+                <!-- Ліва колонка: Клієнти / Сесії -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Активні сесії</h2>
+                        <span id="active-sessions-count" class="active-count-text">Активних: 0</span>
+                    </div>
+
+                    <div class="sessions-list" id="sessions-container">
+                        <!-- Заповнюється динамічно JS -->
+                    </div>
                 </div>
 
+                <!-- Права колонка: База ліній -->
+                <div class="panel panel-lines">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Телефонні лінії</h2>
+                    </div>
+                    
+                    <div class="lines-filter">
+                        <button class="btn btn-secondary btn-sm" id="filter-all-btn" onclick="setLinesFilter('all')">Всі</button>
+                        <button class="btn btn-secondary btn-sm" id="filter-free-btn" onclick="setLinesFilter('free')">Вільні</button>
+                        <button class="btn btn-secondary btn-sm" id="filter-busy-btn" onclick="setLinesFilter('busy')">Зайняті</button>
+                        <button class="btn btn-secondary btn-sm" id="filter-success-btn" onclick="setLinesFilter('success')">Успішні</button>
+                        <button class="btn btn-secondary btn-sm" id="filter-banned-btn" onclick="setLinesFilter('banned')">Відмови</button>
+                    </div>
+
+                    <div class="lines-list-container">
+                        <table class="lines-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Телефон</th>
+                                    <th>Банк</th>
+                                    <th>Статус</th>
+                                    <th>Дія</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lines-table-body">
+                                <!-- Заповнюється динамічно JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="divider-top">
+                        <div class="section-label">Додати лінію вручну</div>
+                        <form class="add-line-form" id="add-line-form" onsubmit="handleAddLine(event)">
+                            <input type="number" id="add-id" placeholder="ID" required class="w-100">
+                            <input type="text" id="add-phone" placeholder="Телефон" required>
+                            <input type="text" id="add-bank" placeholder="Банк" required>
+                            <button type="submit" class="btn btn-primary btn-sm">Додати</button>
+                        </form>
+                    </div>
+
+                    <div class="import-buttons-container">
+                        <button class="btn btn-secondary btn-sm" onclick="importLines()">Імпорт lines.txt</button>
+                        <button class="btn btn-danger btn-sm" onclick="clearLines()">Очистити БД</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Вкладка 2: Статистика -->
+        <div id="tab-content-stats" class="tab-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Загальна статистика</h2>
+                </div>
+                <div class="stats-summary-grid">
+                    <div class="stats-card">
+                        <div class="stats-card-label">Верифікацій (Всього)</div>
+                        <div class="stats-card-value" id="stats-total-all">0</div>
+                    </div>
+                    <div class="stats-card stats-card-success">
+                        <div class="stats-card-label">Успішно (Всього)</div>
+                        <div class="stats-card-value" id="stats-success-all">0</div>
+                    </div>
+                    <div class="stats-card stats-card-danger">
+                        <div class="stats-card-label">Відхилено (Всього)</div>
+                        <div class="stats-card-value" id="stats-failure-all">0</div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-card-label">CR (Успішність)</div>
+                        <div class="stats-card-value" id="stats-cr-all">0%</div>
+                    </div>
+                </div>
+
+                <div class="stats-summary-grid" style="margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+                    <div class="stats-card">
+                        <div class="stats-card-label">Верифікацій (Сьогодні)</div>
+                        <div class="stats-card-value" id="stats-total-today">0</div>
+                    </div>
+                    <div class="stats-card stats-card-success">
+                        <div class="stats-card-label">Успішно (Сьогодні)</div>
+                        <div class="stats-card-value" id="stats-success-today">0</div>
+                    </div>
+                    <div class="stats-card stats-card-danger">
+                        <div class="stats-card-label">Відхилено (Сьогодні)</div>
+                        <div class="stats-card-value" id="stats-failure-today">0</div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-card-label">CR (Сьогодні)</div>
+                        <div class="stats-card-value" id="stats-cr-today">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel" style="margin-top: 24px;">
+                <div class="panel-header">
+                    <h2 class="panel-title">Показники по банках</h2>
+                </div>
                 <div class="lines-list-container">
                     <table class="lines-table">
                         <thead>
                             <tr>
-                                <th>ID</th>
-                                <th>Телефон</th>
                                 <th>Банк</th>
-                                <th>Статус</th>
+                                <th>Запитів</th>
+                                <th>Успішно</th>
+                                <th>Відмов</th>
+                                <th>CR</th>
+                                <th>Сер. час</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stats-banks-table-body">
+                            <!-- Заповнюється динамічно JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка 3: Налаштування -->
+        <div id="tab-content-settings" class="tab-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Загальні налаштування</h2>
+                </div>
+                <form id="general-settings-form" onsubmit="saveGeneralSettings(event)" style="display: flex; flex-direction: column; gap: 16px; margin-top: 16px;">
+                    <div class="form-group">
+                        <label for="settings-reminder-delay" class="form-label">Затримка перед нагадуванням (хв)</label>
+                        <input type="number" id="settings-reminder-delay" class="form-control" required style="width: 100%; max-width: 200px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="settings-reminder-text" class="form-label">Текст автоматичного нагадування</label>
+                        <textarea id="settings-reminder-text" class="form-control" rows="4" required style="width: 100%; resize: vertical; min-height: 100px; font-family: inherit;"></textarea>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary btn-sm">Зберегти налаштування</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="panel" style="margin-top: 24px;">
+                <div class="panel-header">
+                    <h2 class="panel-title">Шаблони банків (Швидкі заготовки)</h2>
+                </div>
+                <div class="lines-list-container" style="margin-top: 16px;">
+                    <table class="lines-table">
+                        <thead>
+                            <tr>
+                                <th>Назва банку</th>
+                                <th>Команда</th>
+                                <th>Текст заготовки</th>
                                 <th>Дія</th>
                             </tr>
                         </thead>
-                        <tbody id="lines-table-body">
+                        <tbody id="settings-templates-table-body">
                             <!-- Заповнюється динамічно JS -->
                         </tbody>
                     </table>
                 </div>
 
-                <div class="divider-top">
-                    <div class="section-label">Додати лінію вручну</div>
-                    <form class="add-line-form" id="add-line-form" onsubmit="handleAddLine(event)">
-                        <input type="number" id="add-id" placeholder="ID" required class="w-100">
-                        <input type="text" id="add-phone" placeholder="Телефон" required>
-                        <input type="text" id="add-bank" placeholder="Банк" required>
-                        <button type="submit" class="btn btn-primary btn-sm">Додати</button>
+                <div class="divider-top" style="margin-top: 24px; padding-top: 24px;">
+                    <div class="section-label">Додати новий шаблон</div>
+                    <form id="add-template-form" onsubmit="handleAddTemplate(event)" style="display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 12px; align-items: end;">
+                        <div class="form-group">
+                            <label for="template-key" class="form-label" style="font-size: 12px;">Ключ банку (напр. PUMB)</label>
+                            <input type="text" id="template-key" placeholder="Напр. PUMB" required style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label for="template-command" class="form-label" style="font-size: 12px;">Команда (напр. /ЗАВАНТАЖпумб)</label>
+                            <input type="text" id="template-command" placeholder="Напр. /ЗАВАНТАЖпумб" required style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label for="template-text" class="form-label" style="font-size: 12px;">Текст інструкції</label>
+                            <input type="text" id="template-text" placeholder="Текст, який надішлеться клієнту" required style="width: 100%;">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px;">Додати</button>
                     </form>
                 </div>
-
-                <div class="import-buttons-container">
-                    <button class="btn btn-secondary btn-sm" onclick="importLines()">Імпорт lines.txt</button>
-                    <button class="btn btn-danger btn-sm" onclick="clearLines()">Очистити БД</button>
-                </div>
             </div>
-
         </div>
+
     </div>
 
     <!-- Custom Premium Modal Dialog -->
@@ -1307,13 +1455,198 @@
                 });
                 if (res.ok) {
                     showToast("Сесію закрито!", "success");
-                    pollData();
+        }
+
+        // --- Логіка табів та налаштувань ---
+        let currentTab = 'control';
+
+        function switchTab(tabId) {
+            currentTab = tabId;
+            
+            // Оновлення кнопок
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            // Оновлення контенту
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            const activeContent = document.getElementById(`tab-content-${tabId}`);
+            if (activeContent) activeContent.classList.add('active');
+
+            // Завантаження даних
+            if (tabId === 'stats') {
+                loadStats();
+            } else if (tabId === 'settings') {
+                loadSettings();
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/stats');
+                if (!res.ok) throw new Error("Status code: " + res.status);
+                const data = await res.json();
+                
+                // Загальні показники
+                const totalAll = data.totals.total || 0;
+                const successAll = data.totals.success_count || 0;
+                const failureAll = data.totals.failure_count || 0;
+                const crAll = totalAll > 0 ? Math.round((successAll / totalAll) * 100) : 0;
+
+                document.getElementById('stats-total-all').innerText = totalAll;
+                document.getElementById('stats-success-all').innerText = successAll;
+                document.getElementById('stats-failure-all').innerText = failureAll;
+                document.getElementById('stats-cr-all').innerText = crAll + '%';
+
+                // Показники за сьогодні
+                const totalToday = data.today.total || 0;
+                const successToday = data.today.success_count || 0;
+                const failureToday = data.today.failure_count || 0;
+                const crToday = totalToday > 0 ? Math.round((successToday / totalToday) * 100) : 0;
+
+                document.getElementById('stats-total-today').innerText = totalToday;
+                document.getElementById('stats-success-today').innerText = successToday;
+                document.getElementById('stats-failure-today').innerText = failureToday;
+                document.getElementById('stats-cr-today').innerText = crToday + '%';
+
+                // Показники по банках
+                const tableBody = document.getElementById('stats-banks-table-body');
+                tableBody.innerHTML = '';
+                
+                if (!data.banks || data.banks.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="6" class="empty-state">Немає статистики верифікацій</td></tr>';
+                    return;
+                }
+
+                data.banks.forEach(b => {
+                    const total = b.total || 0;
+                    const success = b.success || 0;
+                    const failure = b.failure || 0;
+                    const cr = total > 0 ? Math.round((success / total) * 100) : 0;
+                    const avgMin = Math.floor((b.avg_duration || 0) / 60);
+                    const avgSec = (b.avg_duration || 0) % 60;
+                    const avgFormatted = avgMin > 0 ? `${avgMin}м ${avgSec}с` : `${avgSec}с`;
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="font-weight: 600;">${b.bank}</td>
+                        <td>${total}</td>
+                        <td style="color: var(--accent-success);">${success}</td>
+                        <td style="color: var(--accent-danger);">${failure}</td>
+                        <td>${cr}%</td>
+                        <td>${avgFormatted}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            } catch (err) {
+                showToast("Не вдалося завантажити статистику", "error");
+            }
+        }
+
+        async function loadSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                if (!res.ok) throw new Error("Status code: " + res.status);
+                const data = await res.json();
+                
+                // Налаштування
+                document.getElementById('settings-reminder-delay').value = data.settings.reminder_delay_minutes || 5;
+                document.getElementById('settings-reminder-text').value = data.settings.reminder_text || '';
+
+                // Шаблони
+                const tableBody = document.getElementById('settings-templates-table-body');
+                tableBody.innerHTML = '';
+
+                const keys = Object.keys(data.templates);
+                if (keys.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="empty-state">Немає збережених шаблонів</td></tr>';
+                    return;
+                }
+
+                keys.forEach(key => {
+                    const template = data.templates[key];
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="font-weight: 600;">${key}</td>
+                        <td style="font-family: monospace; font-size: 0.85rem; color: var(--accent-primary);">${template.command}</td>
+                        <td style="font-size: 0.85rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${template.text}">${template.text}</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${key}')" style="padding: 4px 8px; font-size: 0.75rem;">Видалити</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            } catch (err) {
+                showToast("Не вдалося завантажити налаштування", "error");
+            }
+        }
+
+        async function saveGeneralSettings(event) {
+            event.preventDefault();
+            const delay = document.getElementById('settings-reminder-delay').value;
+            const text = document.getElementById('settings-reminder-text').value;
+
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        reminder_delay_minutes: String(delay),
+                        reminder_text: text
+                    })
+                });
+                if (res.ok) {
+                    showToast("Налаштування збережено!", "success");
+                } else {
+                    const err = await res.json();
+                    showToast("Помилка збереження: " + err.detail, "error");
+                }
+            } catch (err) {
+                showToast("Помилка відправки запиту", "error");
+            }
+        }
+
+        async function handleAddTemplate(event) {
+            event.preventDefault();
+            const key = document.getElementById('template-key').value.trim();
+            const command = document.getElementById('template-command').value.trim();
+            const text = document.getElementById('template-text').value.trim();
+
+            try {
+                const res = await fetch('/api/settings/templates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key, command, text })
+                });
+                if (res.ok) {
+                    showToast(`Шаблон ${key} додано!`, "success");
+                    document.getElementById('add-template-form').reset();
+                    loadSettings();
                 } else {
                     const err = await res.json();
                     showToast("Помилка: " + err.detail, "error");
                 }
             } catch (err) {
-                showToast("Не вдалося закрити сесію", "error");
+                showToast("Не вдалося зберегти шаблон", "error");
+            }
+        }
+
+        async function deleteTemplate(key) {
+            const confirmed = await showConfirm(`Ви впевнені, що хочете видалити шаблон для банку ${key}?`, 'danger');
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch(`/api/settings/templates/${key}`, {
+                    method: 'DELETE'
+                });
+                if (res.ok) {
+                    showToast(`Шаблон ${key} видалено.`, "success");
+                    loadSettings();
+                } else {
+                    showToast("Помилка видалення", "error");
+                }
+            } catch (err) {
+                showToast("Помилка відправки запиту", "error");
             }
         }
 

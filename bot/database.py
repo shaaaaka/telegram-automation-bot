@@ -25,9 +25,70 @@ async def init_db():
                 selected_banks TEXT,  -- Список обраних банків (через кому)
                 remaining_banks TEXT, -- Список банків, які залишилося пройти (через кому)
                 status TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                assigned_at TIMESTAMP,
+                last_reminder_sent_at TIMESTAMP
             )
         """)
+        
+        # Додаємо нові колонки, якщо вони ще не існують (для зворотної сумісності)
+        try:
+            await db.execute("ALTER TABLE sessions ADD COLUMN assigned_at TIMESTAMP")
+        except aiosqlite.OperationalError:
+            pass
+            
+        try:
+            await db.execute("ALTER TABLE sessions ADD COLUMN last_reminder_sent_at TIMESTAMP")
+        except aiosqlite.OperationalError:
+            pass
+
+        # Таблиця для логування статистики верифікацій
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS bank_verifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_id INTEGER,
+                username TEXT,
+                bank TEXT,
+                phone_number TEXT,
+                assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP,
+                status TEXT, -- 'success', 'banned', 'released', 'pending'
+                duration_seconds INTEGER
+            )
+        """)
+
+        # Таблиця для загальних налаштувань
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """)
+
+        # Таблиця для шаблонів завантаження банків
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS bank_templates (
+                key TEXT PRIMARY KEY,
+                command TEXT,
+                text TEXT
+            )
+        """)
+        
+        # Заповнюємо налаштування за замовчуванням
+        await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('reminder_delay_minutes', '5')")
+        await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('reminder_text', 'Ви отримали номер телефону для реєстрації. Будь ласка, введіть його в додатку, щоб ми могли надіслати вам код. Якщо виникли труднощі — напишіть нам!')")
+
+        # Ініціалізуємо стандартні шаблони банків, якщо таблиця порожня
+        cursor = await db.execute("SELECT COUNT(*) FROM bank_templates")
+        count = (await cursor.fetchone())[0]
+        if count == 0:
+            from bot.config import BANK_TEMPLATES
+            for key, val in BANK_TEMPLATES.items():
+                await db.execute(
+                    "INSERT INTO bank_templates (key, command, text) VALUES (?, ?, ?)",
+                    (key, val['command'], val['text'])
+                )
+
         await db.commit()
 
 # --- Робота з лініями (Lines) ---
@@ -194,3 +255,164 @@ async def close_session(client_id: int):
         # Переводимо сесію в статус завершеної
         await db.execute("UPDATE sessions SET status = 'completed' WHERE client_id = ?", (client_id,))
         await db.commit()
+
+# --- Статистика, Налаштування та Шаблони (Stats, Settings & Templates) ---
+
+async def get_setting(key: str, default: str = None) -> str:
+    """Отримання значення налаштування з БД"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        async with db.execute("SELECT value FROM app_settings WHERE key = ?", (key,)) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else default
+
+async def set_setting(key: str, value: str):
+    """Збереження значення налаштування в БД"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("""
+            INSERT INTO app_settings (key, value)
+            VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """, (key, value))
+        await db.commit()
+
+async def get_all_settings() -> dict:
+    """Отримання всіх налаштувань"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        async with db.execute("SELECT key, value FROM app_settings") as cursor:
+            rows = await cursor.fetchall()
+            return {row[0]: row[1] for row in rows}
+
+async def get_all_bank_templates() -> dict:
+    """Отримання всіх шаблонів банків"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM bank_templates") as cursor:
+            rows = await cursor.fetchall()
+            return {row['key']: {'command': row['command'], 'text': row['text']} for row in rows}
+
+async def save_bank_template(key: str, command: str, text: str):
+    """Збереження або оновлення шаблону банку"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("""
+            INSERT INTO bank_templates (key, command, text)
+            VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                command = excluded.command,
+                text = excluded.text
+        """, (key, command, text))
+        await db.commit()
+
+async def delete_bank_template(key: str):
+    """Видалення шаблону банку"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("DELETE FROM bank_templates WHERE key = ?", (key,))
+        await db.commit()
+
+async def get_bank_template_db(bank_name: str):
+    """Отримання шаблону за назвою банку (async версія)"""
+    if not bank_name:
+        return None
+    templates = await get_all_bank_templates()
+    name_norm = bank_name.lower().replace(" ", "").replace("-", "")
+    for key, val in templates.items():
+        if key in name_norm or name_norm in key:
+            return val
+    return None
+
+async def get_bank_template_with_key_db(bank_name: str):
+    """Отримання шаблону та ключа за назвою банку (async версія)"""
+    if not bank_name:
+        return None, None
+    templates = await get_all_bank_templates()
+    name_norm = bank_name.lower().replace(" ", "").replace("-", "")
+    for key, val in templates.items():
+        if key in name_norm or name_norm in key:
+            return key, val
+    return None, None
+
+async def log_verification_start(client_id: int, username: str, bank: str, phone_number: str):
+    """Логування початку верифікації для лінії"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        # Оновлюємо час призначення та скидаємо статус нагадування в сесії
+        await db.execute("""
+            UPDATE sessions
+            SET assigned_at = CURRENT_TIMESTAMP, last_reminder_sent_at = NULL
+            WHERE client_id = ?
+        """, (client_id,))
+        
+        # Створюємо запис у таблиці статистики
+        await db.execute("""
+            INSERT INTO bank_verifications (client_id, username, bank, phone_number, assigned_at, status)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, 'pending')
+        """, (client_id, username or 'Невідомий', bank, phone_number))
+        await db.commit()
+
+async def log_verification_end(client_id: int, bank: str, status: str):
+    """Логування завершення верифікації (успіх/відмова/випуск)"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        # Шукаємо останню незавершену верифікацію для цього клієнта та банку
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT id, assigned_at FROM bank_verifications
+            WHERE client_id = ? AND bank = ? AND status = 'pending'
+            ORDER BY id DESC LIMIT 1
+        """, (client_id, bank)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                # Вираховуємо тривалість у секундах
+                await db.execute("""
+                    UPDATE bank_verifications
+                    SET completed_at = CURRENT_TIMESTAMP,
+                        status = ?,
+                        duration_seconds = CAST((strftime('%s', CURRENT_TIMESTAMP) - strftime('%s', assigned_at)) AS INTEGER)
+                    WHERE id = ?
+                """, (status, row['id']))
+                await db.commit()
+
+async def get_statistics() -> dict:
+    """Отримання агрегованої статистики для веб-панелі"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        
+        # Загальні показники
+        async with db.execute("""
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'success' OR status = 'released' THEN 1 ELSE 0 END) as success_count,
+                SUM(CASE WHEN status = 'banned' THEN 1 ELSE 0 END) as failure_count
+            FROM bank_verifications
+            WHERE status != 'pending'
+        """) as cursor:
+            totals = dict(await cursor.fetchone())
+            
+        # Показники за сьогодні
+        async with db.execute("""
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'success' OR status = 'released' THEN 1 ELSE 0 END) as success_count,
+                SUM(CASE WHEN status = 'banned' THEN 1 ELSE 0 END) as failure_count
+            FROM bank_verifications
+            WHERE status != 'pending' AND date(assigned_at) = date('now')
+        """) as cursor:
+            today = dict(await cursor.fetchone())
+            
+        # Середня тривалість по банках
+        async with db.execute("""
+            SELECT 
+                bank,
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'success' OR status = 'released' THEN 1 ELSE 0 END) as success,
+                SUM(CASE WHEN status = 'banned' THEN 1 ELSE 0 END) as failure,
+                ROUND(AVG(duration_seconds)) as avg_duration
+            FROM bank_verifications
+            WHERE status != 'pending' AND duration_seconds IS NOT NULL
+            GROUP BY bank
+            ORDER BY total DESC
+        """) as cursor:
+            banks_stats = [dict(row) for row in await cursor.fetchall()]
+            
+        return {
+            "totals": totals,
+            "today": today,
+            "banks": banks_stats
+        }
