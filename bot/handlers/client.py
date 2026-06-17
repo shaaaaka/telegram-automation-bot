@@ -363,11 +363,11 @@ async def process_request_code(callback: CallbackQuery, bot: Bot):
     if is_retry:
         await callback.message.answer("Запит на код відправлено постачальнику. Будь ласка, очікуйте.")
         await callback.answer("Повторний запит відправлено!")
-        giver_msg = f"{line_id} {bank_name} (ПОВТОРНО)"
+        giver_msg = f"Запрос {line_id} {bank_name} (ПОВТОРНО)"
     else:
         await callback.message.answer("Запит на код відправлено постачальнику. Будь ласка, очікуйте, код прийде сюди.")
         await callback.answer("Запит відправлено!")
-        giver_msg = f"{line_id} {bank_name}"
+        giver_msg = f"Запрос {line_id} {bank_name}"
 
     # Надсилаємо запит постачальнику кодів (Giver)
     from bot.config import GIVER_CHAT_ID

@@ -13,8 +13,8 @@ async def handle_giver_message(message: Message, bot: Bot):
     if not text:
         return
 
-    # Шукаємо код у повідомленні (послідовність від 4 до 8 цифр)
-    match = re.search(r'\b\d{4,8}\b', text)
+    # Шукаємо код у повідомленні (послідовність від 4 до 6 цифр)
+    match = re.search(r'\b\d{4,6}\b', text)
     if not match:
         return  # Якщо коду немає в повідомленні, ігноруємо його
 
