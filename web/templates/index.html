@@ -1455,6 +1455,14 @@
                 });
                 if (res.ok) {
                     showToast("Сесію закрито!", "success");
+                    pollData();
+                } else {
+                    const err = await res.json();
+                    showToast("Помилка: " + err.detail, "error");
+                }
+            } catch (err) {
+                showToast("Не вдалося закрити сесію", "error");
+            }
         }
 
         // --- Логіка табів та налаштувань ---

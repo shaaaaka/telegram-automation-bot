@@ -47,6 +47,14 @@ async def main():
         # Очищуємо накопичені повідомлення перед запуском (щоб не відповідати на старі)
         await bot.delete_webhook(drop_pending_updates=True)
         
+        # Скидаємо кастомну кнопку меню (якщо вона була встановлена як WebApp) до дефолтної
+        from aiogram.types import MenuButtonDefault
+        try:
+            await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
+            logging.info("Кнопку меню бота успішно скинуто до стандартної.")
+        except Exception as e:
+            logging.warning(f"Не вдалося скинути кнопку меню бота: {e}")
+        
         # Запускаємо і бота, і веб-сервер, і планувальник нагадувань паралельно
         await asyncio.gather(
             dp.start_polling(bot),
