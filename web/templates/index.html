@@ -1688,17 +1688,16 @@
                     return;
                 }
 
+                window.bankTemplates = data.templates;
                 keys.forEach(key => {
                     const template = data.templates[key];
                     const tr = document.createElement('tr');
-                    const escapedCommand = (template.command || '').replace(/'/g, "\\'");
-                    const escapedText = (template.text || '').replace(/'/g, "\\'");
                     tr.innerHTML = `
                         <td style="font-weight: 600;">${key}</td>
                         <td style="font-family: monospace; font-size: 0.85rem; color: var(--accent-primary);">${template.command}</td>
                         <td style="font-size: 0.85rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${template.text}">${template.text}</td>
                         <td>
-                            <button class="btn btn-primary btn-sm" onclick="editTemplate('${key}', '${escapedCommand}', '${escapedText}')" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;">Редагувати</button>
+                            <button class="btn btn-primary btn-sm" onclick="editTemplate('${key}')" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;">Редагувати</button>
                             <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${key}')" style="padding: 4px 8px; font-size: 0.75rem;">Видалити</button>
                         </td>
                     `;
@@ -1776,11 +1775,14 @@
             }
         }
 
-        function editTemplate(key, command, text) {
+        function editTemplate(key) {
+            const template = window.bankTemplates ? window.bankTemplates[key] : null;
+            if (!template) return;
+
             document.getElementById('template-key').value = key;
             document.getElementById('template-key').disabled = true;
-            document.getElementById('template-command').value = command;
-            document.getElementById('template-text').value = text;
+            document.getElementById('template-command').value = template.command || '';
+            document.getElementById('template-text').value = template.text || '';
             
             document.querySelector('#add-template-form button[type="submit"]').textContent = 'Зберегти';
             document.querySelector('.divider-top .section-label').textContent = 'Редагувати шаблон';
