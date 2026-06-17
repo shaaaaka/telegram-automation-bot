@@ -193,6 +193,10 @@
                     <h2 class="panel-title">Загальні налаштування</h2>
                 </div>
                 <form id="general-settings-form" onsubmit="saveGeneralSettings(event)" style="display: flex; flex-direction: column; gap: 16px; margin-top: 16px;">
+                    <div class="form-group" style="flex-direction: row; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <input type="checkbox" id="settings-reminders-enabled" onchange="toggleReminderInputs()" style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="settings-reminders-enabled" class="form-label" style="cursor: pointer; margin-bottom: 0; font-weight: 600;">Увімкнути автоматичні нагадування</label>
+                    </div>
                     <div class="form-group">
                         <label for="settings-reminder-delay" class="form-label">Затримка перед нагадуванням (хв)</label>
                         <input type="number" id="settings-reminder-delay" class="form-control" required style="width: 100%; max-width: 200px;">
@@ -1558,8 +1562,11 @@
                 const data = await res.json();
                 
                 // Налаштування
+                const remindersEnabled = data.settings.reminders_enabled !== '0';
+                document.getElementById('settings-reminders-enabled').checked = remindersEnabled;
                 document.getElementById('settings-reminder-delay').value = data.settings.reminder_delay_minutes || 5;
                 document.getElementById('settings-reminder-text').value = data.settings.reminder_text || '';
+                toggleReminderInputs();
 
                 // Шаблони
                 const tableBody = document.getElementById('settings-templates-table-body');
@@ -1589,8 +1596,22 @@
             }
         }
 
+        function toggleReminderInputs() {
+            const enabled = document.getElementById('settings-reminders-enabled').checked;
+            document.getElementById('settings-reminder-delay').disabled = !enabled;
+            document.getElementById('settings-reminder-text').disabled = !enabled;
+            if (!enabled) {
+                document.getElementById('settings-reminder-delay').removeAttribute('required');
+                document.getElementById('settings-reminder-text').removeAttribute('required');
+            } else {
+                document.getElementById('settings-reminder-delay').setAttribute('required', '');
+                document.getElementById('settings-reminder-text').setAttribute('required', '');
+            }
+        }
+
         async function saveGeneralSettings(event) {
             event.preventDefault();
+            const enabled = document.getElementById('settings-reminders-enabled').checked ? '1' : '0';
             const delay = document.getElementById('settings-reminder-delay').value;
             const text = document.getElementById('settings-reminder-text').value;
 
@@ -1600,7 +1621,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         reminder_delay_minutes: String(delay),
-                        reminder_text: text
+                        reminder_text: text,
+                        reminders_enabled: enabled
                     })
                 });
                 if (res.ok) {

@@ -12,6 +12,12 @@ async def auto_reminder_loop(bot: Bot):
     logger.info("Запуск фонового планувальника нагадувань...")
     while True:
         try:
+            # Перевіряємо, чи ввімкнені нагадування взагалі
+            enabled_str = await db.get_setting("reminders_enabled", "1")
+            if enabled_str != "1":
+                await asyncio.sleep(60)
+                continue
+
             # Отримуємо налаштування з БД
             delay_str = await db.get_setting("reminder_delay_minutes", "5")
             try:
