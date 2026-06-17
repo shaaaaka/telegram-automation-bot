@@ -208,6 +208,16 @@
                         <label for="settings-reminder-text" class="form-label">Текст автоматичного нагадування</label>
                         <textarea id="settings-reminder-text" class="form-control" rows="4" required style="width: 100%; resize: vertical; min-height: 100px; font-family: inherit;"></textarea>
                     </div>
+                    <div class="form-group" style="margin-top: 8px;">
+                        <label for="settings-giver-format" class="form-label">Шаблон запиту коду (Giver)</label>
+                        <input type="text" id="settings-giver-format" class="form-control" required style="width: 100%;">
+                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Доступні змінні: <code>{line_id}</code> (ID лінії), <code>{bank_name}</code> (назва банку)</div>
+                    </div>
+                    <div class="form-group" style="margin-top: 8px;">
+                        <label for="settings-giver-retry-format" class="form-label">Шаблон повторного запиту коду (Giver)</label>
+                        <input type="text" id="settings-giver-retry-format" class="form-control" required style="width: 100%;">
+                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Доступні змінні: <code>{line_id}</code> (ID лінії), <code>{bank_name}</code> (назва банку)</div>
+                    </div>
                     <div>
                         <button type="submit" class="btn btn-primary btn-sm">Зберегти налаштування</button>
                     </div>
@@ -1664,6 +1674,8 @@
                 document.getElementById('settings-reminders-enabled').checked = remindersEnabled;
                 document.getElementById('settings-reminder-delay').value = data.settings.reminder_delay_minutes || 5;
                 document.getElementById('settings-reminder-text').value = data.settings.reminder_text || '';
+                document.getElementById('settings-giver-format').value = data.settings.giver_request_format || 'Запрос {line_id} {bank_name}';
+                document.getElementById('settings-giver-retry-format').value = data.settings.giver_request_retry_format || 'Запрос {line_id} {bank_name} (ПОВТОРНО)';
                 toggleReminderInputs();
 
                 // Шаблони
@@ -1735,6 +1747,8 @@
             const enabled = document.getElementById('settings-reminders-enabled').checked ? '1' : '0';
             const delay = document.getElementById('settings-reminder-delay').value;
             const text = document.getElementById('settings-reminder-text').value;
+            const giverFormat = document.getElementById('settings-giver-format').value;
+            const giverRetryFormat = document.getElementById('settings-giver-retry-format').value;
 
             try {
                 const res = await fetch('/api/settings', {
@@ -1743,7 +1757,9 @@
                     body: JSON.stringify({
                         reminder_delay_minutes: String(delay),
                         reminder_text: text,
-                        reminders_enabled: enabled
+                        reminders_enabled: enabled,
+                        giver_request_format: giverFormat,
+                        giver_request_retry_format: giverRetryFormat
                     })
                 });
                 if (res.ok) {

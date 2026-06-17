@@ -360,14 +360,24 @@ async def process_request_code(callback: CallbackQuery, bot: Bot):
     await db.set_session_status(client_id, 'waiting_code')
 
     # Повідомляємо клієнта (НЕ видаляючи кнопку, щоб була змога запросити ще раз)
+    # Отримуємо шаблони повідомлень для скупщика (Giver) з бази даних
+    giver_format = await db.get_setting("giver_request_format", "Запрос {line_id} {bank_name}")
+    giver_retry_format = await db.get_setting("giver_request_retry_format", "Запрос {line_id} {bank_name} (ПОВТОРНО)")
+
     if is_retry:
         await callback.message.answer("Запит на код відправлено постачальнику. Будь ласка, очікуйте.")
         await callback.answer("Повторний запит відправлено!")
-        giver_msg = f"Запрос {line_id} {bank_name} (ПОВТОРНО)"
+        try:
+            giver_msg = giver_retry_format.format(line_id=line_id, bank_name=bank_name)
+        except Exception:
+            giver_msg = f"Запрос {line_id} {bank_name} (ПОВТОРНО)"
     else:
         await callback.message.answer("Запит на код відправлено постачальнику. Будь ласка, очікуйте, код прийде сюди.")
         await callback.answer("Запит відправлено!")
-        giver_msg = f"Запрос {line_id} {bank_name}"
+        try:
+            giver_msg = giver_format.format(line_id=line_id, bank_name=bank_name)
+        except Exception:
+            giver_msg = f"Запрос {line_id} {bank_name}"
 
     # Надсилаємо запит постачальнику кодів (Giver)
     from bot.config import GIVER_CHAT_ID

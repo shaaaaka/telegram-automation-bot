@@ -491,6 +491,8 @@ class AppSettingsUpdate(BaseModel):
     reminder_delay_minutes: str
     reminder_text: str
     reminders_enabled: str
+    giver_request_format: Optional[str] = None
+    giver_request_retry_format: Optional[str] = None
 
 class BankTemplateUpdate(BaseModel):
     key: str
@@ -526,6 +528,10 @@ async def update_settings_endpoint(body: AppSettingsUpdate):
         await db.set_setting("reminder_delay_minutes", body.reminder_delay_minutes)
         await db.set_setting("reminder_text", body.reminder_text)
         await db.set_setting("reminders_enabled", body.reminders_enabled)
+        if body.giver_request_format is not None:
+            await db.set_setting("giver_request_format", body.giver_request_format)
+        if body.giver_request_retry_format is not None:
+            await db.set_setting("giver_request_retry_format", body.giver_request_retry_format)
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")
