@@ -268,17 +268,48 @@ async def handle_custom_bank_commands(message: Message):
             return
 
 @router.message(F.chat.type == "private", F.text & ~F.text.startswith('/'))
-async def handle_client_data_manual(message: Message, state: FSMContext):
-    """Обробник повідомлень поза станами введення даних (захист від флуду)"""
+async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bot):
+    """Обробник повідомлень поза станами введення даних (захист від флуду + ШІ підтримка)"""
     client_id = message.from_user.id
     
-    # Перевіряємо, чи є вже активна сесія у будь-якому робочому статусі
+    # Перевіряємо, чи є вже активна сесія у будь-котрому робочому статусі
     existing_session = await db.get_session(client_id)
     if existing_session and existing_session['status'] in ('registered', 'number_assigned', 'waiting_code'):
-        await message.answer("Ваш запит вже обробляється або лінія активна. Будь ласка, очікуйте вказівок адміна.")
+        # Показати статус "typing", щоб користувач знав, що бот обробляє запит
+        await bot.send_chat_action(chat_id=client_id, action="typing")
+        
+        from bot.openai_client import get_support_response
+        response = await get_support_response(user_text=message.text)
+        await message.answer(response)
         return
 
     # Якщо користувач не у стані анкетування, пропонуємо йому почати з команди /start
+    await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
+
+@router.message(F.chat.type == "private", F.photo)
+async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
+    """Обробник скріншотів/зображень від користувача (ШІ розпізнавання помилок)"""
+    client_id = message.from_user.id
+    
+    # Перевіряємо, чи є вже активна сесія
+    existing_session = await db.get_session(client_id)
+    if existing_session and existing_session['status'] in ('registered', 'number_assigned', 'waiting_code'):
+        # Беремо фото найкращої якості
+        photo = message.photo[-1]
+        
+        await bot.send_chat_action(chat_id=client_id, action="typing")
+        
+        import io
+        photo_file = await bot.get_file(photo.file_id)
+        photo_bytes = io.BytesIO()
+        await bot.download_file(photo_file.file_path, photo_bytes)
+        photo_data = photo_bytes.getvalue()
+        
+        from bot.openai_client import get_support_response
+        response = await get_support_response(user_text=message.caption, image_bytes=photo_data)
+        await message.answer(response)
+        return
+        
     await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
 
 @router.callback_query(F.data == "request_code")
