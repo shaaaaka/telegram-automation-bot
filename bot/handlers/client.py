@@ -272,14 +272,24 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
     """Обробник повідомлень поза станами введення даних (захист від флуду + ШІ підтримка)"""
     client_id = message.from_user.id
     
-    # Перевіряємо, чи є вже активна сесія у будь-котрому робочому статусі
+    # Перевеяємо, чи є вже активна сесія у будь-котрому робочому статусі
     existing_session = await db.get_session(client_id)
     if existing_session and existing_session['status'] in ('registered', 'number_assigned', 'waiting_code'):
         # Показати статус "typing", щоб користувач знав, що бот обробляє запит
         await bot.send_chat_action(chat_id=client_id, action="typing")
         
+        # Отримуємо додатковий контекст для ШІ
+        line_id = existing_session['line_id']
+        line_info = await db.get_line(line_id) if line_id else None
+        current_bank_name = line_info['bank'] if line_info else None
+        client_data = existing_session['client_data']
+        
         from bot.openai_client import get_support_response
-        response = await get_support_response(user_text=message.text)
+        response = await get_support_response(
+            user_text=message.text,
+            client_data=client_data,
+            current_bank_name=current_bank_name
+        )
         await message.answer(response)
         return
 
@@ -299,6 +309,12 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
         
         await bot.send_chat_action(chat_id=client_id, action="typing")
         
+        # Отримуємо додатковий контекст для ШІ
+        line_id = existing_session['line_id']
+        line_info = await db.get_line(line_id) if line_id else None
+        current_bank_name = line_info['bank'] if line_info else None
+        client_data = existing_session['client_data']
+        
         import io
         photo_file = await bot.get_file(photo.file_id)
         photo_bytes = io.BytesIO()
@@ -306,7 +322,12 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
         photo_data = photo_bytes.getvalue()
         
         from bot.openai_client import get_support_response
-        response = await get_support_response(user_text=message.caption, image_bytes=photo_data)
+        response = await get_support_response(
+            user_text=message.caption,
+            image_bytes=photo_data,
+            client_data=client_data,
+            current_bank_name=current_bank_name
+        )
         await message.answer(response)
         return
         
