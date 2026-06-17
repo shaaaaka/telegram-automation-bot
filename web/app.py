@@ -232,12 +232,16 @@ async def assign_line(client_id: int, body: LineAssignment):
     bank_name = line_info['bank']
     template = await db.get_bank_template_db(bank_name)
     
-    message_text = (
-        f"Банк: *{bank_name}*\n"
-        f"Номер телефону:\n\n"
-        f"`+{line_info['phone_number']}`\n\n"
-        f"Коли надішлете SMS і вам знадобиться код, тисніть кнопку нижче."
-    )
+    client_assign_format = await db.get_setting("client_number_assigned_format", "Банк: *{bank_name}*\nНомер телефону:\n\n`+{phone_number}`\n\nКоли надішлете SMS і вам знадобиться код, тисніть кнопку нижче.")
+    try:
+        message_text = client_assign_format.format(bank_name=bank_name, phone_number=line_info['phone_number'])
+    except Exception:
+        message_text = (
+            f"Банк: *{bank_name}*\n"
+            f"Номер телефону:\n\n"
+            f"`+{line_info['phone_number']}`\n\n"
+            f"Коли надішлете SMS і вам знадобиться код, тисніть кнопку нижче."
+        )
     
     try:
         # Спочатку надсилаємо шаблон (інструкцію/фото завантаження додатку), якщо він є
@@ -493,6 +497,7 @@ class AppSettingsUpdate(BaseModel):
     reminders_enabled: str
     giver_request_format: Optional[str] = None
     giver_request_retry_format: Optional[str] = None
+    client_number_assigned_format: Optional[str] = None
 
 class BankTemplateUpdate(BaseModel):
     key: str
@@ -532,6 +537,8 @@ async def update_settings_endpoint(body: AppSettingsUpdate):
             await db.set_setting("giver_request_format", body.giver_request_format)
         if body.giver_request_retry_format is not None:
             await db.set_setting("giver_request_retry_format", body.giver_request_retry_format)
+        if body.client_number_assigned_format is not None:
+            await db.set_setting("client_number_assigned_format", body.client_number_assigned_format)
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")

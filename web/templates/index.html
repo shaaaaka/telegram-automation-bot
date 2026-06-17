@@ -218,6 +218,11 @@
                         <input type="text" id="settings-giver-retry-format" class="form-control" required style="width: 100%;">
                         <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Доступні змінні: <code>{line_id}</code> (ID лінії), <code>{bank_name}</code> (назва банку)</div>
                     </div>
+                    <div class="form-group" style="margin-top: 8px;">
+                        <label for="settings-client-assign-format" class="form-label">Шаблон картки з номером клієнту (Telegram)</label>
+                        <textarea id="settings-client-assign-format" class="form-control" rows="5" required style="width: 100%; resize: vertical; min-height: 100px; font-family: inherit; box-sizing: border-box; padding: 8px 12px;"></textarea>
+                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Доступні змінні: <code>{bank_name}</code> (назва банку), <code>{phone_number}</code> (номер телефону)</div>
+                    </div>
                     <div>
                         <button type="submit" class="btn btn-primary btn-sm">Зберегти налаштування</button>
                     </div>
@@ -1676,6 +1681,7 @@
                 document.getElementById('settings-reminder-text').value = data.settings.reminder_text || '';
                 document.getElementById('settings-giver-format').value = data.settings.giver_request_format || 'Запрос {line_id} {bank_name}';
                 document.getElementById('settings-giver-retry-format').value = data.settings.giver_request_retry_format || 'Запрос {line_id} {bank_name} (ПОВТОРНО)';
+                document.getElementById('settings-client-assign-format').value = data.settings.client_number_assigned_format || 'Банк: *{bank_name}*\nНомер телефону:\n\n`+{phone_number}`\n\nКоли надішлете SMS і вам знадобиться код, тисніть кнопку нижче.';
                 toggleReminderInputs();
 
                 // Шаблони
@@ -1751,6 +1757,7 @@
             const text = document.getElementById('settings-reminder-text').value;
             const giverFormat = document.getElementById('settings-giver-format').value;
             const giverRetryFormat = document.getElementById('settings-giver-retry-format').value;
+            const clientAssignFormat = document.getElementById('settings-client-assign-format').value;
 
             try {
                 const res = await fetch('/api/settings', {
@@ -1761,7 +1768,8 @@
                         reminder_text: text,
                         reminders_enabled: enabled,
                         giver_request_format: giverFormat,
-                        giver_request_retry_format: giverRetryFormat
+                        giver_request_retry_format: giverRetryFormat,
+                        client_number_assigned_format: clientAssignFormat
                     })
                 });
                 if (res.ok) {
