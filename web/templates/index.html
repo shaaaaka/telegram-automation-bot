@@ -695,6 +695,9 @@
                 if (!isLinesDataEqual(allLines, newLines)) {
                     allLines = newLines;
                     renderLines();
+                    if (lastFetchedSessions && lastFetchedSessions.length > 0) {
+                        renderSessions(lastFetchedSessions);
+                    }
                 }
 
                 // 3. Завантаження унікальних назв банків (якщо ще не завантажили)
