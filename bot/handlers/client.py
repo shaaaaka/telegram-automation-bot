@@ -237,170 +237,6 @@ async def handle_restart_reg(callback: CallbackQuery, state: FSMContext):
     await state.set_state(RegistrationStates.waiting_pib_dob)
     await callback.answer("Почнемо заново!")
 
-@router.message(F.chat.type == "private", F.text & F.text.startswith('/'))
-async def handle_custom_bank_commands(message: Message):
-    """Обробник кастомних команд завантаження додатків та інструкцій реєстрації"""
-    cmd = message.text.strip().lower()
-    
-    # Інструкції реєстрації, які використовуються додатково
-    manual_instructions = {
-        "/екорег": "Анкетні дані в самому ЕкоБанку виставляти як на фото! Слово п...",
-        "/аморег": "Анкетні дані в самому АмоБанку виставляти як на фото..."
-    }
-    
-    if cmd in manual_instructions:
-        photo_path = get_template_photo(cmd)
-        if photo_path:
-            await message.answer_photo(photo=FSInputFile(photo_path), caption=manual_instructions[cmd])
-        else:
-            await message.answer(manual_instructions[cmd])
-        return
-
-    # Перевіряємо по словнику BANK_TEMPLATES
-    for key, val in BANK_TEMPLATES.items():
-        if val['command'].lower() == cmd:
-            photo_path = get_template_photo(key)
-            if photo_path:
-                await message.answer_photo(photo=FSInputFile(photo_path), caption=val['text'])
-            else:
-                await message.answer(val['text'])
-            return
-
-@router.message(F.chat.type == "private", F.text & ~F.text.startswith('/'))
-async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bot):
-    """Обробник повідомлень поза станами введення даних (захист від флуду + ШІ підтримка)"""
-    client_id = message.from_user.id
-    
-    # Перевеяємо, чи є вже активна сесія у будь-котрому робочому статусі
-    existing_session = await db.get_session(client_id)
-    if existing_session and existing_session['status'] in ('registered', 'number_assigned', 'waiting_code'):
-        # Показати статус "typing", щоб користувач знав, що бот обробляє запит
-        await bot.send_chat_action(chat_id=client_id, action="typing")
-        
-        # Отримуємо додатковий контекст для ШІ
-        line_id = existing_session['line_id']
-        line_info = await db.get_line(line_id) if line_id else None
-        current_bank_name = line_info['bank'] if line_info else None
-        client_data = existing_session['client_data']
-        
-        from bot.openai_client import get_support_response
-        response = await get_support_response(
-            user_text=message.text,
-            client_data=client_data,
-            current_bank_name=current_bank_name
-        )
-        await message.answer(response)
-        return
-
-    # Якщо користувач не у стані анкетування, пропонуємо йому почати з команди /start
-    await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
-
-@router.message(F.chat.type == "private", F.photo)
-async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
-    """Обробник скріншотів/зображень від користувача (ШІ розпізнавання помилок)"""
-    client_id = message.from_user.id
-    
-    # Перевіряємо, чи є вже активна сесія
-    existing_session = await db.get_session(client_id)
-    if existing_session and existing_session['status'] in ('registered', 'number_assigned', 'waiting_code'):
-        # Беремо фото найкращої якості
-        photo = message.photo[-1]
-        
-        await bot.send_chat_action(chat_id=client_id, action="typing")
-        
-        # Отримуємо додатковий контекст для ШІ
-        line_id = existing_session['line_id']
-        line_info = await db.get_line(line_id) if line_id else None
-        current_bank_name = line_info['bank'] if line_info else None
-        client_data = existing_session['client_data']
-        
-        import io
-        photo_file = await bot.get_file(photo.file_id)
-        photo_bytes = io.BytesIO()
-        await bot.download_file(photo_file.file_path, photo_bytes)
-        photo_data = photo_bytes.getvalue()
-        
-        from bot.openai_client import get_support_response
-        response = await get_support_response(
-            user_text=message.caption,
-            image_bytes=photo_data,
-            client_data=client_data,
-            current_bank_name=current_bank_name
-        )
-        
-        if "[SUCCESS_VERIFICATION]" in response:
-            bank_label = current_bank_name if current_bank_name else "банк"
-            success_text = (
-                f"Чудово {bank_label} успішно зареєстрували.\n\n"
-                f"Який пін-код чи пароль ставали на додаток?"
-            )
-            await message.answer(success_text)
-            await state.update_data(success_photo_id=photo.file_id)
-            await state.set_state(RegistrationStates.waiting_password)
-            return
-
-        await message.answer(response)
-        return
-        
-    await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
-
-@router.callback_query(F.data == "request_code")
-async def process_request_code(callback: CallbackQuery, bot: Bot):
-    """Обробник натискання кнопки 'Запросити SMS-код' клієнтом"""
-    client_id = callback.from_user.id
-    
-    session = await db.get_session(client_id)
-    if not session or session['status'] == 'completed':
-        await callback.answer("Сесія не знайдена або вже завершена.", show_alert=True)
-        # Прибираємо кнопку, бо сесія завершена
-        await callback.message.edit_reply_markup(reply_markup=None)
-        return
-        
-    line_id = session['line_id']
-    if not line_id:
-        await callback.answer("Вам ще не призначено лінію.", show_alert=True)
-        return
-
-    line_info = await db.get_line(line_id)
-    bank_name = line_info['bank'] if line_info else "Невідомий банк"
-
-    # Перевіряємо чи це повторний запит коду
-    is_retry = session['status'] == 'waiting_code'
-
-    # Оновлюємо статус сесії на очікування коду
-    await db.set_session_status(client_id, 'waiting_code')
-
-    # Повідомляємо клієнта (НЕ видаляючи кнопку, щоб була змога запросити ще раз)
-    # Отримуємо шаблони повідомлень для скупщика (Giver) з бази даних
-    giver_format = await db.get_setting("giver_request_format", "Запрос {line_id} {bank_name}")
-    giver_retry_format = await db.get_setting("giver_request_retry_format", "Запрос {line_id} {bank_name} (ПОВТОРНО)")
-
-    if is_retry:
-        await callback.message.answer("Запит на код відправлено постачальнику. Будь ласка, очікуйте.")
-        await callback.answer("Повторний запит відправлено!")
-        try:
-            giver_msg = giver_retry_format.format(line_id=line_id, bank_name=bank_name)
-        except Exception:
-            giver_msg = f"Запрос {line_id} {bank_name} (ПОВТОРНО)"
-    else:
-        await callback.message.answer("Запит на код відправлено постачальнику. Будь ласка, очікуйте, код прийде сюди.")
-        await callback.answer("Запит відправлено!")
-        try:
-            giver_msg = giver_format.format(line_id=line_id, bank_name=bank_name)
-        except Exception:
-            giver_msg = f"Запрос {line_id} {bank_name}"
-
-    # Надсилаємо запит постачальнику кодів (Giver)
-    from bot.config import GIVER_CHAT_ID
-    try:
-        await bot.send_message(chat_id=GIVER_CHAT_ID, text=giver_msg)
-    except Exception as e:
-        # Якщо не вдалося надіслати гіверу, повідомляємо адміна
-        await bot.send_message(
-            chat_id=ADMIN_ID,
-            text=f"Помилка надсилання запиту гіверу (Line {line_id}): {str(e)}"
-        )
-
 
 @router.message(RegistrationStates.waiting_password, F.chat.type == "private")
 async def process_client_password(message: Message, state: FSMContext):
@@ -437,7 +273,7 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
 
     data = await state.get_data()
     client_password = data.get('client_password')
-    success_photo_id = data.get('success_photo_id')
+    success_photo_id = data.get('success_photo_id') or data.get('last_photo_id')
     
     await state.clear()
 
@@ -551,3 +387,189 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
             )
         except Exception:
             pass
+
+
+@router.message(F.chat.type == "private", F.text & F.text.startswith('/'))
+async def handle_custom_bank_commands(message: Message):
+    """Обробник кастомних команд завантаження додатків та інструкцій реєстрації"""
+    cmd = message.text.strip().lower()
+    
+    # Інструкції реєстрації, які використовуються додатково
+    manual_instructions = {
+        "/екорег": "Анкетні дані в самому ЕкоБанку виставляти як на фото! Слово п...",
+        "/аморег": "Анкетні дані в самому АмоБанку виставляти як на фото..."
+    }
+    
+    if cmd in manual_instructions:
+        photo_path = get_template_photo(cmd)
+        if photo_path:
+            await message.answer_photo(photo=FSInputFile(photo_path), caption=manual_instructions[cmd])
+        else:
+            await message.answer(manual_instructions[cmd])
+        return
+
+    # Перевіряємо по словнику BANK_TEMPLATES
+    for key, val in BANK_TEMPLATES.items():
+        if val['command'].lower() == cmd:
+            photo_path = get_template_photo(key)
+            if photo_path:
+                await message.answer_photo(photo=FSInputFile(photo_path), caption=val['text'])
+            else:
+                await message.answer(val['text'])
+            return
+
+@router.message(F.chat.type == "private", F.text & ~F.text.startswith('/'))
+async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bot):
+    """Обробник повідомлень поза станами введення даних (захист від флуду + ШІ підтримка)"""
+    client_id = message.from_user.id
+    
+    # Перевеяємо, чи є вже активна сесія у будь-котрому робочому статусі
+    existing_session = await db.get_session(client_id)
+    if existing_session and existing_session['status'] in ('registered', 'number_assigned', 'waiting_code'):
+        # Показати статус "typing", щоб користувач знав, що бот обробляє запит
+        await bot.send_chat_action(chat_id=client_id, action="typing")
+        
+        # Отримуємо додатковий контекст для ШІ
+        line_id = existing_session['line_id']
+        line_info = await db.get_line(line_id) if line_id else None
+        current_bank_name = line_info['bank'] if line_info else None
+        client_data = existing_session['client_data']
+        
+        from bot.openai_client import get_support_response
+        response = await get_support_response(
+            user_text=message.text,
+            client_data=client_data,
+            current_bank_name=current_bank_name
+        )
+        
+        if "[SUCCESS_VERIFICATION]" in response:
+            bank_label = current_bank_name if current_bank_name else "банк"
+            success_text = (
+                f"Чудово {bank_label} успішно зареєстрували.\n\n"
+                f"Який пін-код чи пароль ставили на додаток?"
+            )
+            await message.answer(success_text)
+            
+            # Спробуємо підтягнути останнє фото
+            state_data = await state.get_data()
+            last_photo = state_data.get("last_photo_id")
+            if last_photo:
+                await state.update_data(success_photo_id=last_photo)
+                
+            await state.set_state(RegistrationStates.waiting_password)
+            return
+
+        await message.answer(response)
+        return
+
+    # Якщо користувач не у стані анкетування, пропонуємо йому почати з команди /start
+    await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
+
+@router.message(F.chat.type == "private", F.photo)
+async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
+    """Обробник скріншотів/зображень від користувача (ШІ розпізнавання помилок)"""
+    client_id = message.from_user.id
+    
+    # Перевіряємо, чи є вже активна сесія
+    existing_session = await db.get_session(client_id)
+    if existing_session and existing_session['status'] in ('registered', 'number_assigned', 'waiting_code'):
+        # Беремо фото найкращої якості
+        photo = message.photo[-1]
+        
+        # Зберігаємо останнє фото в стані для можливості відновлення анкетування текстом
+        await state.update_data(last_photo_id=photo.file_id)
+        
+        await bot.send_chat_action(chat_id=client_id, action="typing")
+        
+        # Отримуємо додатковий контекст для ШІ
+        line_id = existing_session['line_id']
+        line_info = await db.get_line(line_id) if line_id else None
+        current_bank_name = line_info['bank'] if line_info else None
+        client_data = existing_session['client_data']
+        
+        import io
+        photo_file = await bot.get_file(photo.file_id)
+        photo_bytes = io.BytesIO()
+        await bot.download_file(photo_file.file_path, photo_bytes)
+        photo_data = photo_bytes.getvalue()
+        
+        from bot.openai_client import get_support_response
+        response = await get_support_response(
+            user_text=message.caption,
+            image_bytes=photo_data,
+            client_data=client_data,
+            current_bank_name=current_bank_name
+        )
+        
+        if "[SUCCESS_VERIFICATION]" in response:
+            bank_label = current_bank_name if current_bank_name else "банк"
+            success_text = (
+                f"Чудово {bank_label} успішно зареєстрували.\n\n"
+                f"Який пін-код чи пароль ставили на додаток?"
+            )
+            await message.answer(success_text)
+            await state.update_data(success_photo_id=photo.file_id)
+            await state.set_state(RegistrationStates.waiting_password)
+            return
+
+        await message.answer(response)
+        return
+        
+    await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
+
+@router.callback_query(F.data == "request_code")
+async def process_request_code(callback: CallbackQuery, bot: Bot):
+    """Обробник натискання кнопки 'Запросити SMS-код' клієнтом"""
+    client_id = callback.from_user.id
+    
+    session = await db.get_session(client_id)
+    if not session or session['status'] == 'completed':
+        await callback.answer("Сесія не знайдена або вже завершена.", show_alert=True)
+        # Прибираємо кнопку, бо сесія завершена
+        await callback.message.edit_reply_markup(reply_markup=None)
+        return
+        
+    line_id = session['line_id']
+    if not line_id:
+        await callback.answer("Вам ще не призначено лінію.", show_alert=True)
+        return
+
+    line_info = await db.get_line(line_id)
+    bank_name = line_info['bank'] if line_info else "Невідомий банк"
+
+    # Перевіряємо чи це повторний запит коду
+    is_retry = session['status'] == 'waiting_code'
+
+    # Оновлюємо статус сесії на очікування коду
+    await db.set_session_status(client_id, 'waiting_code')
+
+    # Повідомляємо клієнта (НЕ видаляючи кнопку, щоб була змога запросити ще раз)
+    # Отримуємо шаблони повідомлень для скупщика (Giver) з бази даних
+    giver_format = await db.get_setting("giver_request_format", "Запрос {line_id} {bank_name}")
+    giver_retry_format = await db.get_setting("giver_request_retry_format", "Запрос {line_id} {bank_name} (ПОВТОРНО)")
+
+    if is_retry:
+        await callback.message.answer("Запит на код відправлено постачальнику. Будь ласка, очікуйте.")
+        await callback.answer("Повторний запит відправлено!")
+        try:
+            giver_msg = giver_retry_format.format(line_id=line_id, bank_name=bank_name)
+        except Exception:
+            giver_msg = f"Запрос {line_id} {bank_name} (ПОВТОРНО)"
+    else:
+        await callback.message.answer("Запит на код відправлено постачальнику. Будь ласка, очікуйте, код прийде сюди.")
+        await callback.answer("Запит відправлено!")
+        try:
+            giver_msg = giver_format.format(line_id=line_id, bank_name=bank_name)
+        except Exception:
+            giver_msg = f"Запрос {line_id} {bank_name}"
+
+    # Надсилаємо запит постачальнику кодів (Giver)
+    from bot.config import GIVER_CHAT_ID
+    try:
+        await bot.send_message(chat_id=GIVER_CHAT_ID, text=giver_msg)
+    except Exception as e:
+        # Якщо не вдалося надіслати гіверу, повідомляємо адміна
+        await bot.send_message(
+            chat_id=ADMIN_ID,
+            text=f"Помилка надсилання запиту гіверу (Line {line_id}): {str(e)}"
+        )
