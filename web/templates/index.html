@@ -103,7 +103,8 @@
                         <form class="add-line-form" id="add-line-form" onsubmit="handleAddLine(event)">
                             <input type="number" id="add-id" placeholder="ID" required class="w-100">
                             <input type="text" id="add-phone" placeholder="Телефон" required>
-                            <input type="text" id="add-bank" placeholder="Банк" required>
+                            <input type="text" id="add-bank" placeholder="Банк" required list="banks-datalist">
+                            <datalist id="banks-datalist"></datalist>
                             <button type="submit" class="btn btn-primary btn-sm">Додати</button>
                         </form>
                     </div>
@@ -504,6 +505,22 @@
             renderLines();
         }
 
+        // Оновлення списку автопідстановки банків (datalist)
+        function updateBanksDatalist() {
+            const datalist = document.getElementById('banks-datalist');
+            if (datalist && availableBanks) {
+                datalist.innerHTML = '';
+                const customOrder = ["PUMB", "bank.kd", "IziBank", "EcoBank", "Alliance", "LvivBank", "AmoBank"];
+                const uniqueBanks = Array.from(new Set([...customOrder, ...availableBanks]))
+                    .filter(Boolean);
+                uniqueBanks.forEach(bank => {
+                    const option = document.createElement('option');
+                    option.value = bank;
+                    datalist.appendChild(option);
+                });
+            }
+        }
+
 
 
 
@@ -735,13 +752,16 @@
                     if (lastFetchedSessions && lastFetchedSessions.length > 0) {
                         renderSessions(lastFetchedSessions);
                     }
-                }
-
-                // 3. Завантаження унікальних назв банків (якщо ще не завантажили)
-                if (availableBanks.length === 0) {
-                    const banksRes = await fetch('/api/banks');
-                    const banksData = await banksRes.json();
-                    availableBanks = banksData.banks;
+                    
+                    // Завантаження унікальних назв банків та оновлення datalist
+                    try {
+                        const banksRes = await fetch('/api/banks');
+                        const banksData = await banksRes.json();
+                        availableBanks = banksData.banks || [];
+                        updateBanksDatalist();
+                    } catch (e) {
+                        console.error("Failed to load banks list:", e);
+                    }
                 }
 
                 // 4. Завантаження активних сесій
