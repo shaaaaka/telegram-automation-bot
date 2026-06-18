@@ -51,19 +51,20 @@ async def cmd_start(message: Message, state: FSMContext):
     client_id = message.from_user.id
     existing_session = await db.get_session(client_id)
     if existing_session and existing_session['status'] in ('registered', 'number_assigned', 'waiting_code'):
-        await message.answer("Ваш запит вже обробляється або лінія активна. Будь ласка, очікуйте вказівок адміна.")
+        await message.answer(
+            "Ваш запит вже обробляється або лінія активна. Будь ласка, очікуйте вказівок адміна.",
+            reply_markup=get_client_idle_keyboard()
+        )
         return
 
     await state.clear()
     
-    # Крок 1: Запитуємо ПІБ та Дату народження
     await message.answer(
-        "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження\n\n"
-        "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
-        "(обов'язково пишіть все в одному повідомленні)",
-        reply_markup=ReplyKeyboardRemove()  # Прибирає будь-які старі кнопки
+        "Вітаємо! Для початку верифікації натисніть кнопку **🚀 Почати верифікацію** на клавіатурі нижче.\n\n"
+        "Ви також можете прочитати інструкцію за допомогою кнопки **ℹ️ Інструкція**.",
+        parse_mode="Markdown",
+        reply_markup=get_client_idle_keyboard()
     )
-    await state.set_state(RegistrationStates.waiting_pib_dob)
 
 @router.message(RegistrationStates.waiting_pib_dob, F.chat.type == "private")
 async def process_pib_dob(message: Message, state: FSMContext):
@@ -280,7 +281,24 @@ async def handle_custom_bank_commands(message: Message):
 
 @router.message(F.text == "🚀 Почати верифікацію", F.chat.type == "private")
 async def btn_start_verification(message: Message, state: FSMContext):
-    await cmd_start(message, state)
+    client_id = message.from_user.id
+    existing_session = await db.get_session(client_id)
+    if existing_session and existing_session['status'] in ('registered', 'number_assigned', 'waiting_code'):
+        await message.answer(
+            "Ваш запит вже обробляється або лінія активна. Будь ласка, очікуйте вказівок адміна.",
+            reply_markup=get_client_idle_keyboard()
+        )
+        return
+
+    await state.clear()
+    
+    await message.answer(
+        "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження\n\n"
+        "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
+        "(обов'язково пишіть все в одному повідомленні)",
+        reply_markup=ReplyKeyboardRemove()
+    )
+    await state.set_state(RegistrationStates.waiting_pib_dob)
 
 @router.message(F.text == "ℹ️ Інструкція", F.chat.type == "private")
 async def btn_client_instruction(message: Message):
