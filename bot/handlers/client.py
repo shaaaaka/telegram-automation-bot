@@ -1,6 +1,6 @@
 from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove, FSInputFile
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove, FSInputFile, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 from bot.config import ADMIN_ID, BANK_TEMPLATES, get_template_photo
@@ -8,6 +8,20 @@ import bot.database as db
 import re
 
 router = Router()
+
+def get_client_idle_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text="🚀 Почати верифікацію")
+            ],
+            [
+                KeyboardButton(text="ℹ️ Інструкція"),
+                KeyboardButton(text="📞 Підтримка")
+            ]
+        ],
+        resize_keyboard=True
+    )
 
 class RegistrationStates(StatesGroup):
     waiting_pib_dob = State()
@@ -264,6 +278,30 @@ async def handle_custom_bank_commands(message: Message):
                 await message.answer(val['text'])
             return
 
+@router.message(F.text == "🚀 Почати верифікацію", F.chat.type == "private")
+async def btn_start_verification(message: Message, state: FSMContext):
+    await cmd_start(message, state)
+
+@router.message(F.text == "ℹ️ Інструкція", F.chat.type == "private")
+async def btn_client_instruction(message: Message):
+    await message.answer(
+        "ℹ️ **Як працює верифікація:**\n\n"
+        "1. Натисніть кнопку **🚀 Почати верифікацію** та введіть свої дані (ПІБ, дату народження, ІПН).\n"
+        "2. Очікуйте, поки менеджер призначить вам телефонний номер для першого банку.\n"
+        "3. Після отримання номера пройдіть реєстрацію в додатку відповідного банку.\n"
+        "4. Коли банк надішле SMS, натисніть кнопку **«Запросити SMS-код»** у цьому чаті, і ми надішлемо вам код.\n"
+        "5. Після проходження одного банку менеджер може видати номер для наступного.",
+        parse_mode="Markdown"
+    )
+
+@router.message(F.text == "📞 Підтримка", F.chat.type == "private")
+async def btn_client_support(message: Message):
+    await message.answer(
+        "📞 **Підтримка:**\n\n"
+        "Якщо у вас виникли запитання, зверніться до менеджера, який надав вам посилання на цього бота.",
+        parse_mode="Markdown"
+    )
+
 @router.message(F.chat.type == "private", F.text & ~F.text.startswith('/'))
 async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bot):
     """Обробник повідомлень поза станами введення даних (захист від флуду + ШІ підтримка)"""
@@ -290,8 +328,12 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
         await message.answer(response)
         return
 
-    # Якщо користувач не у стані анкетування, пропонуємо йому почати з команди /start
-    await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
+    # Якщо користувач не у стані анкетування, пропонуємо йому почати
+    await message.answer(
+        "Для початку верифікації скористайтеся кнопками нижче або напишіть **/start**.", 
+        parse_mode="Markdown",
+        reply_markup=get_client_idle_keyboard()
+    )
 
 @router.message(F.chat.type == "private", F.photo)
 async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
@@ -328,7 +370,11 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
         await message.answer(response)
         return
         
-    await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
+    await message.answer(
+        "Для початку верифікації скористайтеся кнопками нижче або напишіть **/start**.", 
+        parse_mode="Markdown",
+        reply_markup=get_client_idle_keyboard()
+    )
 
 @router.callback_query(F.data == "request_code")
 async def process_request_code(callback: CallbackQuery, bot: Bot):

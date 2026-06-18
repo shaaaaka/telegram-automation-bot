@@ -628,10 +628,12 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot):
         # 4. Перевіряємо чи залишилися ще банки для проходження
         if not remaining:
             try:
+                from bot.handlers.client import get_client_idle_keyboard
                 await bot.send_message(
                     chat_id=client_id,
                     text="Роботу завершено. Дякуємо за співпрацю.",
-                    parse_mode="Markdown"
+                    parse_mode="Markdown",
+                    reply_markup=get_client_idle_keyboard()
                 )
             except Exception as e:
                 print(f"Не вдалося надіслати клієнту повідомлення про завершення: {e}")
@@ -684,10 +686,12 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot):
         # 4. Перевіряємо чи залишилися ще банки для проходження
         if not remaining:
             try:
+                from bot.handlers.client import get_client_idle_keyboard
                 await bot.send_message(
                     chat_id=client_id,
                     text="Роботу завершено. Дякуємо за співпрацю.",
-                    parse_mode="Markdown"
+                    parse_mode="Markdown",
+                    reply_markup=get_client_idle_keyboard()
                 )
             except Exception as e:
                 print(f"Не вдалося надіслати клієнту повідомлення про завершення: {e}")
@@ -729,10 +733,12 @@ async def handle_terminate_session(callback: CallbackQuery, bot: Bot):
 
     # 1. Повідомляємо клієнта про остаточне завершення роботи
     try:
+        from bot.handlers.client import get_client_idle_keyboard
         await bot.send_message(
             chat_id=client_id,
             text="Роботу завершено. Дякуємо за співпрацю.",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
+            reply_markup=get_client_idle_keyboard()
         )
     except Exception as e:
         print(f"Не вдалося надіслати клієнту повідомлення: {e}")
