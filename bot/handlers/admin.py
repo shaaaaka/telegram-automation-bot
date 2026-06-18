@@ -172,13 +172,62 @@ async def btn_import_lines(message: Message):
 async def btn_clear_lines(message: Message):
     await cmd_clear_lines(message)
 
+# Фільтр для визначення прямого вставлення формату лінії
+def is_direct_line_format(message: Message) -> bool:
+    if not message.text:
+        return False
+    return bool(re.match(r'^(?:Line\s+)?(\d+)\s+Return:\s*(\d+)(?:\s+(.+))?$', message.text.strip(), re.IGNORECASE))
+
+@router.message(F.text, F.from_user.id == ADMIN_ID, is_direct_line_format)
+async def handle_direct_line_paste(message: Message, state: FSMContext):
+    if not is_admin(message):
+        return
+    text = message.text.strip()
+    match = re.match(r'^(?:Line\s+)?(\d+)\s+Return:\s*(\d+)(?:\s+(.+))?$', text, re.IGNORECASE)
+    if not match:
+        return
+        
+    line_id = int(match.group(1))
+    phone = match.group(2).strip().replace(' ', '').replace('-', '').replace('+', '')
+    bank = match.group(3).strip() if match.group(3) else None
+    
+    if bank:
+        await db.add_or_update_line(line_id, phone, bank)
+        await state.clear()
+        await message.answer(
+            f"✅ Лінію успішно додано:\n"
+            f"• Line: {line_id}\n"
+            f"• Телефон: +{phone}\n"
+            f"• Банк: {bank}",
+            reply_markup=get_admin_keyboard()
+        )
+    else:
+        await state.clear()
+        await state.update_data(line_id=line_id, phone=phone)
+        
+        customOrder = ["PUMB", "bank.kd", "IziBank", "EcoBank", "Alliance", "LvivBank", "AmoBank"]
+        unique_banks = await db.get_unique_banks()
+        all_banks = list(dict.fromkeys(customOrder + unique_banks))
+        
+        keyboard_buttons = []
+        for b in all_banks:
+            keyboard_buttons.append([InlineKeyboardButton(text=b, callback_data=f"addlinebank_{b}")])
+        markup = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+        
+        await message.answer(
+            f"Знайдено лінію: Line {line_id}, телефон +{phone}.\n\n"
+            f"Оберіть банк зі списку нижче або введіть назву банку вручну:",
+            reply_markup=markup
+        )
+        await state.set_state(AddLineStates.waiting_bank)
+
 @router.message(F.text == "➕ Додати лінію", F.from_user.id == ADMIN_ID)
 async def btn_add_line_start(message: Message, state: FSMContext):
     if not is_admin(message):
         return
     await state.clear()
     await message.answer(
-        "Введіть унікальний ID для нової лінії (ціле число):\n\n"
+        "Введіть унікальний номер Line для нової лінії (ціле число):\n\n"
         "Для скасування надішліть /cancel",
         reply_markup=ReplyKeyboardRemove()
     )
@@ -193,14 +242,14 @@ async def add_line_id(message: Message, state: FSMContext):
         
     line_id_str = message.text.strip()
     if not line_id_str.isdigit():
-        await message.answer("ID має бути цілим числом. Спробуйте ще раз (або /cancel):")
+        await message.answer("Номер Line має бути цілим числом. Спробуйте ще раз (або /cancel):")
         return
         
     line_id = int(line_id_str)
     
     existing_line = await db.get_line(line_id)
     if existing_line:
-        await message.answer(f"Лінія з ID {line_id} вже існує (+{existing_line['phone_number']}, {existing_line['bank']}). Введіть інший ID (або /cancel):")
+        await message.answer(f"Лінія {line_id} вже існує (+{existing_line['phone_number']}, {existing_line['bank']}). Введіть інший номер Line (або /cancel):")
         return
         
     await state.update_data(line_id=line_id)
@@ -226,7 +275,6 @@ async def add_line_phone(message: Message, state: FSMContext):
     all_banks = list(dict.fromkeys(customOrder + unique_banks))
     
     keyboard_buttons = []
-    row = []
     for bank in all_banks:
         keyboard_buttons.append([InlineKeyboardButton(text=bank, callback_data=f"addlinebank_{bank}")])
     
@@ -253,7 +301,7 @@ async def add_line_bank_callback(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.answer(
         f"✅ Лінію успішно додано:\n"
-        f"• ID: {line_id}\n"
+        f"• Line: {line_id}\n"
         f"• Телефон: +{phone}\n"
         f"• Банк: {bank}",
         reply_markup=get_admin_keyboard()
@@ -281,7 +329,7 @@ async def add_line_bank_text(message: Message, state: FSMContext):
     
     await message.answer(
         f"✅ Лінію успішно додано:\n"
-        f"• ID: {line_id}\n"
+        f"• Line: {line_id}\n"
         f"• Телефон: +{phone}\n"
         f"• Банк: {bank}",
         reply_markup=get_admin_keyboard()
