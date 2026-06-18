@@ -1591,6 +1591,7 @@
 
         function switchTab(tabId) {
             currentTab = tabId;
+            localStorage.setItem('activeTab', tabId);
             
             // Оновлення кнопок
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -1897,6 +1898,10 @@
                 }
             }
         });
+
+        // Відновлення активної вкладки
+        const savedTab = localStorage.getItem('activeTab') || 'control';
+        switchTab(savedTab);
 
         // Перший запуск та налаштування опитування
         pollData();
