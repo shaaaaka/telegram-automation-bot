@@ -120,8 +120,9 @@
         <!-- Вкладка 2: Статистика -->
         <div id="tab-content-stats" class="tab-content">
             <div class="panel">
-                <div class="panel-header">
+                <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <h2 class="panel-title">Загальна статистика</h2>
+                    <button class="btn btn-danger btn-sm" onclick="clearStats()" style="padding: 6px 14px; font-size: 0.8rem; border-radius: 8px;">Очистити статистику</button>
                 </div>
                 <div class="stats-summary-grid">
                     <div class="stats-card">
@@ -1668,6 +1669,26 @@
                 });
             } catch (err) {
                 showToast("Не вдалося завантажити статистику", "error");
+            }
+        }
+
+        async function clearStats() {
+            const confirmed = await showConfirm("Ви впевнені, що хочете очистити всю статистику верифікацій? Цю дію неможливо скасувати.", "danger");
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch('/api/stats/clear', {
+                    method: 'POST'
+                });
+                if (res.ok) {
+                    showToast("Статистику успішно очищено!", "success");
+                    await loadStats();
+                } else {
+                    const err = await res.json();
+                    showToast("Помилка очищення: " + err.detail, "error");
+                }
+            } catch (err) {
+                showToast("Помилка відправки запиту", "error");
             }
         }
 

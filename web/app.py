@@ -513,6 +513,15 @@ async def get_stats_endpoint():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
 
+@app.post("/api/stats/clear")
+async def clear_stats_endpoint():
+    """Очищення всієї статистики"""
+    try:
+        await db.clear_statistics()
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to clear stats: {str(e)}")
+
 @app.get("/api/settings")
 async def get_settings_endpoint():
     """Отримання налаштувань та шаблонів банків"""

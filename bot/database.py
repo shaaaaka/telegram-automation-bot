@@ -419,3 +419,9 @@ async def get_statistics() -> dict:
             "today": today,
             "banks": banks_stats
         }
+
+async def clear_statistics():
+    """Видалення всієї статистики верифікацій"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("DELETE FROM bank_verifications")
+        await db.commit()
