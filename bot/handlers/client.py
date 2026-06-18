@@ -448,7 +448,7 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
     anketa_text += f"{line_str}\n\n"
     
     if client_card:
-        anketa_text += f"Номер карти: {client_card}\n"
+        anketa_text += f"Номер карти: {client_card}\n\n"
         
     anketa_text += f"{client_password}"
     
