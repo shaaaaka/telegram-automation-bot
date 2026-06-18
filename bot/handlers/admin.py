@@ -505,7 +505,8 @@ async def handle_reject_client(callback: CallbackQuery, bot: Bot):
     # Повідомляємо клієнта
     await bot.send_message(
         chat_id=client_id,
-        text="На жаль, ваш запит на верифікацію було відхилено адміністратором."
+        text="На жаль, ваш запит на верифікацію було відхилено адміністратором.",
+        reply_markup=ReplyKeyboardRemove()
     )
 
 @router.callback_query(F.data.startswith("route_"))
@@ -647,7 +648,8 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot):
                 await bot.send_message(
                     chat_id=client_id,
                     text=f"Верифікацію для банку {bank_name} завершено. Очікуйте наступний номер.",
-                    parse_mode="Markdown"
+                    parse_mode="Markdown",
+                    reply_markup=ReplyKeyboardRemove()
                 )
             except Exception as e:
                 print(f"Не вдалося надіслати клієнту повідомлення: {e}")
@@ -705,7 +707,8 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot):
                 await bot.send_message(
                     chat_id=client_id,
                     text=f"На жаль, виникла помилка з цим номером (відмова банку {bank_name}). Будь ласка, зачекайте, ми призначимо вам новий номер для цього банку.",
-                    parse_mode="Markdown"
+                    parse_mode="Markdown",
+                    reply_markup=ReplyKeyboardRemove()
                 )
             except Exception as e:
                 print(f"Не вдалося надіслати клієнту повідомлення про відмову: {e}")

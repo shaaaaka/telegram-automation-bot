@@ -1,5 +1,11 @@
 import aiosqlite
+import contextvars
+import asyncio
+import logging
 from bot.config import DB_FILE
+
+current_sender = contextvars.ContextVar("current_sender", default="bot")
+chat_message_callbacks = []
 
 async def init_db():
     """Ініціалізація бази даних та створення таблиць"""
@@ -57,6 +63,11 @@ async def init_db():
         except aiosqlite.OperationalError:
             pass
 
+        try:
+            await db.execute("ALTER TABLE sessions ADD COLUMN card_photo_id TEXT")
+        except aiosqlite.OperationalError:
+            pass
+
         # Таблиця для логування статистики верифікацій
         await db.execute("""
             CREATE TABLE IF NOT EXISTS bank_verifications (
@@ -89,6 +100,18 @@ async def init_db():
             )
         """)
         
+        # Таблиця для збереження історії чату з дропом
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS chat_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_id INTEGER,
+                sender TEXT NOT NULL,
+                message_text TEXT,
+                photo_id TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
         # Заповнюємо налаштування за замовчуванням
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('reminder_delay_minutes', '5')")
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('reminder_text', 'Ви отримали номер телефону для реєстрації. Будь ласка, введіть його в додатку, щоб ми могли надіслати вам код. Якщо виникли труднощі — напишіть нам!')")
@@ -96,14 +119,16 @@ async def init_db():
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('giver_request_retry_format', 'Запрос {line_id} {bank_name} (ПОВТОРНО)')")
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('client_number_assigned_format', 'Банк: *{bank_name}*\nНомер телефону:\n\n`+{phone_number}`\n\nКоли надішлете SMS і вам знадобиться код, тисніть кнопку нижче.')")
 
-        # Ініціалізуємо стандартні шаблони банків, якщо таблиця порожня
-        cursor = await db.execute("SELECT COUNT(*) FROM bank_templates")
-        count = (await cursor.fetchone())[0]
-        if count == 0:
-            from bot.config import BANK_TEMPLATES
+        # Синхронізуємо стандартні шаблони банків з конфігом
+        from bot.config import BANK_TEMPLATES
+        if BANK_TEMPLATES:
+            await db.execute(
+                "DELETE FROM bank_templates WHERE key NOT IN ({})".format(",".join(["?"] * len(BANK_TEMPLATES))),
+                tuple(BANK_TEMPLATES.keys())
+            )
             for key, val in BANK_TEMPLATES.items():
                 await db.execute(
-                    "INSERT INTO bank_templates (key, command, text) VALUES (?, ?, ?)",
+                    "INSERT OR REPLACE INTO bank_templates (key, command, text) VALUES (?, ?, ?)",
                     (key, val['command'], val['text'])
                 )
 
@@ -186,8 +211,8 @@ async def create_or_update_session(client_id: int, username: str, client_data: s
     """Створення нової сесії для клієнта (коли він надсилає свої дані)"""
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("""
-            INSERT INTO sessions (client_id, username, client_data, status, client_message_id, selected_banks, remaining_banks, success_photo_id, card_first4, card_last4)
-            VALUES (?, ?, ?, 'registered', NULL, NULL, NULL, NULL, NULL, NULL)
+            INSERT INTO sessions (client_id, username, client_data, status, client_message_id, selected_banks, remaining_banks, success_photo_id, card_first4, card_last4, card_photo_id)
+            VALUES (?, ?, ?, 'registered', NULL, NULL, NULL, NULL, NULL, NULL, NULL)
             ON CONFLICT(client_id) DO UPDATE SET
                 username = excluded.username,
                 client_data = excluded.client_data,
@@ -199,20 +224,22 @@ async def create_or_update_session(client_id: int, username: str, client_data: s
                 created_at = CURRENT_TIMESTAMP,
                 success_photo_id = NULL,
                 card_first4 = NULL,
-                card_last4 = NULL
+                card_last4 = NULL,
+                card_photo_id = NULL
         """, (client_id, username, client_data))
         await db.commit()
 
-async def update_session_verification_data(client_id: int, success_photo_id: str = None, card_first4: str = None, card_last4: str = None):
+async def update_session_verification_data(client_id: int, success_photo_id: str = None, card_first4: str = None, card_last4: str = None, card_photo_id: str = None):
     """Оновлення фото та маски картки верифікації в сесії"""
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("""
             UPDATE sessions 
             SET success_photo_id = COALESCE(?, success_photo_id),
                 card_first4 = COALESCE(?, card_first4),
-                card_last4 = COALESCE(?, card_last4)
+                card_last4 = COALESCE(?, card_last4),
+                card_photo_id = COALESCE(?, card_photo_id)
             WHERE client_id = ?
-        """, (success_photo_id, card_first4, card_last4, client_id))
+        """, (success_photo_id, card_first4, card_last4, card_photo_id, client_id))
         await db.commit()
 
 async def get_session(client_id: int):
@@ -455,3 +482,52 @@ async def clear_statistics():
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("DELETE FROM bank_verifications")
         await db.commit()
+
+async def log_chat_message(client_id: int, sender: str, message_text: str = None, photo_id: str = None):
+    """Збереження повідомлення в історію чату"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("""
+            INSERT INTO chat_logs (client_id, sender, message_text, photo_id)
+            VALUES (?, ?, ?, ?)
+        """, (client_id, sender, message_text, photo_id))
+        await db.commit()
+    
+    # Виклик зареєстрованих колбеків для оновлення в реальному часі
+    for cb in chat_message_callbacks:
+        try:
+            asyncio.create_task(cb(client_id, sender, message_text, photo_id))
+        except Exception as e:
+            logging.error(f"Error in chat_message_callback: {e}")
+
+async def get_chat_logs(client_id: int):
+    """Отримання всієї історії чату для конкретного клієнта"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT * FROM chat_logs WHERE client_id = ? ORDER BY created_at ASC
+        """, (client_id,)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+async def clear_chat_logs(client_id: int):
+    """Видалення всієї історії чату для конкретного клієнта"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("DELETE FROM chat_logs WHERE client_id = ?", (client_id,))
+        await db.commit()
+
+async def delete_session_completely(client_id: int):
+    """Повне видалення сесії, логів та верифікацій клієнта з вивільненням лінії"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        # Звільняємо лінію, якщо вона була призначена
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT line_id FROM sessions WHERE client_id = ?", (client_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row and row['line_id']:
+                await db.execute("UPDATE lines SET status = 'available' WHERE id = ?", (row['line_id'],))
+        
+        # Видаляємо всі дані
+        await db.execute("DELETE FROM bank_verifications WHERE client_id = ?", (client_id,))
+        await db.execute("DELETE FROM chat_logs WHERE client_id = ?", (client_id,))
+        await db.execute("DELETE FROM sessions WHERE client_id = ?", (client_id,))
+        await db.commit()
+

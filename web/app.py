@@ -1,19 +1,75 @@
 import os
 import asyncio
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+import mimetypes
+mimetypes.init()
+mimetypes.add_type("text/css", ".css", True)
+mimetypes.add_type("application/javascript", ".js", True)
+
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+import io
 from pydantic import BaseModel
 from typing import List, Optional
 import aiosqlite
 from aiogram import Bot
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile, ReplyKeyboardRemove
 
 from bot.config import DB_FILE, ADMIN_ID, get_bank_template, get_bank_template_with_key, get_template_photo
 import bot.database as db
+from bot.database import current_sender, chat_message_callbacks
 
 app = FastAPI(title="Verification Bot Web Admin")
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
+# WebSocket Connection Manager for real-time CRM chat updates
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                pass
+
+manager = ConnectionManager()
+
+@app.websocket("/ws/chat")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Maintain connection, wait for client close
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception:
+        manager.disconnect(websocket)
+
+async def on_new_chat_message(client_id: int, sender: str, message_text: str = None, photo_id: str = None):
+    import datetime
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    await manager.broadcast({
+        "type": "new_message",
+        "client_id": client_id,
+        "sender": sender,
+        "message_text": message_text,
+        "photo_id": photo_id,
+        "created_at": now_str
+    })
+
+# Register WebSocket broadcast callback
+chat_message_callbacks.append(on_new_chat_message)
+
 
 # Глобальне посилання на бота Telegram
 bot: Optional[Bot] = None
@@ -145,6 +201,49 @@ async def get_sessions():
                 sessions_list.append(session_dict)
             return sessions_list
 
+@app.get("/api/sessions/{client_id}/chat")
+async def get_session_chat(client_id: int):
+    """Отримання історії чату для конкретної сесії"""
+    try:
+        logs = await db.get_chat_logs(client_id)
+        return logs
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/photos/{file_id}")
+async def get_telegram_photo(file_id: str):
+    """Стрімінг фотографії з Telegram по її file_id"""
+    if not bot:
+        raise HTTPException(status_code=500, detail="Bot is not configured")
+    try:
+        file_info = await bot.get_file(file_id)
+        photo_bytes = io.BytesIO()
+        await bot.download_file(file_info.file_path, photo_bytes)
+        photo_bytes.seek(0)
+        return StreamingResponse(photo_bytes, media_type="image/jpeg")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch photo from Telegram: {e}")
+
+@app.get("/api/avatar/{client_id}")
+async def get_client_avatar(client_id: int):
+    """Повертає аватарку користувача з Telegram або 404, якщо її немає"""
+    if not bot:
+        raise HTTPException(status_code=500, detail="Bot is not configured")
+    try:
+        photos = await bot.get_user_profile_photos(user_id=client_id, limit=1)
+        if photos and photos.total_count > 0:
+            # photos.photos is List[List[PhotoSize]], where photos[0][0] is the first photo, smallest size
+            file_id = photos.photos[0][0].file_id
+            file_info = await bot.get_file(file_id)
+            photo_bytes = io.BytesIO()
+            await bot.download_file(file_info.file_path, photo_bytes)
+            photo_bytes.seek(0)
+            return StreamingResponse(photo_bytes, media_type="image/jpeg")
+        else:
+            raise HTTPException(status_code=404, detail="No profile photos found")
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Failed to fetch avatar: {e}")
+
 @app.get("/api/banks")
 async def get_banks():
     """Отримання списку унікальних банків з ліній"""
@@ -272,6 +371,22 @@ async def assign_line(client_id: int, body: LineAssignment):
         )
         # Зберігаємо ID повідомлення у клієнта
         await db.update_session_message_id(client_id, client_msg.message_id)
+
+        # Додаємо Reply Keyboard кнопку для зручності
+        from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+        reply_keyboard = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="Запросити SMS-код")]],
+            resize_keyboard=True,
+            one_time_keyboard=False
+        )
+        try:
+            await bot.send_message(
+                chat_id=client_id,
+                text="Для вашої зручності кнопка запиту коду також продубльована внизу екрана 👇",
+                reply_markup=reply_keyboard
+            )
+        except Exception:
+            pass
     except Exception as e:
         # У разі помилки відкочуємо призначення
         await db.set_line_status(body.line_id, 'available')
@@ -358,7 +473,6 @@ async def complete_bank(client_id: int, result: str = "success"):
     if not remaining:
         # Завершуємо роботу повністю
         try:
-            from aiogram.types import ReplyKeyboardRemove
             await bot.send_message(
                 chat_id=client_id,
                 text="Роботу завершено. Дякуємо за співпрацю.",
@@ -383,7 +497,8 @@ async def complete_bank(client_id: int, result: str = "success"):
                 await bot.send_message(
                     chat_id=client_id,
                     text=f"На жаль, виникла помилка з цим номером (відмова банку {bank_name}). Будь ласка, зачекайте, ми призначимо вам новий номер для цього банку.",
-                    parse_mode="Markdown"
+                    parse_mode="Markdown",
+                    reply_markup=ReplyKeyboardRemove()
                 )
             except Exception:
                 pass
@@ -393,7 +508,8 @@ async def complete_bank(client_id: int, result: str = "success"):
                 await bot.send_message(
                     chat_id=client_id,
                     text=f"Верифікацію для банку {bank_name} завершено. Очікуйте наступний номер.",
-                    parse_mode="Markdown"
+                    parse_mode="Markdown",
+                    reply_markup=ReplyKeyboardRemove()
                 )
             except Exception:
                 pass
@@ -425,7 +541,8 @@ async def terminate_session(client_id: int):
         await bot.send_message(
             chat_id=client_id,
             text="Роботу завершено. Дякуємо за співпрацю.",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
+            reply_markup=ReplyKeyboardRemove()
         )
     except Exception:
         pass
@@ -434,7 +551,36 @@ async def terminate_session(client_id: int):
     await db.close_session(client_id)
     return {"status": "terminated"}
 
+@app.post("/api/sessions/{client_id}/clear-chat")
+async def clear_chat_endpoint(client_id: int):
+    """Очищення історії чату клієнта"""
+    try:
+        await db.clear_chat_logs(client_id)
+        # Broadcast via websocket to synchronize all panels
+        await manager.broadcast({
+            "type": "chat_cleared",
+            "client_id": client_id
+        })
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to clear chat history: {str(e)}")
+
+@app.delete("/api/sessions/{client_id}")
+async def delete_session_endpoint(client_id: int):
+    """Повне видалення сесії та чату клієнта"""
+    try:
+        await db.delete_session_completely(client_id)
+        # Broadcast via websocket to synchronize all panels
+        await manager.broadcast({
+            "type": "session_deleted",
+            "client_id": client_id
+        })
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete session: {str(e)}")
+
 @app.get("/api/unrouted-codes")
+
 async def get_unrouted_codes():
     """Отримання списку нерозподілених кодів"""
     return {"codes": unrouted_codes}
@@ -487,11 +633,53 @@ async def send_client_message(client_id: int, body: ClientMessage):
     if not bot:
         raise HTTPException(status_code=500, detail="Telegram bot is not initialized")
     
+    # Встановлюємо sender як 'admin' для цього асинхронного контексту
+    token = current_sender.set("admin")
     try:
         await bot.send_message(chat_id=client_id, text=body.message)
+        
+        # Якщо сесія була в статусі waiting_code, а адмін написав клієнту повідомлення,
+        # то автоматично скасовуємо статус очікування коду і повертаємо до number_assigned.
+        session = await db.get_session(client_id)
+        if session and session['status'] == 'waiting_code':
+            await db.set_session_status(client_id, 'number_assigned')
+            
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send message: {str(e)}")
+    finally:
+        current_sender.reset(token)
+
+@app.get("/api/sessions/completed")
+async def get_completed_sessions():
+    """Отримання списку завершених сесій клієнтів (ліміт 50)"""
+    async with aiosqlite.connect(DB_FILE) as conn:
+        conn.row_factory = aiosqlite.Row
+        async with conn.execute("SELECT * FROM sessions WHERE status = 'completed' ORDER BY created_at DESC LIMIT 50") as cursor:
+            rows = await cursor.fetchall()
+            
+            sessions_list = []
+            for row in rows:
+                session_dict = dict(row)
+                client_id = session_dict['client_id']
+                
+                # Запит на отримання завершених спроб верифікації
+                async with conn.execute("""
+                    SELECT bank, status FROM bank_verifications 
+                    WHERE client_id = ? AND status != 'pending'
+                    ORDER BY id ASC
+                """, (client_id,)) as v_cursor:
+                    v_rows = await v_cursor.fetchall()
+                    bank_statuses = {}
+                    for v_row in v_rows:
+                        status = v_row['status']
+                        if status == 'failure':
+                            status = 'banned'
+                        bank_statuses[v_row['bank']] = status
+                    session_dict['bank_statuses'] = bank_statuses
+                
+                sessions_list.append(session_dict)
+            return sessions_list
 
 class AppSettingsUpdate(BaseModel):
     reminder_delay_minutes: str

@@ -7,14 +7,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=10.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=33.0">
 </head>
 <body>
 
     <header>
         <div class="logo-area">
-            <div class="logo-indicator"></div>
-            <h1>Адмін-панель <span class="hide-mobile">Verification Bot</span></h1>
+            <h1>Адмін-панель</h1>
         </div>
         <div class="header-controls">
             <button class="btn btn-secondary btn-sm" id="sound-toggle-btn" onclick="toggleSound()">
@@ -31,13 +30,20 @@
         <!-- Навігація по вкладках -->
         <div class="tabs-nav">
             <button class="tab-btn active" id="tab-btn-control" onclick="switchTab('control')">
-                🔌 Керування
+                <span class="tab-icon-wrapper">🔌</span>
+                <span class="tab-text">Керування</span>
             </button>
             <button class="tab-btn" id="tab-btn-stats" onclick="switchTab('stats')">
-                📊 Статистика
+                <span class="tab-icon-wrapper">📊</span>
+                <span class="tab-text">Статистика</span>
             </button>
-            <button class="tab-btn" id="tab-btn-settings" onclick="switchTab('settings')">
-                ⚙️ Налаштування
+            <button class="tab-btn" id="tab-btn-chat" onclick="switchTab('chat')">
+                <span class="tab-icon-wrapper">💬</span>
+                <span class="tab-text">Чати</span>
+            </button>
+            <button class="tab-btn tab-btn-settings" id="tab-btn-settings" onclick="switchTab('settings')">
+                <span class="tab-icon-wrapper">⚙️</span>
+                <span class="tab-text">Налаштування</span>
             </button>
         </div>
 
@@ -115,6 +121,33 @@
                     </div>
                 </div>
 
+            </div>
+        </div>
+
+        <!-- Вкладка Чат: CRM чат-кімната -->
+        <div id="tab-content-chat" class="tab-content">
+            <div class="chat-page-layout">
+                <!-- Ліва колонка: Список клієнтів -->
+                <div class="chat-sidebar">
+                    <div class="chat-sidebar-header">
+                        <div class="chat-sidebar-tabs">
+                            <button class="sidebar-tab active" id="chat-sidebar-tab-active" onclick="setChatSidebarTab('active')">Активні</button>
+                            <button class="sidebar-tab" id="chat-sidebar-tab-completed" onclick="setChatSidebarTab('completed')">Архів</button>
+                        </div>
+                        <input type="text" id="chat-search-input" placeholder="Пошук клієнта за іменем..." oninput="filterChatSidebar()">
+                    </div>
+                    <div class="chat-sidebar-list" id="chat-sidebar-list-container">
+                        <!-- Динамічний список чатів -->
+                    </div>
+                </div>
+
+                <!-- Права колонка: Чат-вікно -->
+                <div class="chat-window" id="chat-window-container">
+                    <div class="chat-no-selection">
+                        <div class="chat-no-selection-icon">💬</div>
+                        <p>Оберіть чат зі списку ліворуч, щоб розпочати листування</p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -291,6 +324,66 @@
         </div>
     </div>
 
+    <!-- Custom Premium Modal Dialog -->
+    <div id="custom-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span class="modal-icon">⚠️</span>
+                <h3 class="modal-title">Підтвердження дії</h3>
+            </div>
+            <div class="modal-body" id="custom-modal-message">
+                Ви впевнені, що хочете виконати цю дію?
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" id="custom-modal-cancel-btn">Скасувати</button>
+                <button class="btn btn-danger btn-sm" id="custom-modal-confirm-btn">Підтвердити</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Modal Dialog -->
+    <div id="chat-modal" class="chat-modal-overlay" onclick="closeChatModal()">
+        <div class="chat-modal-card" onclick="event.stopPropagation()">
+            <div class="chat-modal-header">
+                <div class="chat-modal-header-left">
+                    <div class="chat-modal-avatar" id="chat-modal-avatar">
+                        <span id="chat-modal-avatar-text">К</span>
+                    </div>
+                    <div class="chat-modal-info">
+                        <h3 id="chat-modal-title">Чат з клієнтом</h3>
+                        <div class="chat-modal-subtitle">
+                            <span class="chat-modal-status-dot"></span>
+                            <span id="chat-modal-status-text" class="chat-modal-status-text">Активний</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="chat-modal-close" onclick="closeChatModal()" title="Закрити чат">✕</button>
+            </div>
+            <div class="chat-modal-body">
+                <div class="chat-logs-container" id="modal-chat-logs">
+                    <div class="chat-logs-loading">Завантаження...</div>
+                </div>
+            </div>
+            <div class="chat-modal-footer">
+                <div class="chat-input-wrapper">
+                    <textarea id="modal-msg-input" oninput="onModalMessageInput(this.value)" onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendModalChatMessage(); }" placeholder="Введіть повідомлення для клієнта..." rows="1"></textarea>
+                    <button class="btn-send-message" onclick="sendModalChatMessage()" title="Надіслати">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Lightbox Modal -->
+    <div id="image-lightbox" class="lightbox-overlay" onclick="closeLightbox()">
+        <button class="lightbox-close" onclick="closeLightbox()" title="Закрити">✕</button>
+        <img id="lightbox-img" class="lightbox-image" src="" alt="Full Screen Preview" onclick="event.stopPropagation()">
+    </div>
+
     <script>
         function showToast(message, type = 'info') {
             let container = document.getElementById('toast-container');
@@ -307,6 +400,48 @@
             setTimeout(() => {
                 toast.remove();
             }, 3000);
+        }
+
+        // Кастомне підтвердження (Promise-based Modal)
+        function showConfirm(message, type = 'danger') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('custom-modal');
+                const msgEl = document.getElementById('custom-modal-message');
+                const confirmBtn = document.getElementById('custom-modal-confirm-btn');
+                const cancelBtn = document.getElementById('custom-modal-cancel-btn');
+                
+                if (!modal || !msgEl || !confirmBtn || !cancelBtn) {
+                    resolve(confirm(message));
+                    return;
+                }
+
+                msgEl.innerText = message;
+                
+                // Налаштування теми підтвердження
+                confirmBtn.className = 'btn btn-sm';
+                if (type === 'danger') {
+                    confirmBtn.classList.add('btn-danger');
+                } else if (type === 'success') {
+                    confirmBtn.classList.add('btn-success');
+                } else {
+                    confirmBtn.classList.add('btn-primary');
+                }
+
+                modal.classList.add('active');
+
+                const cleanUp = (result) => {
+                    modal.classList.remove('active');
+                    confirmBtn.removeEventListener('click', onConfirmClick);
+                    cancelBtn.removeEventListener('click', onCancelClick);
+                    resolve(result);
+                };
+
+                function onConfirmClick() { cleanUp(true); }
+                function onCancelClick() { cleanUp(false); }
+
+                confirmBtn.addEventListener('click', onConfirmClick);
+                cancelBtn.addEventListener('click', onCancelClick);
+            });
         }
 
         // Кастомне підтвердження (Promise-based Modal)
@@ -456,6 +591,9 @@
                     // Попереджувальний звук (Alert)
                     playTone(440, 0.12, now);
                     playTone(554.37, 0.18, now + 0.08);
+                } else if (type === 'new_message') {
+                    // Звук нового повідомлення (Ping)
+                    playTone(587.33, 0.15, now);
                 }
             } catch (e) {
                 console.error("Помилка відтворення звуку:", e);
@@ -521,6 +659,22 @@
             }
         }
 
+        // Оновлення списку автопідстановки банків (datalist)
+        function updateBanksDatalist() {
+            const datalist = document.getElementById('banks-datalist');
+            if (datalist && availableBanks) {
+                datalist.innerHTML = '';
+                const customOrder = ["PUMB", "bank.kd", "IziBank", "EcoBank", "Alliance", "LvivBank", "AmoBank"];
+                const uniqueBanks = Array.from(new Set([...customOrder, ...availableBanks]))
+                    .filter(Boolean);
+                uniqueBanks.forEach(bank => {
+                    const option = document.createElement('option');
+                    option.value = bank;
+                    datalist.appendChild(option);
+                });
+            }
+        }
+
 
 
 
@@ -539,6 +693,180 @@
                 localStorage.setItem('expandedSessions', JSON.stringify(Array.from(expandedSessions)));
             } catch (e) {}
         }
+
+        let activeChatClientId = null;
+
+        function openChatModal(clientId, event) {
+            if (event) event.stopPropagation();
+            switchTab('chat');
+            selectChatClient(clientId);
+        }
+        
+        function closeChatModal() {
+            activeChatClientId = null;
+            const modal = document.getElementById('chat-modal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+
+        function openLightbox(src) {
+            const overlay = document.getElementById('image-lightbox');
+            const img = document.getElementById('lightbox-img');
+            if (overlay && img) {
+                img.src = src;
+                overlay.classList.add('active');
+            }
+        }
+
+        function closeLightbox() {
+            const overlay = document.getElementById('image-lightbox');
+            if (overlay) {
+                overlay.classList.remove('active');
+            }
+        }
+        
+        function onModalMessageInput(value) {
+            if (activeChatClientId !== null) {
+                tempMessageInputs[activeChatClientId] = value;
+            }
+        }
+        
+        function applyModalTemplate(text) {
+            const textarea = document.getElementById('modal-msg-input');
+            if (textarea) {
+                textarea.value = text;
+                if (activeChatClientId !== null) {
+                    tempMessageInputs[activeChatClientId] = text;
+                }
+                textarea.style.height = 'auto';
+                textarea.style.height = (textarea.scrollHeight) + 'px';
+                textarea.focus();
+            }
+        }
+
+        async function sendModalChatMessage() {
+            const clientId = activeChatClientId;
+            if (clientId === null) return;
+            
+            const textarea = document.getElementById('modal-msg-input');
+            if (!textarea) return;
+            
+            const message = textarea.value.trim();
+            if (!message) {
+                showToast("Введіть текст повідомлення!", "error");
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/sessions/${clientId}/message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                if (res.ok) {
+                    showToast("Повідомлення надіслано!", "success");
+                    textarea.value = "";
+                    textarea.style.height = 'auto';
+                    delete tempMessageInputs[clientId];
+                    // Refresh chat
+                    fetchAndRenderModalChat(clientId);
+                } else {
+                    const err = await res.json();
+                    showToast("Помилка надсилання: " + err.detail, "error");
+                }
+            } catch (err) {
+                showToast("Не вдалося надіслати повідомлення", "error");
+            }
+        }
+
+        async function fetchAndRenderModalChat(clientId) {
+            const container = document.getElementById('modal-chat-logs');
+            if (!container || activeChatClientId !== clientId) return;
+            try {
+                const res = await fetch(`/api/sessions/${clientId}/chat`);
+                if (!res.ok) return;
+                const logs = await res.json();
+                
+                // Safety check
+                if (activeChatClientId !== clientId) return;
+
+                // Compare logs JSON to avoid redrawing DOM and flashing/animations re-triggering
+                const logsJson = JSON.stringify(logs);
+                if (container.dataset.lastLogsJson === logsJson) {
+                    return;
+                }
+                container.dataset.lastLogsJson = logsJson;
+                
+                if (logs.length === 0) {
+                    container.innerHTML = '<div class="chat-logs-loading">Немає повідомлень у чаті</div>';
+                    return;
+                }
+                
+                let html = '';
+                let lastDateStr = null;
+                logs.forEach(msg => {
+                    const msgDate = new Date(msg.created_at);
+                    const dateStr = msgDate.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' });
+                    
+                    if (dateStr !== lastDateStr) {
+                        html += `
+                            <div class="chat-date-divider">
+                                <span class="chat-date-pill">${dateStr}</span>
+                            </div>
+                        `;
+                        lastDateStr = dateStr;
+                    }
+
+                    const time = msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    let msgContent = '';
+                    if (msg.photo_id) {
+                        msgContent += `<img src="/api/photos/${msg.photo_id}" alt="Photo" onload="const c = document.getElementById('modal-chat-logs'); if(c) c.scrollTop = c.scrollHeight;" onclick="openLightbox('/api/photos/${msg.photo_id}')">`;
+                    }
+                    if (msg.message_text) {
+                        let escapedText = msg.message_text
+                            .replace(/&/g, "&amp;")
+                            .replace(/</g, "&lt;")
+                            .replace(/>/g, "&gt;")
+                            .replace(/"/g, "&quot;")
+                            .replace(/'/g, "&#039;");
+                        
+                        // Parse **bold** markdown to HTML
+                        escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                        msgContent += `<div class="message-text">${escapedText}</div>`;
+                    }
+                    
+                    const checkmark = msg.sender === 'bot' ? '<span class="message-status">✓</span>' : '';
+                    html += `
+                        <div class="chat-message ${msg.sender}">
+                            ${msgContent}
+                            <span class="message-time">${time} ${checkmark}</span>
+                        </div>
+                    `;
+                });
+                
+                const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 80;
+                const wasLoading = container.querySelector('.chat-logs-loading');
+                
+                container.innerHTML = html;
+                
+                // Scroll synchronously to bottom immediately to prevent visible jumping
+                container.scrollTop = 999999;
+                
+                if (isAtBottom || wasLoading) {
+                    // Staggered adjustments to ensure layout completes and scroll remains absolute bottom
+                    setTimeout(() => {
+                        container.scrollTop = 999999;
+                    }, 30);
+                    setTimeout(() => {
+                        container.scrollTop = 999999;
+                    }, 150);
+                }
+            } catch (e) {
+                console.error("Error fetching chat logs:", e);
+            }
+        }
+
 
         // Парсинг та форматування ПІБ зі збережених даних клієнта
         function extractDisplayName(clientData, username) {
@@ -608,7 +936,7 @@
                 
                 let prefix = 'Чекає';
                 if (status === 'waiting_code') prefix = 'Код';
-                else if (status === 'registered') prefix = 'Лінія';
+                else if (status === 'registered') prefix = 'Чекає лінію';
                 else if (status === 'number_assigned') prefix = 'В роботі';
                 
                 el.innerText = `⏳ ${prefix}: ${minutes}:${seconds}`;
@@ -836,6 +1164,14 @@
                 
                 if (sessionsChanged) {
                     renderSessions(sessions);
+                    if (currentTab === 'chat') {
+                        renderChatSidebar();
+                    }
+                }
+                
+                // Якщо відкрито модальне вікно чату, оновлюємо його
+                if (activeChatClientId !== null) {
+                    fetchAndRenderModalChat(activeChatClientId);
                 }
 
                 // 5. Завантаження нерозподілених кодів
@@ -1325,8 +1661,9 @@
                             <span class="session-status status-${session.status}">${statusText}</span>
                             ${activeLineText ? `<span class="active-line-badge">${activeLineText}</span>` : ''}
                         </div>
-                        <div class="header-right">
-                            <svg class="chevron-icon" width="20" height="20" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                        <div class="header-right" onclick="event.stopPropagation()">
+                            <button class="btn-chat-modal" onclick="event.stopPropagation(); openChatModal(${session.client_id}, event)">💬 Чат</button>
+                            <svg class="chevron-icon" width="20" height="20" viewBox="0 0 24 24" onclick="toggleExpand(${session.client_id}); event.stopPropagation();" style="margin-left: 12px; cursor: pointer;"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
                         </div>
                     </div>
                     
@@ -1343,20 +1680,6 @@
                         </div>
  
                         ${assignmentHTML}
- 
-                        <!-- Форма надсилання повідомлень в Telegram -->
-                        <div class="message-section">
-                            <div class="section-label">Надіслати повідомлення клієнту в Telegram</div>
-                            <div class="flex-column-gap">
-                                <textarea id="msg-input-${session.client_id}" oninput="tempMessageInputs[${session.client_id}] = this.value" onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendClientMessage(${session.client_id}); }" placeholder="Введіть повідомлення для клієнта..." rows="2">${tempMessageInputs[session.client_id] || ''}</textarea>
-                                <div class="flex-row-wrap-gap">
-                                    <button class="msg-template-btn" onclick="applyTemplate(${session.client_id}, 'Неправильний ІПН, перевірте дані та надішліть ще раз')">Неправильний ІПН</button>
-                                    <button class="msg-template-btn" onclick="applyTemplate(${session.client_id}, 'Спробуйте запросити SMS-код ще раз')">Запросити ще раз</button>
-                                    <button class="msg-template-btn" onclick="applyTemplate(${session.client_id}, 'Будь ласка, перезавантажте додаток банкінгу та спробуйте знову')">Перезавантажити банкінг</button>
-                                </div>
-                                <button class="btn btn-primary btn-sm btn-align-right" onclick="sendClientMessage(${session.client_id})">Надіслати</button>
-                            </div>
-                        </div>
  
                         <div class="action-footer">
                             <button class="btn btn-success btn-sm" onclick="completeSessionBank(${session.client_id}, 'success')" ${!session.line_id ? 'disabled' : ''}>
@@ -1380,6 +1703,7 @@
         }
 
 
+
             // Відновлення фокусу та курсору
             if (activeId) {
                 const el = document.getElementById(activeId);
@@ -1392,6 +1716,7 @@
                     }
                 }
             }
+
 
             // Миттєво оновлюємо значення таймерів
             updateTimers();
@@ -1522,13 +1847,98 @@
         }
 
         // Закриваємо списки при кліку поза ними
-        document.addEventListener('click', () => {
+        document.addEventListener('click', (event) => {
             document.querySelectorAll('.custom-select-options.active').forEach(optionsPanel => {
                 optionsPanel.classList.remove('active');
                 const wrapper = optionsPanel.parentElement;
                 if (wrapper) wrapper.querySelector('.custom-select-trigger').classList.remove('active');
             });
+
+            // Закриття меню дій чату
+            const chatDropdown = document.getElementById('chat-actions-dropdown');
+            if (chatDropdown && chatDropdown.classList.contains('active')) {
+                if (!event.target.classList.contains('chat-actions-btn')) {
+                    chatDropdown.classList.remove('active');
+                }
+            }
         });
+
+
+        // Перемикання кастомного випадаючого списку (Toggle custom dropdown)
+        function toggleCustomDropdown(clientId, event) {
+            event.stopPropagation();
+            
+            // Закриваємо всі інші відкриті списки спочатку
+            document.querySelectorAll('.custom-select-options.active').forEach(optionsPanel => {
+                if (optionsPanel.id !== `custom-select-options-${clientId}`) {
+                    optionsPanel.classList.remove('active');
+                    const wrapper = optionsPanel.parentElement;
+                    if (wrapper) wrapper.querySelector('.custom-select-trigger').classList.remove('active');
+                }
+            });
+
+            const trigger = event.currentTarget;
+            const optionsPanel = document.getElementById(`custom-select-options-${clientId}`);
+            if (optionsPanel) {
+                const isActive = optionsPanel.classList.contains('active');
+                if (isActive) {
+                    optionsPanel.classList.remove('active');
+                    trigger.classList.remove('active');
+                } else {
+                    optionsPanel.classList.add('active');
+                    trigger.classList.add('active');
+                    
+                    // Налаштовуємо кліки на опціях
+                    const options = optionsPanel.querySelectorAll('.custom-select-option');
+                    options.forEach(opt => {
+                        opt.onclick = (e) => {
+                            e.stopPropagation();
+                            const val = opt.getAttribute('data-value');
+                            
+                            // 1. Оновлюємо значення прихованого нативного селекту
+                            const nativeSelect = document.getElementById(`line-select-${clientId}`);
+                            if (nativeSelect) {
+                                nativeSelect.value = val;
+                                // Викликаємо зміну нативного селекту для оновлення тимчасового стану
+                                onLineSelectChange(nativeSelect, clientId);
+                            }
+                            
+                            // 2. Оновлюємо підсвічування обраного пункту в списку
+                            options.forEach(o => o.classList.remove('selected'));
+                            opt.classList.add('selected');
+                            
+                            // 3. Змінюємо відображуваний текст
+                            const textSpan = document.getElementById(`custom-select-trigger-text-${clientId}`);
+                            if (textSpan) {
+                                textSpan.innerText = opt.querySelector('span') ? opt.querySelector('span').innerText : opt.innerText.trim();
+                            }
+                            
+                            // 4. Закриваємо випадаюче меню
+                            optionsPanel.classList.remove('active');
+                            trigger.classList.remove('active');
+                        };
+                    });
+                }
+            }
+        }
+
+        // Закриваємо списки при кліку поза ними
+        document.addEventListener('click', (event) => {
+            document.querySelectorAll('.custom-select-options.active').forEach(optionsPanel => {
+                optionsPanel.classList.remove('active');
+                const wrapper = optionsPanel.parentElement;
+                if (wrapper) wrapper.querySelector('.custom-select-trigger').classList.remove('active');
+            });
+
+            // Закриття меню дій чату
+            const chatDropdown = document.getElementById('chat-actions-dropdown');
+            if (chatDropdown && chatDropdown.classList.contains('active')) {
+                if (!event.target.classList.contains('chat-actions-btn')) {
+                    chatDropdown.classList.remove('active');
+                }
+            }
+        });
+
 
         // Призначення лінії клієнту
         async function assignLine(clientId) {
@@ -1596,6 +2006,21 @@
                 });
                 if (res.ok) {
                     showToast("Сесію закрито!", "success");
+                    if (selectedChatClientId === clientId) {
+                        selectedChatClientId = null;
+                        try {
+                            localStorage.removeItem('selectedChatClientId');
+                        } catch (e) {}
+                        const windowContainer = document.getElementById('chat-window-container');
+                        if (windowContainer) {
+                            windowContainer.innerHTML = `
+                                <div class="chat-no-selection">
+                                    <div class="chat-no-selection-icon">💬</div>
+                                    <p>Оберіть чат зі списку ліворуч, щоб розпочати листування</p>
+                                </div>
+                            `;
+                        }
+                    }
                     pollData();
                 } else {
                     const err = await res.json();
@@ -1628,9 +2053,11 @@
                 loadStats();
             } else if (tabId === 'settings') {
                 loadSettings();
+            } else if (tabId === 'chat') {
+                loadChatSessions();
             }
         }
-
+        
         async function loadStats() {
             try {
                 const res = await fetch('/api/stats');
@@ -1919,18 +2346,529 @@
             }
         });
 
-        // Відновлення активної вкладки
+
+
+        // --- CRM Chat Tab Implementation ---
+        let chatSidebarTab = 'active'; // 'active' or 'completed'
+        let cachedCompletedSessions = [];
+        let chatUnreadCounts = {};
+        let selectedChatClientId = null;
+
+        function setChatSidebarTab(type) {
+            chatSidebarTab = type;
+            document.querySelectorAll('.sidebar-tab').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.getElementById(`chat-sidebar-tab-${type}`);
+            if (activeBtn) activeBtn.classList.add('active');
+            
+            if (type === 'completed') {
+                loadCompletedSessions();
+            } else {
+                renderChatSidebar();
+            }
+        }
+
+        async function loadCompletedSessions() {
+            try {
+                const res = await fetch('/api/sessions/completed');
+                cachedCompletedSessions = await res.json();
+                renderChatSidebar();
+            } catch (err) {
+                console.error("Failed to load completed sessions:", err);
+            }
+        }
+
+        function loadChatSessions() {
+            // Active sessions are updated via pollData, but we trigger a sidebar render
+            if (chatSidebarTab === 'completed') {
+                loadCompletedSessions();
+            } else {
+                renderChatSidebar();
+            }
+        }
+
+        function renderChatSidebar() {
+            const container = document.getElementById('chat-sidebar-list-container');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            const searchQuery = document.getElementById('chat-search-input').value.toLowerCase().trim();
+            const list = chatSidebarTab === 'completed' ? cachedCompletedSessions : lastFetchedSessions;
+            
+            // Auto-restore selected chat client if saved in localStorage and not currently selected
+            const savedId = localStorage.getItem('selectedChatClientId');
+            if (savedId && selectedChatClientId === null && list && list.length > 0) {
+                const parsedSavedId = parseInt(savedId);
+                if (list.some(s => s.client_id === parsedSavedId)) {
+                    setTimeout(() => {
+                        if (selectedChatClientId === null) {
+                            selectChatClient(parsedSavedId);
+                        }
+                    }, 0);
+                }
+            }
+
+            if (!list || list.length === 0) {
+                container.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.3);font-size:0.85rem;">Список порожній</div>';
+                return;
+            }
+            
+            list.forEach(session => {
+                const displayName = extractDisplayName(session.client_data, session.username);
+                if (searchQuery && !displayName.toLowerCase().includes(searchQuery) && !String(session.client_id).includes(searchQuery)) {
+                    return;
+                }
+                
+                const item = document.createElement('div');
+                item.className = `chat-item ${selectedChatClientId === session.client_id ? 'active' : ''}`;
+                item.onclick = () => selectChatClient(session.client_id);
+                
+                const avatarChar = displayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К';
+                const unreadCount = chatUnreadCounts[session.client_id] || 0;
+                
+                // Construct bank list display
+                let bankListHtml = '';
+                if (session.bank_statuses) {
+                    const banks = Object.keys(session.bank_statuses);
+                    if (banks.length > 0) {
+                        bankListHtml = `<span style="font-size:0.75rem;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,0.06);margin-left:4px;color:rgba(255,255,255,0.5);">${banks.join(', ')}</span>`;
+                    }
+                }
+                
+                item.innerHTML = `
+                    <div class="chat-item-avatar">
+                        <span id="sidebar-avatar-placeholder-${session.client_id}">${avatarChar}</span>
+                        <img src="/api/avatar/${session.client_id}" onload="const el = document.getElementById('sidebar-avatar-placeholder-${session.client_id}'); if(el) el.style.display='none';" onerror="this.remove();">
+                    </div>
+                    <div class="chat-item-info">
+                        <div class="chat-item-top">
+                            <span class="chat-item-name">${displayName}</span>
+                            <span class="chat-item-time">${formatChatTime(session.created_at)}</span>
+                        </div>
+                        <div class="chat-item-bottom">
+                            <span class="chat-item-preview">${session.status === 'completed' ? 'Архівна сесія' : getSessionStatusTextLocal(session.status)} ${bankListHtml}</span>
+                            ${unreadCount > 0 ? `<span class="chat-item-badge">${unreadCount}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function formatChatTime(dateStr) {
+            if (!dateStr) return '';
+            try {
+                // dateStr comes from sqlite timestamp (e.g. "2026-06-18 22:54:37")
+                const t = dateStr.split(' ')[1] || '';
+                if (t) {
+                    return t.substring(0, 5); // HH:MM
+                }
+                return dateStr;
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function getSessionStatusTextLocal(status) {
+            switch (status) {
+                case 'registered': return 'Зареєстрований';
+                case 'number_assigned': return 'Номер видано';
+                case 'waiting_code': return 'Очікує код ⏳';
+                case 'completed': return 'Завершено';
+                default: return status;
+            }
+        }
+
+        function filterChatSidebar() {
+            renderChatSidebar();
+        }
+
+        function toggleChatActionsMenu(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('chat-actions-dropdown');
+            if (dropdown) {
+                dropdown.classList.toggle('active');
+            }
+        }
+
+        async function clearChatHistory(clientId) {
+            const confirmed = await showConfirm("Ви впевнені, що хочете очистити всю історію повідомлень для цього клієнта?", "danger");
+            if (!confirmed) return;
+            
+            try {
+                const res = await fetch(`/api/sessions/${clientId}/clear-chat`, {
+                    method: 'POST'
+                });
+                if (res.ok) {
+                    showToast("Історію чату успішно очищено!", "success");
+                    if (selectedChatClientId === clientId) {
+                        refreshChatPageMessages(clientId);
+                    }
+                } else {
+                    const err = await res.json();
+                    showToast("Помилка: " + err.detail, "error");
+                }
+            } catch (err) {
+                showToast("Не вдалося очистити історію", "error");
+            }
+        }
+
+        async function deleteChatCompletely(clientId) {
+            const confirmed = await showConfirm("Ви впевнені, що хочете ПОВНІСТЮ видалити цей чат, всю його історію та сесію з сайту?", "danger");
+            if (!confirmed) return;
+            
+            try {
+                const res = await fetch(`/api/sessions/${clientId}`, {
+                    method: 'DELETE'
+                });
+                if (res.ok) {
+                    showToast("Чат повністю видалено з сайту!", "success");
+                    if (selectedChatClientId === clientId) {
+                        selectedChatClientId = null;
+                        try {
+                            localStorage.removeItem('selectedChatClientId');
+                        } catch (e) {}
+                        const windowContainer = document.getElementById('chat-window-container');
+                        if (windowContainer) {
+                            windowContainer.innerHTML = `
+                                <div class="chat-no-selection">
+                                    <div class="chat-no-selection-icon">💬</div>
+                                    <p>Оберіть чат зі списку ліворуч, щоб розпочати листування</p>
+                                </div>
+                            `;
+                        }
+                    }
+                    pollData();
+                    if (chatSidebarTab === 'completed') {
+                        loadCompletedSessions();
+                    }
+                } else {
+                    const err = await res.json();
+                    showToast("Помилка: " + err.detail, "error");
+                }
+            } catch (err) {
+                showToast("Не вдалося видалити чат", "error");
+            }
+        }
+
+        async function selectChatClient(clientId) {
+            selectedChatClientId = clientId;
+            try {
+                localStorage.setItem('selectedChatClientId', clientId);
+            } catch (e) {}
+            chatUnreadCounts[clientId] = 0;
+            renderChatSidebar(); // Update unread badges
+            
+            const windowContainer = document.getElementById('chat-window-container');
+            if (!windowContainer) return;
+            
+            // Find client details in active or completed cache
+            const allSessions = [...(lastFetchedSessions || []), ...(cachedCompletedSessions || [])];
+            const session = allSessions.find(s => s.client_id === clientId);
+            if (!session) {
+                windowContainer.innerHTML = '<div style="padding:40px;text-align:center;color:red;">Помилка: клієнта не знайдено</div>';
+                return;
+            }
+            
+            const displayName = extractDisplayName(session.client_data, session.username);
+            
+            // Render Header, Body frame, and Footer
+            windowContainer.innerHTML = `
+                <div class="chat-window-header">
+                    <div class="chat-window-client-info">
+                        <div class="chat-window-avatar">
+                            <span id="avatar-placeholder-${session.client_id}">${displayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К'}</span>
+                            <img src="/api/avatar/${session.client_id}" onload="const el = document.getElementById('avatar-placeholder-${session.client_id}'); if(el) el.style.display='none';" onerror="this.remove();">
+                        </div>
+                        <div class="chat-window-details">
+                            <span class="chat-window-name">${displayName}</span>
+                        </div>
+                    </div>
+                    <div class="chat-window-actions">
+                        <button class="chat-actions-btn" onclick="toggleChatActionsMenu(event)" title="Опції чату">⋮</button>
+                        <div class="chat-actions-dropdown" id="chat-actions-dropdown">
+                            <button class="dropdown-item" onclick="clearChatHistory(${session.client_id})">Очистити історію</button>
+                            <button class="dropdown-item danger" onclick="deleteChatCompletely(${session.client_id})">Видалити чат повністю</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-window-body" id="chat-window-body-container">
+                    <div style="text-align:center;color:rgba(255,255,255,0.3);padding:20px;">Завантаження повідомлень...</div>
+                </div>
+                <div class="chat-window-footer">
+                    <div class="chat-templates-row" id="chat-page-templates-row">
+                        <!-- Динамічні шаблони -->
+                    </div>
+                    <div class="chat-input-wrapper" style="align-items: center;">
+                        <textarea id="chat-msg-input" placeholder="Введіть повідомлення для клієнта..." rows="1" onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendChatPageMessage(); }"></textarea>
+                        <button class="btn-send-message" onclick="sendChatPageMessage()" title="Надіслати">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Add dynamic templates
+            renderChatPageTemplates();
+            
+            // Load message log history
+            await refreshChatPageMessages(clientId);
+        }
+
+        function renderChatPageTemplates() {
+            const row = document.getElementById('chat-page-templates-row');
+            if (!row) return;
+            row.innerHTML = '';
+            
+            if (window.bankTemplates) {
+                Object.keys(window.bankTemplates).forEach(key => {
+                    const t = window.bankTemplates[key];
+                    const btn = document.createElement('button');
+                    btn.className = 'chat-template-btn';
+                    btn.innerText = t.key;
+                    btn.title = t.text;
+                    btn.onclick = () => {
+                        const textarea = document.getElementById('chat-msg-input');
+                        if (textarea) {
+                            textarea.value = t.text;
+                            textarea.focus();
+                        }
+                    };
+                    row.appendChild(btn);
+                });
+            }
+        }
+
+        async function refreshChatPageMessages(clientId) {
+            try {
+                const res = await fetch(`/api/sessions/${clientId}/chat`);
+                const logs = await res.json();
+                
+                const bodyContainer = document.getElementById('chat-window-body-container');
+                if (!bodyContainer || selectedChatClientId !== clientId) return;
+                
+                bodyContainer.innerHTML = '';
+                if (!logs || logs.length === 0) {
+                    bodyContainer.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.2);padding:40px;">Історія повідомлень порожня</div>';
+                    return;
+                }
+                
+                logs.forEach(log => {
+                    renderSingleChatMessage(bodyContainer, log);
+                });
+                
+                scrollToBottom('chat-window-body-container');
+            } catch (err) {
+                console.error("Failed to load messages:", err);
+            }
+        }
+
+        function renderSingleChatMessage(container, log) {
+            const row = document.createElement('div');
+            row.className = `chat-msg-row msg-${log.sender}`;
+            
+            let contentHtml = '';
+            if (log.photo_id) {
+                contentHtml += `<img class="chat-msg-img" src="/api/photos/${log.photo_id}" onclick="openLightbox(this.src)">`;
+            }
+            if (log.message_text) {
+                let escapedText = escapeHtml(log.message_text);
+                escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                contentHtml += `<div class="chat-msg-text">${escapedText.replace(/\n/g, '<br>')}</div>`;
+            }
+            
+            // Formatting time
+            let timeStr = '';
+            if (log.created_at) {
+                try {
+                    // Expecting SQLite format: "2026-06-18 22:54:37"
+                    timeStr = log.created_at.split(' ')[1]?.substring(0, 5) || '';
+                } catch (e) {}
+            }
+            
+            // Double checkmarks for sent messages
+            const checkmarks = log.sender !== 'client' ? ' ✓✓' : '';
+            
+            row.innerHTML = `
+                <div class="chat-msg-bubble">
+                    ${contentHtml}
+                    <div class="chat-msg-meta">
+                        <span>${log.sender === 'bot' ? '🤖 Бот • ' : ''}${timeStr}${checkmarks}</span>
+                    </div>
+                </div>
+            `;
+            container.appendChild(row);
+        }
+
+        function scrollToBottom(containerId) {
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+
+        async function sendChatPageMessage() {
+            const clientId = selectedChatClientId;
+            if (!clientId) return;
+            
+            const textarea = document.getElementById('chat-msg-input');
+            if (!textarea) return;
+            
+            const message = textarea.value.trim();
+            if (!message) return;
+            
+            try {
+                const res = await fetch(`/api/sessions/${clientId}/message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                if (res.ok) {
+                    textarea.value = '';
+                    // We don't need to append manually, as WS will broadcast it back to us!
+                } else {
+                    showToast("Не вдалося надіслати повідомлення", "error");
+                }
+            } catch (err) {
+                showToast("Помилка відправки запиту", "error");
+            }
+        }
+
+        // --- WebSocket Chat Synchronizer ---
+        let chatWs = null;
+
+        function connectChatWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            chatWs = new WebSocket(`${protocol}//${host}/ws/chat`);
+            
+            chatWs.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'new_message') {
+                        handleIncomingWebSocketMessage(data);
+                    } else if (data.type === 'chat_cleared') {
+                        if (selectedChatClientId === data.client_id) {
+                            const bodyContainer = document.getElementById('chat-window-body-container');
+                            if (bodyContainer) {
+                                bodyContainer.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.2);padding:40px;">Історія повідомлень порожня</div>';
+                            }
+                        }
+                    } else if (data.type === 'session_deleted') {
+                        if (selectedChatClientId === data.client_id) {
+                            selectedChatClientId = null;
+                            try {
+                                localStorage.removeItem('selectedChatClientId');
+                            } catch (e) {}
+                            const windowContainer = document.getElementById('chat-window-container');
+                            if (windowContainer) {
+                                windowContainer.innerHTML = `
+                                    <div class="chat-no-selection">
+                                        <div class="chat-no-selection-icon">💬</div>
+                                        <p>Оберіть чат зі списку ліворуч, щоб розпочати листування</p>
+                                    </div>
+                                `;
+                            }
+                        }
+                        pollData();
+                        if (chatSidebarTab === 'completed') {
+                            loadCompletedSessions();
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to parse WS event:", e);
+                }
+            };
+            
+            chatWs.onclose = function() {
+                console.log("Chat WS connection lost. Reconnecting in 3s...");
+                setTimeout(connectChatWebSocket, 3000);
+            };
+        }
+
+        function handleIncomingWebSocketMessage(data) {
+            // 1. If currently viewing this chat client
+            if (selectedChatClientId === data.client_id) {
+                const bodyContainer = document.getElementById('chat-window-body-container');
+                if (bodyContainer) {
+                    // Remove "empty history" placeholder if present
+                    if (bodyContainer.innerHTML.includes('Історія повідомлень порожня')) {
+                        bodyContainer.innerHTML = '';
+                    }
+                    // Format object to match DB log structure for rendering
+                    const logObj = {
+                        sender: data.sender,
+                        message_text: data.message_text,
+                        photo_id: data.photo_id,
+                        created_at: data.created_at
+                    };
+                    renderSingleChatMessage(bodyContainer, logObj);
+                    scrollToBottom('chat-window-body-container');
+                }
+            } else {
+                // 2. Play sound if message is from client
+                if (data.sender === 'client') {
+                    playSound('new_message');
+                }
+                
+                // 3. Increment unread counter
+                chatUnreadCounts[data.client_id] = (chatUnreadCounts[data.client_id] || 0) + 1;
+            }
+            
+            // 4. Update preview and list position
+            updateSidebarItemPreview(data.client_id, data.message_text || "[Фото]");
+        }
+
+        function updateSidebarItemPreview(clientId, text) {
+            // Update in active list
+            let found = false;
+            if (lastFetchedSessions) {
+                const session = lastFetchedSessions.find(s => s.client_id === clientId);
+                if (session) {
+                    found = true;
+                    // Move session to the top of the list
+                    lastFetchedSessions = [session, ...lastFetchedSessions.filter(s => s.client_id !== clientId)];
+                }
+            }
+            if (!found && cachedCompletedSessions) {
+                const session = cachedCompletedSessions.find(s => s.client_id === clientId);
+                if (session) {
+                    cachedCompletedSessions = [session, ...cachedCompletedSessions.filter(s => s.client_id !== clientId)];
+                }
+            }
+            
+            // Re-render sidebar list
+            renderChatSidebar();
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        // --- Global Initialization ---
+        // Restore active tab
         const savedTab = localStorage.getItem('activeTab') || 'control';
         switchTab(savedTab);
 
-        // Перший запуск та налаштування опитування
+        // Initial fetch and poll scheduling (every 1s)
         pollData();
+        setInterval(pollData, 1000);
         
-        // Опитування бази даних кожні 2 секунди
-        setInterval(pollData, 2000);
-        
-        // Оновлення секундних таймерів SLA кожну секунду для плавності
+        // Update SLA timers (every 1s)
         setInterval(updateTimers, 1000);
+
+        // Initialize Chat WebSocket
+        connectChatWebSocket();
     </script>
 </body>
 </html>
