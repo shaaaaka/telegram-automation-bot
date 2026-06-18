@@ -64,10 +64,8 @@ async def cmd_start(message: Message, state: FSMContext):
                 f"Бажаєте використати ці дані для автозаповнення чи ввести нові дані (наприклад, для друга)?"
             )
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [
-                    InlineKeyboardButton(text="🔄 Використати ці дані", callback_data="autofill_use"),
-                    InlineKeyboardButton(text="✍️ Ввести нові дані", callback_data="autofill_new")
-                ]
+                [InlineKeyboardButton(text="🔄 Використати ці дані", callback_data="autofill_use")],
+                [InlineKeyboardButton(text="✍️ Ввести нові дані", callback_data="autofill_new")]
             ])
             await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
             await state.set_state(RegistrationStates.waiting_pib_dob)
@@ -116,10 +114,8 @@ async def handle_autofill_use(callback: CallbackQuery, state: FSMContext):
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="✅ Підтвердити та надіслати", callback_data="confirm_reg"),
-            InlineKeyboardButton(text="🔄 Заповнити заново", callback_data="restart_reg")
-        ]
+        [InlineKeyboardButton(text="✅ Підтвердити та надіслати", callback_data="confirm_reg")],
+        [InlineKeyboardButton(text="🔄 Заповнити заново", callback_data="restart_reg")]
     ])
     
     await callback.message.edit_reply_markup(reply_markup=None)
@@ -217,10 +213,8 @@ async def process_ipn(message: Message, state: FSMContext):
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="✅ Підтвердити та надіслати", callback_data="confirm_reg"),
-            InlineKeyboardButton(text="🔄 Заповнити заново", callback_data="restart_reg")
-        ]
+        [InlineKeyboardButton(text="✅ Підтвердити та надіслати", callback_data="confirm_reg")],
+        [InlineKeyboardButton(text="🔄 Заповнити заново", callback_data="restart_reg")]
     ])
     
     await message.answer(confirm_text, reply_markup=keyboard, parse_mode="Markdown")
