@@ -358,12 +358,12 @@ async def complete_bank(client_id: int, result: str = "success"):
     if not remaining:
         # Завершуємо роботу повністю
         try:
-            from bot.handlers.client import get_client_idle_keyboard
+            from aiogram.types import ReplyKeyboardRemove
             await bot.send_message(
                 chat_id=client_id,
                 text="Роботу завершено. Дякуємо за співпрацю.",
                 parse_mode="Markdown",
-                reply_markup=get_client_idle_keyboard()
+                reply_markup=ReplyKeyboardRemove()
             )
         except Exception:
             pass
