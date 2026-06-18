@@ -2,11 +2,36 @@ import os
 import re
 from aiogram import Router, F, Bot
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.fsm.state import StatesGroup, State
+from aiogram.fsm.context import FSMContext
 from bot.config import ADMIN_ID, get_template_photo
 import bot.database as db
 
 router = Router()
+
+class AddLineStates(StatesGroup):
+    waiting_id = State()
+    waiting_phone = State()
+    waiting_bank = State()
+
+def get_admin_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text="🔌 Активні сесії"),
+                KeyboardButton(text="📞 Статус ліній")
+            ],
+            [
+                KeyboardButton(text="➕ Додати лінію"),
+                KeyboardButton(text="📥 Імпорт lines.txt")
+            ],
+            [
+                KeyboardButton(text="🗑️ Очистити лінії")
+            ]
+        ],
+        resize_keyboard=True
+    )
 
 # Фільтр для перевірки, що повідомлення або запит від Адміна
 def is_admin(message_or_query) -> bool:
@@ -128,6 +153,139 @@ async def cmd_clear_lines(message: Message):
         return
     await db.clear_all_lines()
     await message.answer("Список ліній повністю очищено.")
+
+# --- Обробники текстових кнопок меню адміна ---
+
+@router.message(F.text == "🔌 Активні сесії", F.from_user.id == ADMIN_ID)
+async def btn_active_sessions(message: Message):
+    await cmd_list_sessions(message)
+
+@router.message(F.text == "📞 Статус ліній", F.from_user.id == ADMIN_ID)
+async def btn_list_lines(message: Message):
+    await cmd_list_lines(message)
+
+@router.message(F.text == "📥 Імпорт lines.txt", F.from_user.id == ADMIN_ID)
+async def btn_import_lines(message: Message):
+    await cmd_import_lines(message)
+
+@router.message(F.text == "🗑️ Очистити лінії", F.from_user.id == ADMIN_ID)
+async def btn_clear_lines(message: Message):
+    await cmd_clear_lines(message)
+
+@router.message(F.text == "➕ Додати лінію", F.from_user.id == ADMIN_ID)
+async def btn_add_line_start(message: Message, state: FSMContext):
+    if not is_admin(message):
+        return
+    await state.clear()
+    await message.answer(
+        "Введіть унікальний ID для нової лінії (ціле число):\n\n"
+        "Для скасування надішліть /cancel",
+        reply_markup=ReplyKeyboardRemove()
+    )
+    await state.set_state(AddLineStates.waiting_id)
+
+@router.message(AddLineStates.waiting_id, F.from_user.id == ADMIN_ID)
+async def add_line_id(message: Message, state: FSMContext):
+    if message.text == "/cancel":
+        await state.clear()
+        await message.answer("Додавання лінії скасовано.", reply_markup=get_admin_keyboard())
+        return
+        
+    line_id_str = message.text.strip()
+    if not line_id_str.isdigit():
+        await message.answer("ID має бути цілим числом. Спробуйте ще раз (або /cancel):")
+        return
+        
+    line_id = int(line_id_str)
+    
+    existing_line = await db.get_line(line_id)
+    if existing_line:
+        await message.answer(f"Лінія з ID {line_id} вже існує (+{existing_line['phone_number']}, {existing_line['bank']}). Введіть інший ID (або /cancel):")
+        return
+        
+    await state.update_data(line_id=line_id)
+    await message.answer("Тепер введіть номер телефону (наприклад, +380961175562 або 380961175562):")
+    await state.set_state(AddLineStates.waiting_phone)
+
+@router.message(AddLineStates.waiting_phone, F.from_user.id == ADMIN_ID)
+async def add_line_phone(message: Message, state: FSMContext):
+    if message.text == "/cancel":
+        await state.clear()
+        await message.answer("Додавання лінії скасовано.", reply_markup=get_admin_keyboard())
+        return
+        
+    phone = message.text.strip().replace(' ', '').replace('-', '').replace('+', '')
+    if not phone.isdigit() or len(phone) < 9:
+        await message.answer("Неправильний формат телефону. Введіть ще раз (наприклад, 380961175562 або /cancel):")
+        return
+        
+    await state.update_data(phone=phone)
+    
+    customOrder = ["PUMB", "bank.kd", "IziBank", "EcoBank", "Alliance", "LvivBank", "AmoBank"]
+    unique_banks = await db.get_unique_banks()
+    all_banks = list(dict.fromkeys(customOrder + unique_banks))
+    
+    keyboard_buttons = []
+    row = []
+    for bank in all_banks:
+        keyboard_buttons.append([InlineKeyboardButton(text=bank, callback_data=f"addlinebank_{bank}")])
+    
+    markup = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    
+    await message.answer(
+        "Оберіть банк зі списку нижче або введіть назву банку вручну:",
+        reply_markup=markup
+    )
+    await state.set_state(AddLineStates.waiting_bank)
+
+@router.callback_query(F.data.startswith("addlinebank_"), AddLineStates.waiting_bank)
+async def add_line_bank_callback(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback):
+        return
+    bank = callback.data.split("_")[1]
+    data = await state.get_data()
+    line_id = data['line_id']
+    phone = data['phone']
+    
+    await db.add_or_update_line(line_id, phone, bank)
+    await state.clear()
+    
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer(
+        f"✅ Лінію успішно додано:\n"
+        f"• ID: {line_id}\n"
+        f"• Телефон: +{phone}\n"
+        f"• Банк: {bank}",
+        reply_markup=get_admin_keyboard()
+    )
+    await callback.answer()
+
+@router.message(AddLineStates.waiting_bank, F.from_user.id == ADMIN_ID)
+async def add_line_bank_text(message: Message, state: FSMContext):
+    if message.text == "/cancel":
+        await state.clear()
+        await message.answer("Додавання лінії скасовано.", reply_markup=get_admin_keyboard())
+        return
+        
+    bank = message.text.strip()
+    if not bank:
+        await message.answer("Назва банку не може бути порожньою. Введіть ще раз (або /cancel):")
+        return
+        
+    data = await state.get_data()
+    line_id = data['line_id']
+    phone = data['phone']
+    
+    await db.add_or_update_line(line_id, phone, bank)
+    await state.clear()
+    
+    await message.answer(
+        f"✅ Лінію успішно додано:\n"
+        f"• ID: {line_id}\n"
+        f"• Телефон: +{phone}\n"
+        f"• Банк: {bank}",
+        reply_markup=get_admin_keyboard()
+    )
 
 # --- Callback обробники для Адміна ---
 

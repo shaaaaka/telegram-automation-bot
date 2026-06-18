@@ -24,15 +24,12 @@ def clean_pib(pib: str) -> str:
 @router.message(CommandStart(), F.chat.type == "private")
 async def cmd_start(message: Message, state: FSMContext):
     """Обробник команди /start для клієнта"""
-    # Якщо адмін пише /start, показуємо йому довідку
     if message.from_user.id == ADMIN_ID:
+        from bot.handlers.admin import get_admin_keyboard
         await message.answer(
             "Привіт, Адміне!\n\n"
-            "Доступні команди:\n"
-            "/import - імпортувати лінії з файлу lines.txt\n"
-            "/lines - показати статус усіх ліній\n"
-            "/sessions - показати активні сесії верифікації\n"
-            "/clear_lines - повністю очистити список ліній"
+            "Оберіть потрібну дію на клавіатурі нижче:",
+            reply_markup=get_admin_keyboard()
         )
         return
 
