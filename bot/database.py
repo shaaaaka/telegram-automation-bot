@@ -42,6 +42,21 @@ async def init_db():
         except aiosqlite.OperationalError:
             pass
 
+        try:
+            await db.execute("ALTER TABLE sessions ADD COLUMN success_photo_id TEXT")
+        except aiosqlite.OperationalError:
+            pass
+
+        try:
+            await db.execute("ALTER TABLE sessions ADD COLUMN card_first4 TEXT")
+        except aiosqlite.OperationalError:
+            pass
+
+        try:
+            await db.execute("ALTER TABLE sessions ADD COLUMN card_last4 TEXT")
+        except aiosqlite.OperationalError:
+            pass
+
         # Таблиця для логування статистики верифікацій
         await db.execute("""
             CREATE TABLE IF NOT EXISTS bank_verifications (
@@ -171,8 +186,8 @@ async def create_or_update_session(client_id: int, username: str, client_data: s
     """Створення нової сесії для клієнта (коли він надсилає свої дані)"""
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("""
-            INSERT INTO sessions (client_id, username, client_data, status, client_message_id, selected_banks, remaining_banks)
-            VALUES (?, ?, ?, 'registered', NULL, NULL, NULL)
+            INSERT INTO sessions (client_id, username, client_data, status, client_message_id, selected_banks, remaining_banks, success_photo_id, card_first4, card_last4)
+            VALUES (?, ?, ?, 'registered', NULL, NULL, NULL, NULL, NULL, NULL)
             ON CONFLICT(client_id) DO UPDATE SET
                 username = excluded.username,
                 client_data = excluded.client_data,
@@ -181,8 +196,23 @@ async def create_or_update_session(client_id: int, username: str, client_data: s
                 selected_banks = NULL,
                 remaining_banks = NULL,
                 status = 'registered',
-                created_at = CURRENT_TIMESTAMP
+                created_at = CURRENT_TIMESTAMP,
+                success_photo_id = NULL,
+                card_first4 = NULL,
+                card_last4 = NULL
         """, (client_id, username, client_data))
+        await db.commit()
+
+async def update_session_verification_data(client_id: int, success_photo_id: str = None, card_first4: str = None, card_last4: str = None):
+    """Оновлення фото та маски картки верифікації в сесії"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("""
+            UPDATE sessions 
+            SET success_photo_id = COALESCE(?, success_photo_id),
+                card_first4 = COALESCE(?, card_first4),
+                card_last4 = COALESCE(?, card_last4)
+            WHERE client_id = ?
+        """, (success_photo_id, card_first4, card_last4, client_id))
         await db.commit()
 
 async def get_session(client_id: int):

