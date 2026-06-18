@@ -20,6 +20,11 @@ try:
 except ValueError:
     GIVER_CHAT_ID = 0
 
+try:
+    ANKETA_CHAT_ID = int(os.getenv("ANKETA_CHAT_ID", "0"))
+except ValueError:
+    ANKETA_CHAT_ID = 0
+
 # Валідація основних параметрів
 if not BOT_TOKEN:
     print("WARNING: BOT_TOKEN is not set in environment or .env file!")
