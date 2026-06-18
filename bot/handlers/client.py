@@ -45,6 +45,34 @@ async def cmd_start(message: Message, state: FSMContext):
 
     await state.clear()
     
+    # Перевіряємо можливість автозаповнення з попередньої завершеної сесії
+    if existing_session and existing_session['status'] == 'completed' and existing_session['client_data']:
+        ipn_match = re.search(r'ІПН:\s*(\d+)', existing_session['client_data'])
+        pib_match = re.search(r'ПІБ:\s*(.+)', existing_session['client_data'])
+        dob_match = re.search(r'Дата:\s*(.+)', existing_session['client_data'])
+        
+        if ipn_match and pib_match and dob_match:
+            ipn = ipn_match.group(1)
+            pib = pib_match.group(1)
+            dob = dob_match.group(1)
+            
+            welcome_text = (
+                f"Привіт! Знайдено ваші попередні дані верифікації:\n\n"
+                f"• **ПІБ:** {pib}\n"
+                f"• **Дата народження:** {dob}\n"
+                f"• **ІПН:** {ipn}\n\n"
+                f"Бажаєте використати ці дані для автозаповнення чи ввести нові дані (наприклад, для друга)?"
+            )
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🔄 Використати ці дані", callback_data="autofill_use"),
+                    InlineKeyboardButton(text="✍️ Ввести нові дані", callback_data="autofill_new")
+                ]
+            ])
+            await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
+            await state.set_state(RegistrationStates.waiting_pib_dob)
+            return
+
     # Крок 1: Запитуємо ПІБ та Дату народження
     await message.answer(
         "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження\n\n"
@@ -53,6 +81,66 @@ async def cmd_start(message: Message, state: FSMContext):
         reply_markup=ReplyKeyboardRemove()  # Прибирає будь-які старі кнопки
     )
     await state.set_state(RegistrationStates.waiting_pib_dob)
+
+
+@router.callback_query(F.data == "autofill_use")
+async def handle_autofill_use(callback: CallbackQuery, state: FSMContext):
+    """Обробник вибору використання попередніх даних"""
+    client_id = callback.from_user.id
+    existing_session = await db.get_session(client_id)
+    if not existing_session or not existing_session['client_data']:
+        await callback.answer("Дані не знайдено.", show_alert=True)
+        return
+        
+    ipn_match = re.search(r'ІПН:\s*(\d+)', existing_session['client_data'])
+    pib_match = re.search(r'ПІБ:\s*(.+)', existing_session['client_data'])
+    dob_match = re.search(r'Дата:\s*(.+)', existing_session['client_data'])
+    
+    if not (ipn_match and pib_match and dob_match):
+        await callback.answer("Не вдалося розпарсити старі дані.", show_alert=True)
+        return
+        
+    ipn = ipn_match.group(1)
+    pib = pib_match.group(1)
+    dob = dob_match.group(1)
+    
+    # Зберігаємо дані в стан FSM
+    await state.update_data(pib=pib, dob=dob, ipn=ipn)
+    
+    # Виводимо повідомлення підтвердження
+    confirm_text = (
+        f"**Перевірте ваші дані:**\n"
+        f"• **ПІБ:** {pib}\n"
+        f"• **ІПН:** {ipn}\n"
+        f"• **Дата народження:** {dob}"
+    )
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Підтвердити та надіслати", callback_data="confirm_reg"),
+            InlineKeyboardButton(text="🔄 Заповнити заново", callback_data="restart_reg")
+        ]
+    ])
+    
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer(confirm_text, reply_markup=keyboard, parse_mode="Markdown")
+    await state.set_state(RegistrationStates.waiting_confirm)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "autofill_new")
+async def handle_autofill_new(callback: CallbackQuery, state: FSMContext):
+    """Обробник вибору ручного введення нових даних"""
+    await state.clear()
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer(
+        "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження\n\n"
+        "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
+        "(обов'язково пишіть все в одному повідомленні)",
+        reply_markup=ReplyKeyboardRemove()
+    )
+    await state.set_state(RegistrationStates.waiting_pib_dob)
+    await callback.answer()
 
 @router.message(RegistrationStates.waiting_pib_dob, F.chat.type == "private")
 async def process_pib_dob(message: Message, state: FSMContext):
