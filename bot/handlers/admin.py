@@ -595,9 +595,10 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot):
             print(f"Помилка видалення кнопки у клієнта: {e}")
 
     if result in ("success", "release"):
-        # 2. Позначаємо лінію відповідно
+        # 2. Позначаємо лінію відповідно та логуємо завершення
         line_status = 'success' if result == 'success' else 'available'
         await db.set_line_status(line_id, line_status)
+        await db.log_verification_end(client_id, bank_name, result)
 
         # Оновлюємо статус сесії в БД на 'registered' (без лінії)
         import aiosqlite

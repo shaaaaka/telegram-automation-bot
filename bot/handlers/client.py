@@ -480,6 +480,7 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
     # Закриваємо поточний банк у сесії
     if line_id:
         await db.set_line_status(line_id, 'success')
+        await db.log_verification_end(client_id, bank_name, 'success')
         
         import aiosqlite
         from bot.config import DB_FILE
