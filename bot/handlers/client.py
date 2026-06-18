@@ -559,11 +559,15 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
     """Обробник повідомлень поза станами введення даних (захист від флуду + ШІ підтримка)"""
     client_id = message.from_user.id
     
-    # Перевеяємо, чи є вже активна сесія у будь-котрому робочому статусі
+    # Перевіряємо, чи є вже активна сесія у будь-котрому робочому статусі
     existing_session = await db.get_session(client_id)
-    if existing_session and existing_session['status'] in ('registered', 'number_assigned', 'waiting_code'):
-        # Показати статус "typing", щоб користувач знав, що бот обробляє запит
-        await bot.send_chat_action(chat_id=client_id, action="typing")
+    if existing_session:
+        if existing_session['status'] == 'registered':
+            await message.answer("Будь ласка, зачекайте, поки адміністратор призначить вам номер телефону для початку верифікації.")
+            return
+        elif existing_session['status'] in ('number_assigned', 'waiting_code'):
+            # Показати статус "typing", щоб користувач знав, що бот обробляє запит
+            await bot.send_chat_action(chat_id=client_id, action="typing")
         
         # Отримуємо додатковий контекст для ШІ
         line_id = existing_session['line_id']
@@ -617,9 +621,13 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
     
     # Перевіряємо, чи є вже активна сесія
     existing_session = await db.get_session(client_id)
-    if existing_session and existing_session['status'] in ('registered', 'number_assigned', 'waiting_code'):
-        # Беремо фото найкращої якості
-        photo = message.photo[-1]
+    if existing_session:
+        if existing_session['status'] == 'registered':
+            await message.answer("Будь ласка, зачекайте, поки адміністратор призначить вам номер телефону для початку верифікації.")
+            return
+        elif existing_session['status'] in ('number_assigned', 'waiting_code'):
+            # Беремо фото найкращої якості
+            photo = message.photo[-1]
         
         # Зберігаємо останнє фото в стані для можливості відновлення анкетування текстом
         await state.update_data(last_photo_id=photo.file_id)
