@@ -854,22 +854,58 @@ async def update_ai_settings(body: AISettingsUpdate):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update AI settings: {e}")
 
+class AILearnRequest(BaseModel):
+    client_ids: list[int] = None
+
+@app.get("/api/ai/learnable-chats")
+async def get_learnable_chats():
+    """Отримання списку сесій/клієнтів, де брав участь адмін, для вибору в інтерфейсі"""
+    try:
+        async with aiosqlite.connect(db.DB_FILE) as conn:
+            # Знаходимо останні 30 унікальних client_id, де sender = 'admin'
+            async with conn.execute("""
+                SELECT cl.client_id, s.username, MAX(cl.created_at) as last_msg_time
+                FROM chat_logs cl
+                LEFT JOIN sessions s ON cl.client_id = s.client_id
+                WHERE cl.sender = 'admin'
+                GROUP BY cl.client_id
+                ORDER BY last_msg_time DESC
+                LIMIT 30
+            """) as cursor:
+                rows = await cursor.fetchall()
+                
+        chats = []
+        for row in rows:
+            client_id = row[0]
+            username = row[1] if row[1] else f"ID: {client_id}"
+            chats.append({
+                "client_id": client_id,
+                "username": username
+            })
+        return chats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch learnable chats: {e}")
+
 @app.post("/api/ai/learn")
-async def trigger_ai_learn():
+async def trigger_ai_learn(body: AILearnRequest = None):
     """Аналіз останніх діалогів за участю адміна та автогенерація правил-чернеток"""
     from bot.openai_client import analyze_chat_and_propose_rule
     
     try:
-        # 1. Знаходимо клієнтів, у діалогах яких брав участь адмін
-        async with aiosqlite.connect(db.DB_FILE) as conn:
-            async with conn.execute("""
-                SELECT DISTINCT client_id 
-                FROM chat_logs 
-                WHERE sender = 'admin' 
-                ORDER BY id DESC 
-                LIMIT 10
-            """) as cursor:
-                client_ids = [row[0] for row in await cursor.fetchall()]
+        client_ids = []
+        if body and body.client_ids:
+            client_ids = body.client_ids
+        else:
+            # 1. Знаходимо клієнтів, у діалогах яких брав участь адмін (за замовчуванням останні 10)
+            async with aiosqlite.connect(db.DB_FILE) as conn:
+                async with conn.execute("""
+                    SELECT DISTINCT client_id 
+                    FROM chat_logs 
+                    WHERE sender = 'admin' 
+                    ORDER BY id DESC 
+                    LIMIT 10
+                """) as cursor:
+                    client_ids = [row[0] for row in await cursor.fetchall()]
                 
         if not client_ids:
             return {

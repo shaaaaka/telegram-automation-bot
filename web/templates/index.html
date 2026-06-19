@@ -355,7 +355,17 @@
                     </button>
                 </div>
                 <div style="margin-top: 12px; color: var(--text-muted); font-size: 0.85rem; line-height: 1.4;">
-                    Система проаналізує останні 10 діалогів, де підключався менеджер (адмін). Gemini визначить різницю між відповідями бота та адміна і автоматично згенерує нові правила-інструкції (вони з'являться нижче як чернетки).
+                    Оберіть конкретний діалог із клієнтом, де ви втручались, або проаналізуйте всі останні чати. Gemini виділить розбіжності та згенерує нове правило.
+                </div>
+                
+                <div style="margin-top: 16px; display: flex; gap: 12px; align-items: center;">
+                    <div class="form-group" style="margin: 0; flex: 1; max-width: 450px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                        <label for="ai-learn-chat-select" class="form-label" style="font-size: 11px; margin-bottom: 2px;">Діалог для аналізу:</label>
+                        <select id="ai-learn-chat-select" class="form-control" style="width: 100%; height: 38px; box-sizing: border-box; padding: 0 10px; font-family: inherit;">
+                            <option value="all">-- Аналізувати всі недавні чати з адміном (останні 10) --</option>
+                            <!-- Заповнюється динамічно JS -->
+                        </select>
+                    </div>
                 </div>
                 
                 <!-- Список згенерованих чернеток -->
@@ -2469,6 +2479,26 @@
         }
 
 
+        async function loadLearnableChats() {
+            try {
+                const res = await fetch('/api/ai/learnable-chats');
+                if (!res.ok) throw new Error("Learnable chats fetch failed");
+                const chats = await res.json();
+                
+                const select = document.getElementById('ai-learn-chat-select');
+                select.innerHTML = '<option value="all">-- Аналізувати всі недавні чати з адміном (останні 10) --</option>';
+                
+                chats.forEach(chat => {
+                    const opt = document.createElement('option');
+                    opt.value = chat.client_id;
+                    opt.textContent = `@${chat.username} (ID: ${chat.client_id})`;
+                    select.appendChild(opt);
+                });
+            } catch (err) {
+                console.error("Не вдалося завантажити список чатів для навчання:", err);
+            }
+        }
+
         // --- Логіка керування та навчання ШІ ---
         async function loadAISettings() {
             try {
@@ -2488,6 +2518,9 @@
                 
                 // 3. Завантаження прикладів діалогів
                 await loadAIExamples();
+
+                // 4. Завантаження списку чатів для вибору
+                await loadLearnableChats();
             } catch (err) {
                 showToast("Не вдалося завантажити налаштування ШІ", "error");
             }
@@ -2709,13 +2742,23 @@
 
         async function runAILearn() {
             const btn = document.getElementById('btn-ai-learn');
+            const select = document.getElementById('ai-learn-chat-select');
+            const selectedVal = select.value;
+            
             const originalText = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '⏳ Аналізуємо чати (це може зайняти до 30 секунд)...';
             
+            const bodyPayload = {};
+            if (selectedVal !== 'all') {
+                bodyPayload.client_ids = [parseInt(selectedVal)];
+            }
+            
             try {
                 const res = await fetch('/api/ai/learn', {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(bodyPayload)
                 });
                 if (res.ok) {
                     const data = await res.json();
