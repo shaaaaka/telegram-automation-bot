@@ -921,7 +921,12 @@ async def process_card_screenshot(message: Message, state: FSMContext, bot: Bot)
     elif "[KD_MAIN_SCREEN]" in response:
         # Клієнт знову надіслав головний екран!
         error_text = "Надішліть, будь ласка, саме скріншот з вкладки «Картки» (там, де видно реквізити картки). Ви надіслали той самий скріншот головного меню!"
-        await message.answer(error_text)
+        import os
+        photo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "resources", "images", "bank.kd_cards_instruction.png")
+        if os.path.exists(photo_path):
+            await message.answer_photo(photo=FSInputFile(photo_path), caption=error_text)
+        else:
+            await message.answer(error_text)
         return
     else:
         # Немає розпізнаних екранів (можливо, якась інша помилка чи текст від ШІ)
@@ -1278,9 +1283,14 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
                 kd_prompt = (
                     "Дякую! Перший скріншот прийнято.\n\n"
                     "Тепер, будь ласка, перейдіть у вкладку \"Картки\" (або натисніть на саму картку), "
-                    "щоб було видно її номер, та надішліть другий скріншот для перевірки реквізитів."
+                    "щоб було видно її номер, та надішліть до чату ще 1 скрін."
                 )
-                await message.answer(kd_prompt, reply_markup=ReplyKeyboardRemove())
+                import os
+                photo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "resources", "images", "bank.kd_cards_instruction.png")
+                if os.path.exists(photo_path):
+                    await message.answer_photo(photo=FSInputFile(photo_path), caption=kd_prompt, reply_markup=ReplyKeyboardRemove())
+                else:
+                    await message.answer(kd_prompt, reply_markup=ReplyKeyboardRemove())
                 await state.update_data(success_photo_id=photo.file_id)
                 await db.update_session_verification_data(client_id, success_photo_id=photo.file_id, card_first4=card_first4, card_last4=card_last4)
                 await state.set_state(RegistrationStates.waiting_card_screenshot)
