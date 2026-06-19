@@ -691,9 +691,30 @@ async def handle_custom_bank_commands(message: Message):
                 await message.answer(val['text'])
             return
 
-def is_wrong_code_text(text: str) -> bool:
+def is_wrong_code_text(text: str, chat_history: list = None) -> bool:
     t = text.lower().strip()
     t = re.sub(r'\s+', ' ', t)
+    
+    # Якщо згадується слово, пароль, пін або прізвище, це стосується пароля/кодового слова, а не SMS-коду
+    ignore_keywords = ["слово", "пароль", "пін", "пин", "прізвищ", "фамил", "пошт", "емейл", "email"]
+    for ikw in ignore_keywords:
+        if ikw in t:
+            return False
+            
+    # Перевіряємо контекст попереднього повідомлення бота
+    if chat_history:
+        last_assistant_msg = None
+        for msg in reversed(chat_history):
+            if msg.get("role") == "assistant":
+                last_assistant_msg = msg.get("content", "").lower()
+                break
+        
+        if last_assistant_msg:
+            # Якщо останнє повідомлення бота було про секретне слово, пароль тощо:
+            if any(ckw in last_assistant_msg for ckw in ignore_keywords):
+                # Додатково перевіряємо, чи повідомлення є коротким (до 3 слів, наприклад "не підходить", "не працює")
+                if len(t.split()) <= 3:
+                    return False
     
     # Ключові слова/фрази для некоректного коду
     keywords = [
@@ -948,6 +969,14 @@ async def handle_view_my_data(message: Message, state: FSMContext):
         await message.answer(text, parse_mode="HTML")
         return
         
+    # Якщо сесію вже завершено, редагувати дані також заборонено
+    if session['status'] == 'completed':
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Закрити", callback_data="close_my_data")]
+        ])
+        await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+        return
+        
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔄 Редагувати дані", callback_data="edit_my_data")],
         [InlineKeyboardButton(text="❌ Закрити", callback_data="close_my_data")]
@@ -967,6 +996,12 @@ async def handle_close_my_data(callback: CallbackQuery):
 
 @router.callback_query(F.data == "edit_my_data")
 async def handle_edit_my_data(callback: CallbackQuery, state: FSMContext):
+    client_id = callback.from_user.id
+    session = await db.get_session(client_id)
+    if session and session['status'] == 'completed':
+        await callback.answer("Сесію завершено. Ви не можете редагувати дані.", show_alert=True)
+        return
+
     await state.clear()
     try:
         await callback.message.delete()
@@ -983,6 +1018,20 @@ async def handle_edit_my_data(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
+async def simulate_typing(bot: Bot, chat_id: int, duration: float):
+    """Імітує процес друку повідомлення в Telegram протягом вказаного часу"""
+    start_time = asyncio.get_event_loop().time()
+    while asyncio.get_event_loop().time() - start_time < duration:
+        try:
+            await bot.send_chat_action(chat_id=chat_id, action="typing")
+        except Exception:
+            pass
+        remaining = duration - (asyncio.get_event_loop().time() - start_time)
+        sleep_time = min(4.0, remaining)
+        if sleep_time > 0:
+            await asyncio.sleep(sleep_time)
+
+
 @router.message(F.chat.type == "private", F.text & ~F.text.startswith('/'))
 async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bot):
     """Обробник повідомлень поза станами введення даних (захист від флуду + ШІ підтримка)"""
@@ -994,11 +1043,12 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
         if existing_session['status'] == 'registered':
             await message.answer("Будь ласка, зачекайте, поки адміністратор призначить вам номер телефону для початку верифікації.")
             return
-        elif existing_session['status'] in ('number_assigned', 'waiting_code'):
-            # Показати статус "typing", щоб користувач знав, що бот обробляє запит
-            await bot.send_chat_action(chat_id=client_id, action="typing")
-            
-            pass
+        elif existing_session['status'] not in ('number_assigned', 'waiting_code'):
+            await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
+            return
+        
+        # Показати статус "typing", щоб користувач знав, що бот обробляє запит
+        await bot.send_chat_action(chat_id=client_id, action="typing")
         
         # Отримуємо додатковий контекст для ШІ
         line_id = existing_session['line_id']
@@ -1015,7 +1065,7 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
             await state.update_data(last_bank=current_bank_name, chat_history=[])
 
         # 1. Перевіряємо, чи повідомлення свідчить про невірний код / код не підійшов
-        if is_wrong_code_text(message.text or ""):
+        if is_wrong_code_text(message.text or "", chat_history):
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="Так, потрібен новий код", callback_data="wrongcode_yes")],
                 [InlineKeyboardButton(text="Ні, все гаразд", callback_data="wrongcode_no")]
@@ -1052,6 +1102,13 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
             current_bank_name=current_bank_name,
             chat_history=chat_history
         )
+        
+        # Імітація людського друку перед надсиланням відповіді
+        import random
+        char_count = len(response)
+        delay = min(7.0, max(3.0, char_count / 15.0)) + random.uniform(-0.5, 1.0)
+        delay = max(3.0, min(8.0, delay))
+        await simulate_typing(bot, client_id, delay)
         
         if "[SUCCESS_VERIFICATION]" in response:
             bank_label = current_bank_name if current_bank_name else "банк"
@@ -1091,15 +1148,20 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
         if existing_session['status'] == 'registered':
             await message.answer("Будь ласка, зачекайте, поки адміністратор призначить вам номер телефону для початку верифікації.")
             return
-        elif existing_session['status'] in ('number_assigned', 'waiting_code'):
-            # Беремо фото найкращої якості
-            photo = message.photo[-1]
+        elif existing_session['status'] not in ('number_assigned', 'waiting_code'):
+            await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
+            return
+        
+        # Беремо фото найкращої якості
+        photo = message.photo[-1]
         
         # Зберігаємо останнє фото в стані для можливості відновлення анкетування текстом
         await state.update_data(last_photo_id=photo.file_id)
         
         # 1. Перевіряємо, чи підпис до фото свідчить про невірний код / код не підійшов
-        if message.caption and is_wrong_code_text(message.caption):
+        state_data = await state.get_data()
+        chat_history = state_data.get("chat_history", [])
+        if message.caption and is_wrong_code_text(message.caption, chat_history):
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="Так, потрібен новий код", callback_data="wrongcode_yes")],
                 [InlineKeyboardButton(text="Ні, все гаразд", callback_data="wrongcode_no")]
@@ -1150,6 +1212,13 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
             client_data=client_data,
             current_bank_name=current_bank_name
         )
+        
+        # Імітація людського друку перед надсиланням відповіді
+        import random
+        char_count = len(response)
+        delay = min(7.0, max(3.0, char_count / 15.0)) + random.uniform(-0.5, 1.0)
+        delay = max(3.0, min(8.0, delay))
+        await simulate_typing(bot, client_id, delay)
         
         is_bank_kd = current_bank_name and "bank.kd" in current_bank_name.lower()
         is_lvivbank = current_bank_name and "lviv" in current_bank_name.lower()

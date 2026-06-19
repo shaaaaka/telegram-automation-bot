@@ -19,8 +19,8 @@ async def handle_giver_message(message: Message, bot: Bot):
 
     code = None
     if not is_refusal:
-        # Шукаємо код у повідомленні (послідовність від 4 до 6 цифр)
-        match = re.search(r'\b\d{4,6}\b', text)
+        # Шукаємо код у повідомленні (тільки 4 або 6 цифр, 5 цифр ігноруємо)
+        match = re.search(r'\b(\d{4}|\d{6})\b', text)
         if not match:
             return  # Якщо це не мінус/відмова і немає коду, ігноруємо повідомлення
         code = match.group(0)
@@ -75,11 +75,27 @@ async def handle_giver_message(message: Message, bot: Bot):
             )
         return
 
+    # Фільтруємо сесії за очікуваною довжиною коду
+    from bot.config import get_expected_code_length
+    
+    valid_sessions = []
+    for s in waiting_sessions:
+        line_id = s['line_id']
+        line_info = await db.get_line(line_id) if line_id else None
+        if line_info:
+            expected_len = get_expected_code_length(line_info['bank'])
+            if expected_len is not None and len(code) != expected_len:
+                continue
+        valid_sessions.append(s)
+
+    if not valid_sessions:
+        return
+
     # --- Сценарій 2: Автоматичний пошук відповідності за текстом для коду ---
     search_text = text.replace(code, "").strip()
     
     matched_session = None
-    for session in waiting_sessions:
+    for session in valid_sessions:
         line_id = session['line_id']
         line_info = await db.get_line(line_id) if line_id else None
         
@@ -96,9 +112,9 @@ async def handle_giver_message(message: Message, bot: Bot):
         await send_code_to_client(bot, session, line_info, code)
         return
 
-    # --- Сценарій 1: Тільки один активний запит у черзі ---
-    if len(waiting_sessions) == 1:
-        session = waiting_sessions[0]
+    # --- Сценарій 1: Тільки один активний запит у черзі з відповідною довжиною ---
+    if len(valid_sessions) == 1:
+        session = valid_sessions[0]
         line_info = await db.get_line(session['line_id']) if session['line_id'] else None
         await send_code_to_client(bot, session, line_info, code)
         return
@@ -116,7 +132,7 @@ async def handle_giver_message(message: Message, bot: Bot):
         print(f"Помилка додавання коду до веб-панелі: {e}")
 
     keyboard_buttons = []
-    for s in waiting_sessions:
+    for s in valid_sessions:
         line_info = await db.get_line(s['line_id']) if s['line_id'] else None
         bank_name = line_info['bank'] if line_info else "Невідомий банк"
         line_id = s['line_id']
@@ -131,7 +147,7 @@ async def handle_giver_message(message: Message, bot: Bot):
         chat_id=ADMIN_ID,
         text=(
             f"Отримано новий код від гівера: `{code}`\n\n"
-            f"У черзі очікування декілька клієнтів. Будь ласка, оберіть лінію для пересилання:"
+            f"У черзі очікування декілька клієнтів з відповідною довжиною коду. Будь ласка, оберіть лінію для пересилання:"
         ),
         reply_markup=markup,
         parse_mode="Markdown"

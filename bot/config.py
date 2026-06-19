@@ -97,3 +97,21 @@ def get_template_photo(key: str):
             return file_path
     return None
 
+
+def get_expected_code_length(bank_name: str) -> int | None:
+    if not bank_name:
+        return None
+    name_norm = bank_name.lower().replace(" ", "").replace("-", "").replace(".", "")
+    norm_lengths = {
+        "bankkd": 6,
+        "izibank": 4,
+        "ecobank": 4,
+        "alliance": 4,
+        "lvivbank": 6,
+        "amobank": 4
+    }
+    for key, length in norm_lengths.items():
+        if key in name_norm or name_norm in key:
+            return length
+    return None
+
