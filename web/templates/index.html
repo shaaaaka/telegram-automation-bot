@@ -41,6 +41,10 @@
                 <span class="tab-icon-wrapper">💬</span>
                 <span class="tab-text">Чати</span>
             </button>
+            <button class="tab-btn" id="tab-btn-ai" onclick="switchTab('ai')">
+                <span class="tab-icon-wrapper">🤖</span>
+                <span class="tab-text">Навчання ШІ</span>
+            </button>
             <button class="tab-btn tab-btn-settings" id="tab-btn-settings" onclick="switchTab('settings')">
                 <span class="tab-icon-wrapper">⚙️</span>
                 <span class="tab-text">Налаштування</span>
@@ -299,6 +303,146 @@
                             <textarea id="template-text" placeholder="Текст, який надішлеться клієнту" required style="width: 100%; height: 38px; min-height: 38px; max-height: 200px; resize: vertical; font-family: inherit; box-sizing: border-box; padding: 8px 12px;"></textarea>
                         </div>
                         <button type="submit" class="btn btn-primary btn-sm" style="height: 38px;">Додати</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка 4: Навчання ШІ -->
+        <div id="tab-content-ai" class="tab-content">
+            <!-- Блок загальних параметрів ШІ -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">🤖 Налаштування параметрів ШІ (Gemini)</h2>
+                </div>
+                <form id="ai-settings-form" onsubmit="saveAISettings(event)" style="display: flex; flex-direction: column; gap: 16px; margin-top: 16px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div class="form-group">
+                            <label for="ai-settings-income" class="form-label">Дохід для анкети (грн)</label>
+                            <input type="text" id="ai-settings-income" class="form-control" required style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label for="ai-settings-turnover" class="form-label">Оборот для анкети (грн)</label>
+                            <input type="text" id="ai-settings-turnover" class="form-control" required style="width: 100%;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 8px;">
+                        <div class="form-group">
+                            <label for="ai-settings-pwd-eco" class="form-label">Пароль EcoBank</label>
+                            <input type="text" id="ai-settings-pwd-eco" class="form-control" required style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label for="ai-settings-pwd-kd" class="form-label">Пароль bank.kd (5 знаків)</label>
+                            <input type="text" id="ai-settings-pwd-kd" class="form-control" required style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label for="ai-settings-pwd-other" class="form-label">Пароль для інших банків</label>
+                            <input type="text" id="ai-settings-pwd-other" class="form-control" required style="width: 100%;">
+                        </div>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary btn-sm">Зберегти параметри ШІ</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Блок автонавчання -->
+            <div class="panel" style="margin-top: 24px;">
+                <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 class="panel-title">🧠 Автоматичне навчання ШІ (Аналіз чатів)</h2>
+                    <button class="btn btn-primary btn-sm" id="btn-ai-learn" onclick="runAILearn()">
+                        🤖 Запустити аналіз чатів та навчання
+                    </button>
+                </div>
+                <div style="margin-top: 12px; color: var(--text-muted); font-size: 0.85rem; line-height: 1.4;">
+                    Система проаналізує останні 10 діалогів, де підключався менеджер (адмін). Gemini визначить різницю між відповідями бота та адміна і автоматично згенерує нові правила-інструкції (вони з'являться нижче як чернетки).
+                </div>
+                
+                <!-- Список згенерованих чернеток -->
+                <div id="ai-proposed-container" style="display: none; margin-top: 16px; border: 1px dashed var(--border-color); border-radius: 8px; padding: 16px; background: rgba(59, 130, 246, 0.05);">
+                    <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; color: var(--accent-primary);">
+                        💡 Знайдені пропозиції щодо навчання:
+                    </div>
+                    <div id="ai-proposed-list" style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Заповнюється динамічно JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Блок інструкцій та правил -->
+            <div class="panel" style="margin-top: 24px;">
+                <div class="panel-header">
+                    <h2 class="panel-title">📜 Діючі інструкції та правила ШІ</h2>
+                </div>
+                <div class="lines-list-container" style="margin-top: 16px;">
+                    <table class="lines-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 150px;">Категорія</th>
+                                <th>Текст правила (інструкції)</th>
+                                <th style="width: 100px;">Статус</th>
+                                <th style="width: 120px;">Дія</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ai-rules-table-body">
+                            <!-- Заповнюється динамічно JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="divider-top" style="margin-top: 24px; padding-top: 24px;">
+                    <div class="section-label" style="font-weight: 600; margin-bottom: 12px; font-size: 14px;">Додати нове правило вручну</div>
+                    <form id="add-rule-form" onsubmit="handleAddRule(event)" style="display: flex; gap: 12px; align-items: end; margin-top: 12px;">
+                        <div class="form-group" style="width: 200px; margin: 0;">
+                            <label for="new-rule-category" class="form-label" style="font-size: 12px;">Категорія</label>
+                            <select id="new-rule-category" class="form-control" style="width: 100%; height: 38px; box-sizing: border-box; padding: 0 10px;">
+                                <option value="general">Загальне</option>
+                                <option value="bank_rules">Правила банків</option>
+                                <option value="troubleshooting">Виправлення помилок</option>
+                                <option value="limits">Виплати та ліміти</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1; margin: 0;">
+                            <label for="new-rule-text" class="form-label" style="font-size: 12px;">Текст правила</label>
+                            <input type="text" id="new-rule-text" class="form-control" placeholder="Напр. Якщо клієнт не може пройти фото верифікацію, порадьте..." required style="width: 100%; height: 38px; box-sizing: border-box;">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px;">Додати</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Блок dialogue examples (Few-shot) -->
+            <div class="panel" style="margin-top: 24px; margin-bottom: 24px;">
+                <div class="panel-header">
+                    <h2 class="panel-title">💬 Приклади ідеальних діалогів (Few-Shot Learning)</h2>
+                </div>
+                <div class="lines-list-container" style="margin-top: 16px;">
+                    <table class="lines-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 45%;">Запит клієнта</th>
+                                <th style="width: 45%;">Правильна відповідь бота</th>
+                                <th style="width: 10%;">Дія</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ai-examples-table-body">
+                            <!-- Заповнюється динамічно JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="divider-top" style="margin-top: 24px; padding-top: 24px;">
+                    <div class="section-label" style="font-weight: 600; margin-bottom: 12px; font-size: 14px;">Додати приклад діалогу</div>
+                    <form id="add-example-form" onsubmit="handleAddExample(event)" style="display: flex; gap: 12px; align-items: end; margin-top: 12px;">
+                        <div class="form-group" style="flex: 1; margin: 0;">
+                            <label for="new-example-client" class="form-label" style="font-size: 12px;">Питання/повідомлення клієнта</label>
+                            <input type="text" id="new-example-client" class="form-control" placeholder="Напр. Який пароль ставити?" required style="width: 100%; height: 38px; box-sizing: border-box;">
+                        </div>
+                        <div class="form-group" style="flex: 1; margin: 0;">
+                            <label for="new-example-bot" class="form-label" style="font-size: 12px;">Бажана відповідь бота</label>
+                            <input type="text" id="new-example-bot" class="form-control" placeholder="Напр. Ставте Qwerty123" required style="width: 100%; height: 38px; box-sizing: border-box;">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px;">Додати приклад</button>
                     </form>
                 </div>
             </div>
@@ -2041,6 +2185,8 @@
                 loadSettings();
             } else if (tabId === 'chat') {
                 loadChatSessions();
+            } else if (tabId === 'ai') {
+                loadAISettings();
             }
         }
         
@@ -2319,6 +2465,344 @@
                 }
             } catch (err) {
                 showToast("Помилка відправки запиту", "error");
+            }
+        }
+
+
+        // --- Логіка керування та навчання ШІ ---
+        async function loadAISettings() {
+            try {
+                // 1. Завантаження лімітів та паролів
+                const settingsRes = await fetch('/api/ai/settings');
+                if (!settingsRes.ok) throw new Error("Settings fetch failed");
+                const settings = await settingsRes.json();
+                
+                document.getElementById('ai-settings-income').value = settings.ai_income_limit || '25000';
+                document.getElementById('ai-settings-turnover').value = settings.ai_turnover_limit || '30000';
+                document.getElementById('ai-settings-pwd-eco').value = settings.ai_password_ecobank || 'Qwerty123';
+                document.getElementById('ai-settings-pwd-kd').value = settings.ai_password_kd || '12345';
+                document.getElementById('ai-settings-pwd-other').value = settings.ai_password_other || '1111, 1234 або 1232';
+                
+                // 2. Завантаження інструкцій та правил
+                await loadAIRules();
+                
+                // 3. Завантаження прикладів діалогів
+                await loadAIExamples();
+            } catch (err) {
+                showToast("Не вдалося завантажити налаштування ШІ", "error");
+            }
+        }
+
+        async function saveAISettings(event) {
+            event.preventDefault();
+            const income = document.getElementById('ai-settings-income').value.trim();
+            const turnover = document.getElementById('ai-settings-turnover').value.trim();
+            const pwdEco = document.getElementById('ai-settings-pwd-eco').value.trim();
+            const pwdKd = document.getElementById('ai-settings-pwd-kd').value.trim();
+            const pwdOther = document.getElementById('ai-settings-pwd-other').value.trim();
+            
+            try {
+                const res = await fetch('/api/ai/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ai_income_limit: income,
+                        ai_turnover_limit: turnover,
+                        ai_password_ecobank: pwdEco,
+                        ai_password_kd: pwdKd,
+                        ai_password_other: pwdOther
+                    })
+                });
+                if (res.ok) {
+                    showToast("Параметри ШІ успішно збережено!", "success");
+                } else {
+                    const err = await res.json();
+                    showToast("Помилка збереження: " + err.detail, "error");
+                }
+            } catch (err) {
+                showToast("Помилка відправки запиту", "error");
+            }
+        }
+
+        async function loadAIRules() {
+            try {
+                const res = await fetch('/api/ai/rules');
+                if (!res.ok) throw new Error("Rules fetch failed");
+                const rules = await res.json();
+                
+                const tableBody = document.getElementById('ai-rules-table-body');
+                tableBody.innerHTML = '';
+                
+                if (rules.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="empty-state">Немає збережених правил та інструкцій ШІ</td></tr>';
+                    return;
+                }
+                
+                rules.forEach(rule => {
+                    const tr = document.createElement('tr');
+                    const isActive = rule.is_active === 1;
+                    const catMap = {
+                        'general': 'Загальне',
+                        'bank_rules': 'Правила банків',
+                        'troubleshooting': 'Помилки',
+                        'limits': 'Виплати/ліміти'
+                    };
+                    const catLabel = catMap[rule.category] || rule.category;
+                    
+                    const catStyles = {
+                        'general': 'background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;',
+                        'bank_rules': 'background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;',
+                        'troubleshooting': 'background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;',
+                        'limits': 'background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;'
+                    };
+                    const catStyle = catStyles[rule.category] || catStyles['general'];
+                    
+                    tr.innerHTML = `
+                        <td style="font-weight: 500;"><span style="${catStyle}">${catLabel}</span></td>
+                        <td style="font-size: 0.85rem; max-width: 400px; white-space: normal; line-height: 1.4; text-align: left;">${escapeHtml(rule.rule_text)}</td>
+                        <td>
+                            <label class="switch">
+                                <input type="checkbox" ${isActive ? 'checked' : ''} onchange="toggleAIRule(${rule.id})">
+                                <span class="slider"></span>
+                            </label>
+                        </td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="deleteAIRule(${rule.id})" style="padding: 4px 8px; font-size: 0.75rem;">Видалити</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error("Не вдалося завантажити правила ШІ:", err);
+            }
+        }
+
+        async function handleAddRule(event) {
+            event.preventDefault();
+            const category = document.getElementById('new-rule-category').value;
+            const ruleText = document.getElementById('new-rule-text').value.trim();
+            
+            try {
+                const res = await fetch('/api/ai/rules', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rule_text: ruleText, category: category })
+                });
+                if (res.ok) {
+                    showToast("Правило успішно додано!", "success");
+                    document.getElementById('new-rule-text').value = '';
+                    await loadAIRules();
+                } else {
+                    showToast("Помилка додавання правила", "error");
+                }
+            } catch (err) {
+                showToast("Помилка відправки запиту", "error");
+            }
+        }
+
+        async function toggleAIRule(ruleId) {
+            try {
+                const res = await fetch(`/api/ai/rules/${ruleId}/toggle`, {
+                    method: 'PUT'
+                });
+                if (res.ok) {
+                    showToast("Статус правила змінено!", "success");
+                } else {
+                    showToast("Не вдалося змінити статус", "error");
+                }
+            } catch (err) {
+                showToast("Помилка з'єднання", "error");
+            }
+        }
+
+        async function deleteAIRule(ruleId) {
+            const confirmed = await showConfirm("Ви впевнені, що хочете видалити це правило?", "danger");
+            if (!confirmed) return;
+            
+            try {
+                const res = await fetch(`/api/ai/rules/${ruleId}`, {
+                    method: 'DELETE'
+                });
+                if (res.ok) {
+                    showToast("Правило видалено!", "success");
+                    await loadAIRules();
+                } else {
+                    showToast("Помилка видалення правила", "error");
+                }
+            } catch (err) {
+                showToast("Помилка з'єднання", "error");
+            }
+        }
+
+        async function loadAIExamples() {
+            try {
+                const res = await fetch('/api/ai/examples');
+                if (!res.ok) throw new Error("Examples fetch failed");
+                const examples = await res.json();
+                
+                const tableBody = document.getElementById('ai-examples-table-body');
+                tableBody.innerHTML = '';
+                
+                if (examples.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="3" class="empty-state">Немає прикладів few-shot діалогів</td></tr>';
+                    return;
+                }
+                
+                examples.forEach(ex => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="font-size: 0.85rem; font-style: italic; line-height: 1.4; text-align: left;">"${escapeHtml(ex.client_message)}"</td>
+                        <td style="font-size: 0.85rem; color: var(--accent-primary); line-height: 1.4; text-align: left;">${escapeHtml(ex.bot_response)}</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="deleteAIExample(${ex.id})" style="padding: 4px 8px; font-size: 0.75rem;">Видалити</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error("Не вдалося завантажити приклади ШІ:", err);
+            }
+        }
+
+        async function handleAddExample(event) {
+            event.preventDefault();
+            const clientMsg = document.getElementById('new-example-client').value.trim();
+            const botResponse = document.getElementById('new-example-bot').value.trim();
+            
+            try {
+                const res = await fetch('/api/ai/examples', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ client_message: clientMsg, bot_response: botResponse })
+                });
+                if (res.ok) {
+                    showToast("Приклад успішно додано!", "success");
+                    document.getElementById('new-example-client').value = '';
+                    document.getElementById('new-example-bot').value = '';
+                    await loadAIExamples();
+                } else {
+                    showToast("Помилка додавання прикладу", "error");
+                }
+            } catch (err) {
+                showToast("Помилка відправки запиту", "error");
+            }
+        }
+
+        async function deleteAIExample(exampleId) {
+            const confirmed = await showConfirm("Ви впевнені, що хочете видалити цей приклад діалогу?", "danger");
+            if (!confirmed) return;
+            
+            try {
+                const res = await fetch(`/api/ai/examples/${exampleId}`, {
+                    method: 'DELETE'
+                });
+                if (res.ok) {
+                    showToast("Приклад видалено!", "success");
+                    await loadAIExamples();
+                } else {
+                    showToast("Помилка видалення прикладу", "error");
+                }
+            } catch (err) {
+                showToast("Помилка з'єднання", "error");
+            }
+        }
+
+        async function runAILearn() {
+            const btn = document.getElementById('btn-ai-learn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Аналізуємо чати (це може зайняти до 30 секунд)...';
+            
+            try {
+                const res = await fetch('/api/ai/learn', {
+                    method: 'POST'
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    showToast(data.message, "success");
+                    
+                    const proposedList = document.getElementById('ai-proposed-list');
+                    proposedList.innerHTML = '';
+                    
+                    if (data.proposed_rules && data.proposed_rules.length > 0) {
+                        document.getElementById('ai-proposed-container').style.display = 'block';
+                        
+                        data.proposed_rules.forEach(rule => {
+                            const card = document.createElement('div');
+                            card.className = 'proposed-rule-card';
+                            card.style = 'border: 1px solid var(--border-color); background: var(--panel-bg); padding: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);';
+                            card.innerHTML = `
+                                <div style="flex: 1; font-size: 0.85rem; line-height: 1.4; text-align: left;">
+                                    <strong>Виявлено в чаті з @${rule.username}:</strong><br>
+                                    <span style="color: var(--text-color); font-style: italic;">"${escapeHtml(rule.rule_text)}"</span>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-primary btn-sm" onclick="approveProposedRule(${rule.id})" style="padding: 4px 8px; font-size: 0.75rem;">Затвердити</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="dismissProposedRule(${rule.id})" style="padding: 4px 8px; font-size: 0.75rem;">Ігнорувати</button>
+                                </div>
+                            `;
+                            proposedList.appendChild(card);
+                        });
+                    } else {
+                        document.getElementById('ai-proposed-container').style.display = 'none';
+                    }
+                    
+                    // Також оновлюємо таблицю, бо правила могли записатись як чернетки
+                    await loadAIRules();
+                } else {
+                    showToast("Помилка при запуску навчання ШІ", "error");
+                }
+            } catch (err) {
+                showToast("Помилка з'єднання з сервером", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        async function approveProposedRule(ruleId) {
+            try {
+                const res = await fetch(`/api/ai/rules/${ruleId}/toggle`, {
+                    method: 'PUT'
+                });
+                if (res.ok) {
+                    showToast("Правило затверджено та активовано!", "success");
+                    await loadAIRules();
+                    // Приберемо це правило зі списку пропозицій
+                    const card = document.querySelector(`button[onclick="approveProposedRule(${ruleId})"]`).closest('.proposed-rule-card');
+                    if (card) {
+                        card.remove();
+                        // Якщо більше немає карток, сховаємо контейнер
+                        const proposedList = document.getElementById('ai-proposed-list');
+                        if (proposedList.children.length === 0) {
+                            document.getElementById('ai-proposed-container').style.display = 'none';
+                        }
+                    }
+                }
+            } catch (err) {
+                showToast("Не вдалося затвердити правило", "error");
+            }
+        }
+
+        async function dismissProposedRule(ruleId) {
+            try {
+                const res = await fetch(`/api/ai/rules/${ruleId}`, {
+                    method: 'DELETE'
+                });
+                if (res.ok) {
+                    showToast("Пропозицію відхилено.", "success");
+                    await loadAIRules();
+                    const card = document.querySelector(`button[onclick="dismissProposedRule(${ruleId})"]`).closest('.proposed-rule-card');
+                    if (card) {
+                        card.remove();
+                        const proposedList = document.getElementById('ai-proposed-list');
+                        if (proposedList.children.length === 0) {
+                            document.getElementById('ai-proposed-container').style.display = 'none';
+                        }
+                    }
+                }
+            } catch (err) {
+                showToast("Не вдалося видалити пропозицію", "error");
             }
         }
 

@@ -112,12 +112,63 @@ async def init_db():
             )
         """)
         
+        # Таблиця для додаткових інструкцій / правил ШІ
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS ai_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rule_text TEXT NOT NULL,
+                category TEXT NOT NULL DEFAULT 'general',
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Таблиця для прикладів діалогів ШІ (Few-Shot Examples)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS ai_examples (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_message TEXT NOT NULL,
+                bot_response TEXT NOT NULL,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
         # Заповнюємо налаштування за замовчуванням
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('reminder_delay_minutes', '5')")
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('reminder_text', 'Ви отримали номер телефону для реєстрації. Будь ласка, введіть його в додатку, щоб ми могли надіслати вам код. Якщо виникли труднощі — напишіть нам!')")
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('giver_request_format', 'Запрос {line_id} {bank_name}')")
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('giver_request_retry_format', 'Запрос {line_id} {bank_name} (ПОВТОРНО)')")
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('client_number_assigned_format', 'Банк: *{bank_name}*\nНомер телефону:\n\n`+{phone_number}`\n\nКоли надішлете SMS і вам знадобиться код, тисніть кнопку нижче.')")
+
+        # Заповнюємо базові правила ШІ за замовчуванням
+        async with db.execute("SELECT COUNT(*) FROM ai_rules") as cursor:
+            count_row = await cursor.fetchone()
+            if count_row and count_row[0] == 0:
+                default_rules = [
+                    ("Звертатися до клієнта виключно на 'ви', але з маленької літери (ви, вам, вас).", "general"),
+                    ("Для ЕкоБанку (EcoBank) пропонуйте ставити пароль Qwerty123", "bank_rules"),
+                    ("Для bank.kd пропонуйте ставити легкий 5-значний пін, наприклад 12345", "bank_rules"),
+                    ("Для інших банків пропонуйте легкі пін-коди, наприклад 1111 або 1234", "bank_rules"),
+                    ("Якщо зависла Дія або банківський додаток, порадьте повністю закрити додаток, вивантажити з фону і зайти знову за 15 секунд.", "troubleshooting"),
+                    ("Якщо не приходить SMS-код, попросіть зачекати 1-2 хвилини або надіслати повторно.", "troubleshooting"),
+                    ("Якщо клієнт запитує про гроші, виплати, реферальні програми тощо — ніколи не вигадуйте цифри. Пишіть коротко: 'Щодо виплат — це до менеджера, зараз підключиться. Наша задача — закінчити верифікацію банку.'", "limits"),
+                    ("Пристрій не підтримується / root-права: пояснити, що додаток блокує система безпеки.", "troubleshooting"),
+                    ("Помилки геолокації / VPN: нагадати вимкнути VPN та увімкнути GPS (це критично для банків України).", "troubleshooting"),
+                    ("Збій Дія-шерингу: порадити оновити Дію в Play Market / App Store.", "troubleshooting")
+                ]
+                await db.executemany("INSERT INTO ai_rules (rule_text, category, is_active) VALUES (?, ?, 1)", default_rules)
+
+        # Заповнюємо базові приклади few-shot за замовчуванням
+        async with db.execute("SELECT COUNT(*) FROM ai_examples") as cursor:
+            count_row = await cursor.fetchone()
+            if count_row and count_row[0] == 0:
+                default_examples = [
+                    ("Ой, а що писати в графі роботи?", "Пишіть, що тимчасово не працюєте, або фрілансер. Все ок."),
+                    ("Дія не підписує, кручу головою і нічого", "Спробуйте протерти фронталку і підійти до вікна, там світло вирішує."),
+                    ("А скільки платять за верифікацію?", "Щодо виплат — це до менеджера, зараз підключиться. Наша задача — закінчити верифікацію банку.")
+                ]
+                await db.executemany("INSERT INTO ai_examples (client_message, bot_response, is_active) VALUES (?, ?, 1)", default_examples)
 
         # Синхронізуємо стандартні шаблони банків з конфігом
         from bot.config import BANK_TEMPLATES
@@ -564,4 +615,99 @@ async def delete_session_completely(client_id: int):
         await db.execute("DELETE FROM chat_logs WHERE client_id = ?", (client_id,))
         await db.execute("DELETE FROM sessions WHERE client_id = ?", (client_id,))
         await db.commit()
+
+
+# --- Керування правилами та прикладами ШІ (AI Rules & Examples Management) ---
+
+async def get_all_ai_rules():
+    """Отримання всіх правил ШІ"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM ai_rules ORDER BY category, id DESC") as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+async def get_active_ai_rules(category: str = None):
+    """Отримання списку активних правил ШІ"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        if category:
+            query = "SELECT * FROM ai_rules WHERE is_active = 1 AND category = ? ORDER BY id ASC"
+            params = (category,)
+        else:
+            query = "SELECT * FROM ai_rules WHERE is_active = 1 ORDER BY category, id ASC"
+            params = ()
+            
+        async with db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+async def add_ai_rule(rule_text: str, category: str = 'general', is_active: int = 1) -> int:
+    """Додавання нового правила ШІ"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute("""
+            INSERT INTO ai_rules (rule_text, category, is_active)
+            VALUES (?, ?, ?)
+        """, (rule_text, category, is_active))
+        await db.commit()
+        return cursor.lastrowid
+
+async def toggle_ai_rule(rule_id: int, is_active: int = None) -> bool:
+    """Увімкнення/вимкнення правила ШІ"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        if is_active is None:
+            await db.execute("""
+                UPDATE ai_rules 
+                SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END
+                WHERE id = ?
+            """, (rule_id,))
+        else:
+            await db.execute("""
+                UPDATE ai_rules 
+                SET is_active = ?
+                WHERE id = ?
+            """, (is_active, rule_id))
+        await db.commit()
+        return True
+
+async def delete_ai_rule(rule_id: int) -> bool:
+    """Видалення правила ШІ"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("DELETE FROM ai_rules WHERE id = ?", (rule_id,))
+        await db.commit()
+        return True
+
+async def get_all_ai_examples():
+    """Отримання всіх few-shot прикладів діалогу ШІ"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM ai_examples ORDER BY id DESC") as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+async def get_active_ai_examples():
+    """Отримання активних few-shot прикладів діалогу ШІ"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM ai_examples WHERE is_active = 1 ORDER BY id ASC") as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+async def add_ai_example(client_message: str, bot_response: str, is_active: int = 1) -> int:
+    """Додавання прикладу діалогу для ШІ"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute("""
+            INSERT INTO ai_examples (client_message, bot_response, is_active)
+            VALUES (?, ?, ?)
+        """, (client_message, bot_response, is_active))
+        await db.commit()
+        return cursor.lastrowid
+
+async def delete_ai_example(example_id: int) -> bool:
+    """Видалення прикладу діалогу"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("DELETE FROM ai_examples WHERE id = ?", (example_id,))
+        await db.commit()
+        return True
+
 
