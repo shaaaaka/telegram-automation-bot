@@ -127,35 +127,7 @@ async def add_line(body: LineAdd):
     await db.add_or_update_line(body.id, body.phone_number, body.bank)
     return {"status": "success"}
 
-@app.post("/api/lines/import")
-async def import_lines():
-    """Імпорт ліній з файлу lines.txt"""
-    file_path = "lines.txt"
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File lines.txt not found")
-    
-    import re
-    imported_count = 0
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            for line_str in f:
-                line_str = line_str.strip()
-                if not line_str or line_str.startswith("#"):
-                    continue
-                
-                try:
-                    match = re.match(r'(?:Line\s+)?(\d+)\s+Return:\s+(\d+)(?:\s+(.+))?', line_str, re.IGNORECASE)
-                    if match:
-                        line_id = int(match.group(1))
-                        phone = match.group(2).strip()
-                        bank = match.group(3).strip() if match.group(3) else "Невідомий"
-                        await db.add_or_update_line(line_id, phone, bank)
-                        imported_count += 1
-                except Exception:
-                    continue
-        return {"status": "success", "imported_count": imported_count}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/lines/clear")
 async def clear_lines():
@@ -362,11 +334,11 @@ async def assign_line(client_id: int, body: LineAssignment):
             # Затримка 3 секунди перед надсиланням номера телефону
             await asyncio.sleep(3)
 
-        # Потім надсилаємо картку з номером телефону та кнопкою
+        # Потім надсилаємо картку з номером телефону
         client_msg = await bot.send_message(
             chat_id=client_id,
             text=message_text,
-            reply_markup=markup,
+            reply_markup=None,
             parse_mode="Markdown"
         )
         # Зберігаємо ID повідомлення у клієнта
@@ -377,12 +349,13 @@ async def assign_line(client_id: int, body: LineAssignment):
         reply_keyboard = ReplyKeyboardMarkup(
             keyboard=[[KeyboardButton(text="Запросити SMS-код")]],
             resize_keyboard=True,
-            one_time_keyboard=False
+            one_time_keyboard=False,
+            is_persistent=True
         )
         try:
             await bot.send_message(
                 chat_id=client_id,
-                text="Для вашої зручності кнопка запиту коду також продубльована внизу екрана 👇",
+                text="З'явилася кнопка внизу для швидкого запиту коду 👇",
                 reply_markup=reply_keyboard
             )
         except Exception:
@@ -600,9 +573,17 @@ async def route_code(client_id: int, body: CodeRouting):
     bank_name = line_info['bank'] if line_info else "Банк"
 
     # 1. Відправляємо код клієнту
+    from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+    client_kbd = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Запросити SMS-код")]],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        is_persistent=True
+    )
     await bot.send_message(
         chat_id=client_id,
         text=f"Ваш SMS-код для банку {bank_name}:\n\n`{body.code}`",
+        reply_markup=client_kbd,
         parse_mode="Markdown"
     )
 

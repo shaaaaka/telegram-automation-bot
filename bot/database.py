@@ -269,10 +269,14 @@ async def get_all_waiting_sessions():
 async def assign_line_to_session(client_id: int, line_id: int):
     """Призначення лінії для клієнта"""
     async with aiosqlite.connect(DB_FILE) as db:
-        # Встановлюємо статус сесії
+        # Встановлюємо статус сесії та очищуємо верифікаційні дані від попереднього банку
         await db.execute("""
             UPDATE sessions
-            SET line_id = ?, status = 'number_assigned'
+            SET line_id = ?, status = 'number_assigned',
+                success_photo_id = NULL,
+                card_photo_id = NULL,
+                card_first4 = NULL,
+                card_last4 = NULL
             WHERE client_id = ?
         """, (line_id, client_id))
         # Маркуємо лінію як зайняту
@@ -314,6 +318,36 @@ async def close_session(client_id: int):
         
         # Переводимо сесію в статус завершеної
         await db.execute("UPDATE sessions SET status = 'completed' WHERE client_id = ?", (client_id,))
+        await db.commit()
+
+async def get_max_line_id() -> int:
+    """Отримання максимального ID лінії в базі даних"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        async with db.execute("SELECT MAX(id) FROM lines") as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row and row[0] is not None else 0
+
+async def unassign_line_from_session(client_id: int):
+    """Звільнення лінії від сесії клієнта (повернення в доступні)"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT line_id FROM sessions WHERE client_id = ?", (client_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row and row['line_id']:
+                # Звільняємо лінію
+                await db.execute("UPDATE lines SET status = 'available' WHERE id = ?", (row['line_id'],))
+        
+        # Очищуємо призначення лінії та пов'язані верифікаційні дані в сесії
+        await db.execute("""
+            UPDATE sessions 
+            SET line_id = NULL, 
+                status = 'registered',
+                success_photo_id = NULL,
+                card_photo_id = NULL,
+                card_first4 = NULL,
+                card_last4 = NULL
+            WHERE client_id = ?
+        """, (client_id,))
         await db.commit()
 
 # --- Статистика, Налаштування та Шаблони (Stats, Settings & Templates) ---

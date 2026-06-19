@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=35.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=36.0">
 </head>
 <body>
 
@@ -116,7 +116,6 @@
                     </div>
 
                     <div class="import-buttons-container">
-                        <button class="btn btn-secondary btn-sm" onclick="importLines()">Імпорт lines.txt</button>
                         <button class="btn btn-danger btn-sm" onclick="clearLines()">Очистити БД</button>
                     </div>
                 </div>
@@ -1316,21 +1315,7 @@
             }
         }
 
-        // Імпорт ліній з файлу
-        async function importLines() {
-            try {
-                const res = await fetch('/api/lines/import', { method: 'POST' });
-                const data = await res.json();
-                if (res.ok) {
-                    showToast(`Успішно імпортовано ${data.imported_count} ліній.`, "success");
-                    pollData();
-                } else {
-                    showToast("Помилка імпорту: " + data.detail, "error");
-                }
-            } catch (err) {
-                showToast("Помилка під час імпорту", "error");
-            }
-        }
+
 
         // Очищення ліній
         async function clearLines() {
@@ -1462,12 +1447,13 @@
             } else {
                 filtered.forEach(session => {
                 const isExpanded = expandedSessions.has(session.client_id);
+                const isFinishLine = session.line_id && session.success_photo_id;
                 const card = document.createElement('div');
-                card.className = `session-card ${session.status} ${isExpanded ? 'expanded' : ''}`;
+                card.className = `session-card ${session.status} ${isExpanded ? 'expanded' : ''} ${isFinishLine ? 'finish-line' : ''}`;
                 card.setAttribute('data-id', session.client_id);
 
                 // ПІБ клієнта
-                const displayName = extractDisplayName(session.client_data, session.username);
+                const displayName = extractDisplayName(session.client_data, session.username) + (isFinishLine ? ' 💳' : '');
 
                 // Badge статусу
                 let statusText = 'Зареєстрований';
@@ -2627,7 +2613,7 @@
                     const t = window.bankTemplates[key];
                     const btn = document.createElement('button');
                     btn.className = 'chat-template-btn';
-                    btn.innerText = t.key;
+                    btn.innerText = key;
                     btn.title = t.text;
                     btn.onclick = () => {
                         const textarea = document.getElementById('chat-msg-input');

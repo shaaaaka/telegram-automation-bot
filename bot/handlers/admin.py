@@ -2,10 +2,10 @@ import os
 import re
 from aiogram import Router, F, Bot
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, FSInputFile
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
-from bot.config import ADMIN_ID, get_template_photo
+from bot.config import ADMIN_ID, get_template_photo, get_bank_template_with_key
 import bot.database as db
 
 router = Router()
@@ -24,9 +24,6 @@ def get_admin_keyboard() -> ReplyKeyboardMarkup:
             ],
             [
                 KeyboardButton(text="➕ Додати лінію"),
-                KeyboardButton(text="📥 Імпорт lines.txt")
-            ],
-            [
                 KeyboardButton(text="🗑️ Очистити лінії")
             ]
         ],
@@ -36,60 +33,6 @@ def get_admin_keyboard() -> ReplyKeyboardMarkup:
 # Фільтр для перевірки, що повідомлення або запит від Адміна
 def is_admin(message_or_query) -> bool:
     return message_or_query.from_user.id == ADMIN_ID
-
-@router.message(Command("import"), F.from_user.id == ADMIN_ID)
-async def cmd_import_lines(message: Message):
-    """Імпорт ліній з файлу lines.txt"""
-    if not is_admin(message):
-        return
-
-    file_path = "lines.txt"
-    if not os.path.exists(file_path):
-        await message.answer("Файл lines.txt не знайдено в корені проекту.")
-        return
-
-    try:
-        imported_count = 0
-        with open(file_path, "r", encoding="utf-8") as f:
-            for line_str in f:
-                line_str = line_str.strip()
-                if not line_str or line_str.startswith("#"):
-                    continue
-                
-                try:
-                    # Спроба 1: новий формат "Line 28 Return:  380961175562 AmoBank"
-                    match = re.match(r'(?:Line\s+)?(\d+)\s+Return:\s+(\d+)(?:\s+(.+))?', line_str, re.IGNORECASE)
-                    if match:
-                        line_id = int(match.group(1))
-                        phone = match.group(2).strip()
-                        bank = match.group(3).strip() if match.group(3) else "Невідомий"
-                    else:
-                        # Спроба 2: старий формат з роздільником або двокрапкою
-                        if " - " in line_str:
-                            main_part, bank = line_str.split(" - ", 1)
-                        else:
-                            main_part, bank = line_str, "Невідомий"
-
-                        main_part = main_part.replace("Line ", "").replace("Return: ", "").strip()
-                        if ":" in main_part:
-                            line_id_str, phone = main_part.split(":", 1)
-                        else:
-                            parts = main_part.split()
-                            line_id_str, phone = parts[0], parts[1]
-
-                        line_id = int(line_id_str.strip())
-                        phone = phone.strip()
-                        bank = bank.strip()
-
-                    await db.add_or_update_line(line_id, phone, bank)
-                    imported_count += 1
-                except Exception as e:
-                    print(f"Помилка парсингу рядка '{line_str}': {e}")
-                    continue
-
-        await message.answer(f"Успішно імпортовано/оновлено {imported_count} ліній з lines.txt.")
-    except Exception as e:
-        await message.answer(f"Помилка при зчитуванні файлу: {str(e)}")
 
 @router.message(Command("lines"), F.from_user.id == ADMIN_ID)
 async def cmd_list_lines(message: Message):
@@ -106,7 +49,7 @@ async def cmd_list_lines(message: Message):
             lines = await cursor.fetchall()
 
     if not lines:
-        await message.answer("Список ліній порожній. Використайте /import для завантаження.")
+        await message.answer("Список ліній порожній. Додайте нові лінії за допомогою кнопки або надішліть номер телефону прямо в чат.")
         return
 
     text = "Список ліній у базі:\n\n"
@@ -134,17 +77,51 @@ async def cmd_list_sessions(message: Message):
         await message.answer("Немає активних сесій верифікації на даний момент.")
         return
 
-    text = "Активні сесії:\n\n"
+    await message.answer("📋 <b>Активні сесії верифікації:</b>", parse_mode="HTML")
+    
+    import html
     for s in sessions:
         line_info = f"Line {s['line_id']}" if s['line_id'] else "Не призначено"
-        text += (
-            f"@{s['username']} (ID: {s['client_id']})\n"
-            f"• Статус: {s['status']}\n"
-            f"• Лінія: {line_info}\n"
-            f"• Дані: {s['client_data']}\n\n"
+        
+        # Робимо гарний опис банків
+        selected_banks = s['selected_banks'] or "Не обрано"
+        remaining_banks = s['remaining_banks'] or "Немає"
+        
+        username_esc = html.escape(s['username'] or "Невідомий")
+        status_esc = html.escape(s['status'] or "")
+        line_info_esc = html.escape(line_info)
+        selected_banks_esc = html.escape(selected_banks)
+        remaining_banks_esc = html.escape(remaining_banks)
+        client_data_esc = html.escape(s['client_data'] or "")
+        
+        card_text = (
+            f"👤 <b>Клієнт:</b> @{username_esc} (ID: <code>{s['client_id']}</code>)\n"
+            f"• <b>Статус:</b> <code>{status_esc}</code>\n"
+            f"• <b>Лінія:</b> {line_info_esc}\n"
+            f"• <b>Обрані банки:</b> {selected_banks_esc}\n"
+            f"• <b>Залишилось пройти:</b> {remaining_banks_esc}\n"
+            f"• <b>Дані:</b> \n<pre>{client_data_esc}</pre>"
         )
-
-    await message.answer(text)
+        
+        buttons = [
+            [
+                InlineKeyboardButton(text="💳 Банки", callback_data=f"managebanks_{s['client_id']}"),
+                InlineKeyboardButton(text="📞 Лінія", callback_data=f"reassignline_{s['client_id']}")
+            ]
+        ]
+        
+        if s['line_id']:
+            buttons.append([
+                InlineKeyboardButton(text="❌ Звільнити лінію", callback_data=f"unassignline_{s['client_id']}")
+            ])
+            
+        buttons.append([
+            InlineKeyboardButton(text="✅ Завершити", callback_data=f"completesession_{s['client_id']}"),
+            InlineKeyboardButton(text="🚫 Закрити", callback_data=f"terminate_{s['client_id']}")
+        ])
+        
+        markup = InlineKeyboardMarkup(inline_keyboard=buttons)
+        await message.answer(card_text, reply_markup=markup, parse_mode="HTML")
 
 @router.message(Command("clear_lines"), F.from_user.id == ADMIN_ID)
 async def cmd_clear_lines(message: Message):
@@ -164,10 +141,6 @@ async def btn_active_sessions(message: Message):
 async def btn_list_lines(message: Message):
     await cmd_list_lines(message)
 
-@router.message(F.text == "📥 Імпорт lines.txt", F.from_user.id == ADMIN_ID)
-async def btn_import_lines(message: Message):
-    await cmd_import_lines(message)
-
 @router.message(F.text == "🗑️ Очистити лінії", F.from_user.id == ADMIN_ID)
 async def btn_clear_lines(message: Message):
     await cmd_clear_lines(message)
@@ -176,21 +149,39 @@ async def btn_clear_lines(message: Message):
 def is_direct_line_format(message: Message) -> bool:
     if not message.text:
         return False
-    return bool(re.match(r'^(?:Line\s+)?(\d+)\s+Return:\s*(\d+)(?:\s+(.+))?$', message.text.strip(), re.IGNORECASE))
+    text = message.text.strip()
+    f1 = bool(re.match(r'^(?:Line\s+)?(\d+)\s+Return:\s*(\d+)(?:\s+(.+))?$', text, re.IGNORECASE))
+    f2 = bool(re.match(r'^\+?(\d{10,15})\s+([a-zA-Z0-9\.\-_ ]+)$', text))
+    f3 = bool(re.match(r'^\+?(\d{10,15})$', text))
+    return f1 or f2 or f3
 
 @router.message(F.text, F.from_user.id == ADMIN_ID, is_direct_line_format)
 async def handle_direct_line_paste(message: Message, state: FSMContext):
     if not is_admin(message):
         return
     text = message.text.strip()
-    match = re.match(r'^(?:Line\s+)?(\d+)\s+Return:\s*(\d+)(?:\s+(.+))?$', text, re.IGNORECASE)
-    if not match:
+    
+    match1 = re.match(r'^(?:Line\s+)?(\d+)\s+Return:\s*(\d+)(?:\s+(.+))?$', text, re.IGNORECASE)
+    match2 = re.match(r'^\+?(\d{10,15})\s+([a-zA-Z0-9\.\-_ ]+)$', text)
+    match3 = re.match(r'^\+?(\d{10,15})$', text)
+    
+    if match1:
+        line_id = int(match1.group(1))
+        phone = match1.group(2).strip().replace(' ', '').replace('-', '').replace('+', '')
+        bank = match1.group(3).strip() if match1.group(3) else None
+    elif match2:
+        phone = match2.group(1).strip().replace(' ', '').replace('-', '').replace('+', '')
+        bank = match2.group(2).strip()
+        max_id = await db.get_max_line_id()
+        line_id = max_id + 1
+    elif match3:
+        phone = match3.group(1).strip().replace(' ', '').replace('-', '').replace('+', '')
+        bank = None
+        max_id = await db.get_max_line_id()
+        line_id = max_id + 1
+    else:
         return
         
-    line_id = int(match.group(1))
-    phone = match.group(2).strip().replace(' ', '').replace('-', '').replace('+', '')
-    bank = match.group(3).strip() if match.group(3) else None
-    
     if bank:
         await db.add_or_update_line(line_id, phone, bank)
         await state.clear()
@@ -368,11 +359,13 @@ async def handle_toggle_bank(callback: CallbackQuery, bot: Bot):
     await db.update_session_banks(client_id, new_selected_str, "")
 
     # Отримуємо унікальні назви банків з бази для перемальовування
-    unique_banks = await db.get_unique_banks()
+    unique_banks_db = await db.get_unique_banks()
+    custom_order = ["PUMB", "bank.kd", "IziBank", "EcoBank", "Alliance", "LvivBank", "AmoBank"]
+    all_banks = list(dict.fromkeys(custom_order + unique_banks_db))
     
     keyboard_buttons = []
     row = []
-    for b in unique_banks:
+    for b in all_banks:
         checkbox = "[x]" if b in selected else "[ ]"
         button_text = f"{checkbox} {b}"
         callback_data = f"toggle_{client_id}_{b}"
@@ -441,10 +434,36 @@ async def handle_assign_line(callback: CallbackQuery, bot: Bot):
     # Прибираємо кнопки під повідомленням адміна
     await callback.message.edit_reply_markup(reply_markup=None)
 
-    # Сповіщаємо клієнта (без смайликів)
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Запросити SMS-код", callback_data="request_code")]
-    ])
+    # Сповіщаємо клієнта: спочатку надсилаємо інструкцію завантаження банку
+    bank_name = line_info['bank']
+    key, template = get_bank_template_with_key(bank_name)
+    if template:
+        photo_path = get_template_photo(key)
+        if photo_path:
+            try:
+                await bot.send_photo(
+                    chat_id=client_id,
+                    photo=FSInputFile(photo_path),
+                    caption=template['text']
+                )
+            except Exception as e:
+                print(f"Помилка надсилання фото шаблону банку: {e}")
+                try:
+                    await bot.send_message(chat_id=client_id, text=template['text'])
+                except Exception:
+                    pass
+        else:
+            try:
+                await bot.send_message(chat_id=client_id, text=template['text'])
+            except Exception as e:
+                print(f"Помилка надсилання тексту шаблону банку: {e}")
+
+    client_kbd = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Запросити SMS-код")]],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        is_persistent=True
+    )
     
     client_msg = await bot.send_message(
         chat_id=client_id,
@@ -453,9 +472,17 @@ async def handle_assign_line(callback: CallbackQuery, bot: Bot):
             f"`+{line_info['phone_number']}`\n\n"
             f"Коли надішлете SMS і вам знадобиться код, тисніть кнопку нижче."
         ),
-        reply_markup=markup,
         parse_mode="Markdown"
     )
+
+    try:
+        await bot.send_message(
+            chat_id=client_id,
+            text="З'явилася кнопка внизу для швидкого запиту коду 👇",
+            reply_markup=client_kbd
+        )
+    except Exception as e:
+        print(f"Помилка надсилання клавіатури клієнту: {e}")
 
     # Зберігаємо ID повідомлення з кнопкою у клієнта
     await db.update_session_message_id(client_id, client_msg.message_id)
@@ -530,10 +557,18 @@ async def handle_route_code(callback: CallbackQuery, bot: Bot):
     line_info = await db.get_line(line_id)
     bank_name = line_info['bank'] if line_info else "Банк"
 
+    client_kbd = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Запросити SMS-код")]],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        is_persistent=True
+    )
+
     # 1. Відправляємо код клієнту
     await bot.send_message(
         chat_id=client_id,
         text=f"Ваш SMS-код для банку {bank_name}:\n\n`{code}`",
+        reply_markup=client_kbd,
         parse_mode="Markdown"
     )
 
@@ -630,11 +665,17 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot):
         # 4. Перевіряємо чи залишилися ще банки для проходження
         if not remaining:
             try:
+                kbd = ReplyKeyboardMarkup(
+                    keyboard=[[KeyboardButton(text="📋 Мої дані")]],
+                    resize_keyboard=True,
+                    one_time_keyboard=False,
+                    is_persistent=True
+                )
                 await bot.send_message(
                     chat_id=client_id,
                     text="Роботу завершено. Дякуємо за співпрацю.",
                     parse_mode="Markdown",
-                    reply_markup=ReplyKeyboardRemove()
+                    reply_markup=kbd
                 )
             except Exception as e:
                 print(f"Не вдалося надіслати клієнту повідомлення про завершення: {e}")
@@ -645,11 +686,17 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot):
             )
         else:
             try:
+                kbd = ReplyKeyboardMarkup(
+                    keyboard=[[KeyboardButton(text="⏳ Очікування номера...")]],
+                    resize_keyboard=True,
+                    one_time_keyboard=False,
+                    is_persistent=True
+                )
                 await bot.send_message(
                     chat_id=client_id,
                     text=f"Верифікацію для банку {bank_name} завершено. Очікуйте наступний номер.",
                     parse_mode="Markdown",
-                    reply_markup=ReplyKeyboardRemove()
+                    reply_markup=kbd
                 )
             except Exception as e:
                 print(f"Не вдалося надіслати клієнту повідомлення: {e}")
@@ -688,14 +735,20 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot):
         # 4. Перевіряємо чи залишилися ще банки для проходження
         if not remaining:
             try:
+                kbd = ReplyKeyboardMarkup(
+                    keyboard=[[KeyboardButton(text="📋 Мої дані")]],
+                    resize_keyboard=True,
+                    one_time_keyboard=False,
+                    is_persistent=True
+                )
                 await bot.send_message(
                     chat_id=client_id,
                     text="Роботу завершено. Дякуємо за співпрацю.",
                     parse_mode="Markdown",
-                    reply_markup=ReplyKeyboardRemove()
+                    reply_markup=kbd
                 )
             except Exception as e:
-                print(f"Не вдалося надіслати клієнту повідомлення про завершення: {e}")
+                print(f"Помилка надсилання клієнту повідомлення про завершення: {e}")
 
             await db.close_session(client_id)
             await callback.message.answer(
@@ -704,11 +757,17 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot):
         else:
             # Повідомляємо клієнта про заміну номера
             try:
+                kbd = ReplyKeyboardMarkup(
+                    keyboard=[[KeyboardButton(text="⏳ Очікування номера...")]],
+                    resize_keyboard=True,
+                    one_time_keyboard=False,
+                    is_persistent=True
+                )
                 await bot.send_message(
                     chat_id=client_id,
                     text=f"На жаль, виникла помилка з цим номером (відмова банку {bank_name}). Будь ласка, зачекайте, ми призначимо вам новий номер для цього банку.",
                     parse_mode="Markdown",
-                    reply_markup=ReplyKeyboardRemove()
+                    reply_markup=kbd
                 )
             except Exception as e:
                 print(f"Не вдалося надіслати клієнту повідомлення про відмову: {e}")
@@ -735,11 +794,17 @@ async def handle_terminate_session(callback: CallbackQuery, bot: Bot):
 
     # 1. Повідомляємо клієнта про остаточне завершення роботи
     try:
+        kbd = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="📋 Мої дані")]],
+            resize_keyboard=True,
+            one_time_keyboard=False,
+            is_persistent=True
+        )
         await bot.send_message(
             chat_id=client_id,
             text="Роботу завершено. Дякуємо за співпрацю.",
             parse_mode="Markdown",
-            reply_markup=ReplyKeyboardRemove()
+            reply_markup=kbd
         )
     except Exception as e:
         print(f"Не вдалося надіслати клієнту повідомлення: {e}")
@@ -749,11 +814,151 @@ async def handle_terminate_session(callback: CallbackQuery, bot: Bot):
 
     # 3. Оновлюємо повідомлення для адміна
     await callback.message.edit_reply_markup(reply_markup=None)
+    import html
+    username_esc = html.escape(session['username'] or "Невідомий")
     await callback.message.edit_text(
-        f"Сесію для клієнта @{session['username']} остаточно закрито.",
-        parse_mode="Markdown"
+        f"Сесію для клієнта @{username_esc} остаточно закрито.",
+        parse_mode="HTML"
     )
     await callback.answer("Сесію закрито!")
+
+@router.callback_query(F.data.startswith("managebanks_"))
+async def handle_manage_banks(callback: CallbackQuery, bot: Bot):
+    """Показ чекбоксів вибору банків для керування сесією"""
+    if not is_admin(callback):
+        await callback.answer("Доступ обмежено.", show_alert=True)
+        return
+    client_id = int(callback.data.split("_")[1])
+    
+    session = await db.get_session(client_id)
+    if not session:
+        await callback.answer("Сесію не знайдено.", show_alert=True)
+        return
+        
+    selected_banks = session['selected_banks']
+    selected = selected_banks.split(",") if selected_banks else []
+    
+    unique_banks_db = await db.get_unique_banks()
+    custom_order = ["PUMB", "bank.kd", "IziBank", "EcoBank", "Alliance", "LvivBank", "AmoBank"]
+    all_banks = list(dict.fromkeys(custom_order + unique_banks_db))
+    
+    keyboard_buttons = []
+    row = []
+    for b in all_banks:
+        checkbox = "[x]" if b in selected else "[ ]"
+        button_text = f"{checkbox} {b}"
+        callback_data = f"toggle_{client_id}_{b}"
+        row.append(InlineKeyboardButton(text=button_text, callback_data=callback_data))
+        if len(row) == 2:
+            keyboard_buttons.append(row)
+            row = []
+    if row:
+        keyboard_buttons.append(row)
+        
+    keyboard_buttons.append([InlineKeyboardButton(text="Зберегти та продовжити", callback_data=f"savebanks_{client_id}")])
+    keyboard_buttons.append([InlineKeyboardButton(text="Відхилити запит", callback_data=f"reject_{client_id}")])
+    
+    markup = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    
+    await callback.message.edit_text(
+        f"Оберіть банки для клієнта @{session['username']}:",
+        reply_markup=markup
+    )
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("reassignline_"))
+async def handle_reassign_line_menu(callback: CallbackQuery, bot: Bot):
+    """Показ меню призначення/зміни лінії"""
+    if not is_admin(callback):
+        await callback.answer("Доступ обмежено.", show_alert=True)
+        return
+    client_id = int(callback.data.split("_")[1])
+    await show_next_assignment_menu(callback.message, client_id, edit=True)
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("unassignline_"))
+async def handle_unassign_line(callback: CallbackQuery, bot: Bot):
+    """Звільнення призначеної лінії без завершення сесії"""
+    if not is_admin(callback):
+        await callback.answer("Доступ обмежено.", show_alert=True)
+        return
+    client_id = int(callback.data.split("_")[1])
+    
+    session = await db.get_session(client_id)
+    if not session:
+        await callback.answer("Сесію не знайдено.", show_alert=True)
+        return
+        
+    line_id = session['line_id']
+    if not line_id:
+        await callback.answer("Лінія не призначена.", show_alert=True)
+        return
+        
+    await db.unassign_line_from_session(client_id)
+    
+    # Вилучаємо reply markup у клієнта
+    if session['client_message_id']:
+        try:
+            await bot.edit_message_reply_markup(
+                chat_id=client_id,
+                message_id=session['client_message_id'],
+                reply_markup=None
+            )
+        except Exception as e:
+            print(f"Помилка видалення кнопки у клієнта: {e}")
+            
+    try:
+        kbd = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="⏳ Очікування номера...")]],
+            resize_keyboard=True,
+            one_time_keyboard=False,
+            is_persistent=True
+        )
+        await bot.send_message(
+            chat_id=client_id,
+            text="Номер відкріплено. Будь ласка, очікуйте нового призначення.",
+            reply_markup=kbd
+        )
+    except Exception as e:
+        print(f"Помилка надсилання повідомлення про відкріплення клієнту: {e}")
+            
+    await callback.answer("Лінію звільнено!")
+    await callback.message.answer(f"Лінію {line_id} для клієнта @{session['username']} успішно звільнено. Статус сесії скинуто.")
+    await show_next_assignment_menu(callback.message, client_id, edit=True)
+
+@router.callback_query(F.data.startswith("completesession_"))
+async def handle_complete_session_manually(callback: CallbackQuery, bot: Bot):
+    """Ручне успішне завершення сесії верифікації клієнта"""
+    if not is_admin(callback):
+        await callback.answer("Доступ обмежено.", show_alert=True)
+        return
+    client_id = int(callback.data.split("_")[1])
+    
+    session = await db.get_session(client_id)
+    if not session:
+        await callback.answer("Сесію не знайдено.", show_alert=True)
+        return
+        
+    try:
+        kbd = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="📋 Мої дані")]],
+            resize_keyboard=True,
+            one_time_keyboard=False,
+            is_persistent=True
+        )
+        await bot.send_message(
+            chat_id=client_id,
+            text="Роботу завершено. Дякуємо за співпрацю.",
+            reply_markup=kbd
+        )
+    except Exception as e:
+        print(f"Не вдалося надіслати клієнту повідомлення: {e}")
+        
+    await db.close_session(client_id)
+    
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.edit_text(f"Сесію для клієнта @{session['username']} успішно завершено.")
+    await callback.answer("Сесію завершено!")
 
 # --- Допоміжні функції ---
 
@@ -794,20 +999,23 @@ async def show_next_assignment_menu(message: Message, client_id: int, edit: bool
     
     markup = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
+    import html
     remaining_text = ", ".join(remaining_banks)
+    username_esc = html.escape(session['username'] or "Невідомий")
+    remaining_text_esc = html.escape(remaining_text)
     text = (
-        f"Оберіть лінію для наступного банку для @{session['username']}:\n"
-        f"• Залишилося пройти банки: {remaining_text}\n\n"
+        f"Оберіть лінію для наступного банку для @{username_esc}:\n"
+        f"• Залишилося пройти банки: {remaining_text_esc}\n\n"
         f"Оберіть лінію для призначення:"
     )
 
     if not filtered_lines:
-        text += "\n\nПопередження: немає вільних ліній для решти банків! Використайте /import або вивільніть лінії."
+        text += "\n\nПопередження: немає вільних ліній для решти банків! Додайте нові номери прямо в чат або вивільніть існуючі лінії."
 
     if edit:
-        await message.edit_text(text, reply_markup=markup, parse_mode="Markdown")
+        await message.edit_text(text, reply_markup=markup, parse_mode="HTML")
     else:
-        await message.answer(text, reply_markup=markup, parse_mode="Markdown")
+        await message.answer(text, reply_markup=markup, parse_mode="HTML")
 
 @router.message(Command("setphoto"), F.from_user.id == ADMIN_ID)
 async def cmd_set_photo_help(message: Message):

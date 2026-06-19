@@ -144,10 +144,19 @@ async def send_code_to_client(bot: Bot, session: dict, line_info: dict, code: st
     line_id = session['line_id']
     bank_name = line_info['bank'] if line_info else "Банк"
 
+    from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+    client_kbd = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Запросити SMS-код")]],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        is_persistent=True
+    )
+
     # Відправляємо клієнту
     await bot.send_message(
         chat_id=client_id,
         text=f"Ваш SMS-код для банку {bank_name}:\n\n`{code}`",
+        reply_markup=client_kbd,
         parse_mode="Markdown"
     )
 
@@ -171,10 +180,19 @@ async def handle_giver_refusal(bot: Bot, session: dict, line_info: dict):
     line_id = session['line_id']
     bank_name = line_info['bank'] if line_info else "Банк"
 
+    from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+    client_kbd = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Запросити SMS-код")]],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        is_persistent=True
+    )
+
     # Відправляємо клієнту
     await bot.send_message(
         chat_id=client_id,
         text="Немає коду, запросіть новий код в додатку банка",
+        reply_markup=client_kbd,
         parse_mode="Markdown"
     )
 

@@ -58,7 +58,19 @@ async def auto_reminder_loop(bot: Bot):
                 
                 try:
                     logger.info(f"Надсилаємо нагадування клієнту @{username} (ID: {client_id})")
-                    await bot.send_message(chat_id=client_id, text=msg, parse_mode="Markdown")
+                    from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+                    client_kbd = ReplyKeyboardMarkup(
+                        keyboard=[[KeyboardButton(text="Запросити SMS-код")]],
+                        resize_keyboard=True,
+                        one_time_keyboard=False,
+                        is_persistent=True
+                    )
+                    await bot.send_message(
+                        chat_id=client_id,
+                        text=msg,
+                        reply_markup=client_kbd,
+                        parse_mode="Markdown"
+                    )
                     
                     # Оновлюємо статус у БД
                     async with aiosqlite.connect(DB_FILE) as conn:
