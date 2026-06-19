@@ -859,28 +859,27 @@ class AILearnRequest(BaseModel):
 
 @app.get("/api/ai/learnable-chats")
 async def get_learnable_chats():
-    """Отримання списку сесій/клієнтів, де брав участь адмін, для вибору в інтерфейсі"""
+    """Отримання списку сесій/клієнтів для вибору в інтерфейсі (і активні, і архівні)"""
     try:
-        async with aiosqlite.connect(db.DB_FILE) as conn:
-            # Знаходимо останні 30 унікальних client_id, де sender = 'admin'
+        async with aiosqlite.connect(DB_FILE) as conn:
+            conn.row_factory = aiosqlite.Row
             async with conn.execute("""
-                SELECT cl.client_id, s.username, MAX(cl.created_at) as last_msg_time
-                FROM chat_logs cl
-                LEFT JOIN sessions s ON cl.client_id = s.client_id
-                WHERE cl.sender = 'admin'
-                GROUP BY cl.client_id
-                ORDER BY last_msg_time DESC
-                LIMIT 30
+                SELECT client_id, username, client_data, status
+                FROM sessions
+                ORDER BY created_at DESC
+                LIMIT 50
             """) as cursor:
                 rows = await cursor.fetchall()
                 
         chats = []
         for row in rows:
-            client_id = row[0]
-            username = row[1] if row[1] else f"ID: {client_id}"
+            client_id = row["client_id"]
+            username = row["username"] if row["username"] else f"ID: {client_id}"
             chats.append({
                 "client_id": client_id,
-                "username": username
+                "username": username,
+                "client_data": row["client_data"],
+                "status": row["status"]
             })
         return chats
     except Exception as e:
