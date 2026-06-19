@@ -1854,7 +1854,7 @@ input[type=number] {
     border: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
-.chat-message.bot {
+.chat-message.bot, .chat-message.admin {
     align-self: flex-end;
     background: linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.22) 100%) !important;
     backdrop-filter: blur(8px);
@@ -2636,7 +2636,7 @@ input[type=number] {
 
 .chat-msg-bubble {
     max-width: 75%;
-    padding: 14px 20px;
+    padding: 10px 16px 20px 16px;
     border-radius: 16px;
     font-size: 1rem;
     line-height: 1.5;
@@ -2668,13 +2668,23 @@ input[type=number] {
 }
 
 .chat-msg-meta {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 4px;
-    margin-top: 6px;
+    position: absolute;
+    bottom: 4px;
+    right: 12px;
     font-size: 0.68rem;
     color: rgba(255, 255, 255, 0.35);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.msg-checkmark {
+    color: var(--accent-success);
+    font-size: 0.85rem;
+    font-weight: 800;
+    margin-left: 4px;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 .msg-bot .chat-msg-meta {
