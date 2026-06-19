@@ -362,7 +362,7 @@
                     <div class="form-group" style="margin: 0; flex: 1; max-width: 450px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
                         <label for="ai-learn-chat-select" class="form-label" style="font-size: 11px; margin-bottom: 2px;">Діалог для аналізу:</label>
                         <select id="ai-learn-chat-select" class="form-control" style="width: 100%; height: 38px; box-sizing: border-box; padding: 0 10px; font-family: inherit;">
-                            <option value="all">-- Аналізувати всі недавні чати з адміном (останні 10) --</option>
+                            <option value="all">Аналізувати всі недавні чати з адміном (останні 10)</option>
                             <!-- Заповнюється динамічно JS -->
                         </select>
                     </div>
@@ -2486,12 +2486,14 @@
                 const chats = await res.json();
                 
                 const select = document.getElementById('ai-learn-chat-select');
-                select.innerHTML = '<option value="all">-- Аналізувати всі недавні чати з адміном (останні 10) --</option>';
+                select.innerHTML = '<option value="all">Аналізувати всі недавні чати з адміном (останні 10)</option>';
                 
                 chats.forEach(chat => {
                     const opt = document.createElement('option');
                     opt.value = chat.client_id;
-                    opt.textContent = `@${chat.username} (ID: ${chat.client_id})`;
+                    const displayName = extractDisplayName(chat.client_data, chat.username);
+                    const statusLabel = chat.status === 'completed' ? 'Архів' : 'Активний';
+                    opt.textContent = `${displayName} (${statusLabel}, ID: ${chat.client_id})`;
                     select.appendChild(opt);
                 });
             } catch (err) {
