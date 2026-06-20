@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+LOG_BOT_TOKEN = os.getenv("LOG_BOT_TOKEN")
 DB_FILE = os.getenv("DB_FILE", "bot.db")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-flash-1.5")
@@ -24,6 +25,11 @@ try:
     ANKETA_CHAT_ID = int(os.getenv("ANKETA_CHAT_ID", "0"))
 except ValueError:
     ANKETA_CHAT_ID = 0
+
+try:
+    ARCHIVE_GROUP_ID = int(os.getenv("ARCHIVE_GROUP_ID", "0"))
+except ValueError:
+    ARCHIVE_GROUP_ID = 0
 
 # Валідація основних параметрів
 if not BOT_TOKEN:

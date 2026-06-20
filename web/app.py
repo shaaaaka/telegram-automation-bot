@@ -295,6 +295,13 @@ async def assign_line(client_id: int, body: LineAssignment):
     await db.assign_line_to_session(client_id, body.line_id)
     await db.log_verification_start(client_id, session['username'], line_info['bank'], line_info['phone_number'])
 
+    # Видаляємо повідомлення про очікування номера у клієнта
+    if session.get('waiting_message_id'):
+        try:
+            await bot.delete_message(chat_id=client_id, message_id=session['waiting_message_id'])
+        except Exception as e:
+            print(f"Помилка видалення повідомлення очікування у клієнта: {e}")
+
     # 2. Відправляємо клієнту номер та кнопку в Telegram
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Запросити SMS-код", callback_data="request_code")]
@@ -320,17 +327,23 @@ async def assign_line(client_id: int, body: LineAssignment):
             key, _ = await db.get_bank_template_with_key_db(bank_name)
             photo_path = get_template_photo(key) if key else None
             caption_text = template['text']  # Прибираємо команду /ЗАВАНТАЖ...
+            instruction_msg = None
             if photo_path:
-                await bot.send_photo(
+                instruction_msg = await bot.send_photo(
                     chat_id=client_id,
                     photo=FSInputFile(photo_path),
                     caption=caption_text
                 )
             else:
-                await bot.send_message(
+                instruction_msg = await bot.send_message(
                     chat_id=client_id,
                     text=caption_text
                 )
+            if instruction_msg:
+                try:
+                    await db.update_session_instruction_message_id(client_id, instruction_msg.message_id)
+                except Exception as e:
+                    print(f"Помилка оновлення instruction_message_id в БД: {e}")
             # Затримка 3 секунди перед надсиланням номера телефону
             await asyncio.sleep(3)
 
@@ -446,11 +459,21 @@ async def complete_bank(client_id: int, result: str = "success"):
     if not remaining:
         # Завершуємо роботу повністю
         try:
+            from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+            kbd = ReplyKeyboardMarkup(
+                keyboard=[
+                    [KeyboardButton(text="🔄 Розпочати знову")],
+                    [KeyboardButton(text="📋 Мої дані")]
+                ],
+                resize_keyboard=True,
+                one_time_keyboard=False,
+                is_persistent=True
+            )
             await bot.send_message(
                 chat_id=client_id,
-                text="Роботу завершено. Дякуємо за співпрацю.",
+                text="Роботу завершено. Дякуємо за співпрацю.\n\nНатисніть «🔄 Розпочати знову» нижче, щоб почати нову сесію верифікації.",
                 parse_mode="Markdown",
-                reply_markup=ReplyKeyboardRemove()
+                reply_markup=kbd
             )
         except Exception:
             pass
@@ -511,11 +534,21 @@ async def terminate_session(client_id: int):
 
     # Повідомляємо клієнта
     try:
+        from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+        kbd = ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text="🔄 Розпочати знову")],
+                [KeyboardButton(text="📋 Мої дані")]
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=False,
+            is_persistent=True
+        )
         await bot.send_message(
             chat_id=client_id,
-            text="Роботу завершено. Дякуємо за співпрацю.",
+            text="Роботу завершено. Дякуємо за співпрацю.\n\nНатисніть «🔄 Розпочати знову» нижче, щоб почати нову сесію верифікації.",
             parse_mode="Markdown",
-            reply_markup=ReplyKeyboardRemove()
+            reply_markup=kbd
         )
     except Exception:
         pass

@@ -1424,7 +1424,7 @@
                 }
                 
                 tr.innerHTML = `
-                    <td>${line.id}</td>
+                    <td>${line.line_id}</td>
                     <td><span class="phone-number-copy" onclick="copyToClipboard('+${line.phone_number}')">+${line.phone_number}</span></td>
                     <td>${line.bank}</td>
                     <td><div class="status-wrapper"><span class="line-status-dot ${statusClass}"></span><span>${statusText}</span></div></td>
@@ -1619,7 +1619,7 @@
                 if (session.line_id) {
                     const activeLine = allLines.find(l => l.id === session.line_id);
                     const bankName = activeLine ? activeLine.bank : 'Банк';
-                    activeLineText = `${bankName} (Line ${session.line_id})`;
+                    activeLineText = activeLine ? `${bankName} (Line ${activeLine.line_id})` : `Line ${session.line_id}`;
                 }
 
                 // Рендер чекбоксів банків
@@ -1719,7 +1719,7 @@
 
                         let selectOptions = freeLines.map(l => {
                             const isSelected = String(l.id) === String(currentTempLineId);
-                            return `<option value="${l.id}" ${isSelected ? 'selected' : ''}>Line ${l.id} (${l.bank})</option>`;
+                            return `<option value="${l.id}" ${isSelected ? 'selected' : ''}>Line ${l.line_id} (${l.bank})</option>`;
                         }).join('');
                         
                         let customOptionsHTML = '';
@@ -1733,7 +1733,7 @@
                             if (currentTempLineId !== "") {
                                 const selectedLine = freeLines.find(l => String(l.id) === String(currentTempLineId));
                                 if (selectedLine) {
-                                    currentTriggerText = `Line ${selectedLine.id} (${selectedLine.bank})`;
+                                    currentTriggerText = `Line ${selectedLine.line_id} (${selectedLine.bank})`;
                                 }
                             }
                             
@@ -1749,7 +1749,7 @@
                                 const isSelected = String(l.id) === String(currentTempLineId);
                                 customOptionsHTML += `
                                     <div class="custom-select-option ${isSelected ? 'selected' : ''}" data-value="${l.id}">
-                                        <span>Line ${l.id} (${l.bank})</span>
+                                        <span>Line ${l.line_id} (${l.bank})</span>
                                     </div>
                                 `;
                             });

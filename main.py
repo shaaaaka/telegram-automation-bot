@@ -6,11 +6,16 @@ import uvicorn
 from aiogram import Bot, Dispatcher, BaseMiddleware
 from aiogram.types import Message
 from aiogram.methods import SendMessage, SendPhoto
-from bot.config import BOT_TOKEN
+from bot.config import BOT_TOKEN, LOG_BOT_TOKEN
 from bot.database import init_db
 from bot.handlers import client, admin, giver
 from bot.scheduler import auto_reminder_loop
 from web.app import app as web_app, set_bot
+
+# Ініціалізація додаткового бота для логів, якщо вказаний токен
+log_bot = None
+if LOG_BOT_TOKEN:
+    log_bot = Bot(token=LOG_BOT_TOKEN)
 
 class CustomBot(Bot):
     async def __call__(self, method, request_timeout=None):
@@ -18,18 +23,61 @@ class CustomBot(Bot):
         try:
             if isinstance(method, SendMessage):
                 if isinstance(method.chat_id, int) and method.chat_id > 0:
-                    from bot.database import log_chat_message, current_sender
+                    from bot.database import log_chat_message, current_sender, active_subscriptions
                     sender = current_sender.get()
                     await log_chat_message(method.chat_id, sender, method.text)
+                    
+                    # Пересилаємо повідомлення адміну, якщо увімкнене стеження
+                    send_bot = log_bot if log_bot else self
+                    for admin_id, sub_client_id in active_subscriptions.items():
+                        if sub_client_id == method.chat_id and admin_id != method.chat_id:
+                            try:
+                                await send_bot.send_message(
+                                    chat_id=admin_id,
+                                    text=f"👁️ <b>[Стеження: ID {sub_client_id}]</b>\nБот: {method.text}",
+                                    parse_mode="HTML"
+                                )
+                            except Exception as err:
+                                logging.error(f"Error forwarding spy message via log_bot: {err}")
+                                if log_bot:
+                                    try:
+                                        await self.send_message(
+                                            chat_id=admin_id,
+                                            text=f"👁️ <b>[Стеження: ID {sub_client_id}]</b>\nБот: {method.text}",
+                                            parse_mode="HTML"
+                                        )
+                                    except Exception:
+                                        pass
             elif isinstance(method, SendPhoto):
                 if isinstance(method.chat_id, int) and method.chat_id > 0:
-                    from bot.database import log_chat_message, current_sender
+                    from bot.database import log_chat_message, current_sender, active_subscriptions
                     sender = current_sender.get()
                     photo_id = method.photo if isinstance(method.photo, str) else None
                     if res and getattr(res, 'photo', None):
                         photo_id = res.photo[-1].file_id
                     caption = method.caption or "[Фото]"
                     await log_chat_message(method.chat_id, sender, caption, photo_id)
+                    
+                    # Пересилаємо фото адміну, якщо увімкнене стеження
+                    send_bot = log_bot if log_bot else self
+                    for admin_id, sub_client_id in active_subscriptions.items():
+                        if sub_client_id == method.chat_id and admin_id != method.chat_id:
+                            msg_text = f"👁️ <b>[Стеження: ID {sub_client_id}]</b>\nБот: {caption}"
+                            try:
+                                if photo_id:
+                                    await send_bot.send_photo(chat_id=admin_id, photo=photo_id, caption=msg_text, parse_mode="HTML")
+                                else:
+                                    await send_bot.send_message(chat_id=admin_id, text=msg_text, parse_mode="HTML")
+                            except Exception as err:
+                                logging.error(f"Error forwarding spy photo via log_bot: {err}")
+                                if log_bot:
+                                    try:
+                                        if photo_id:
+                                            await self.send_photo(chat_id=admin_id, photo=photo_id, caption=msg_text, parse_mode="HTML")
+                                        else:
+                                            await self.send_message(chat_id=admin_id, text=msg_text, parse_mode="HTML")
+                                    except Exception:
+                                        pass
         except Exception as e:
             logging.error(f"Error logging outgoing message: {e}")
         return res
@@ -38,11 +86,34 @@ class IncomingLoggingMiddleware(BaseMiddleware):
     async def __call__(self, handler, event: Message, data):
         if isinstance(event, Message) and event.chat.type == "private":
             try:
-                from bot.database import log_chat_message
+                from bot.database import log_chat_message, active_subscriptions
                 text = event.text or event.caption
                 photo_id = event.photo[-1].file_id if event.photo else None
                 if text or photo_id:
                     await log_chat_message(event.from_user.id, 'client', text, photo_id)
+                
+                # Копіюємо повідомлення адміну, якщо активоване стеження
+                send_bot = log_bot if log_bot else event.bot
+                for admin_id, sub_client_id in active_subscriptions.items():
+                    if sub_client_id == event.from_user.id:
+                        username = event.from_user.username or "Невідомий"
+                        msg_text = f"👁️ <b>[Стеження: @{username}]</b>\nКлієнт: {text or '[Фото/Файл]'}"
+                        
+                        try:
+                            if photo_id:
+                                await send_bot.send_photo(chat_id=admin_id, photo=photo_id, caption=msg_text, parse_mode="HTML")
+                            else:
+                                await send_bot.send_message(chat_id=admin_id, text=msg_text, parse_mode="HTML")
+                        except Exception as err:
+                            logging.error(f"Error forwarding client message via log_bot: {err}")
+                            if log_bot:
+                                try:
+                                    if photo_id:
+                                        await event.bot.send_photo(chat_id=admin_id, photo=photo_id, caption=msg_text, parse_mode="HTML")
+                                    else:
+                                        await event.bot.send_message(chat_id=admin_id, text=msg_text, parse_mode="HTML")
+                                except Exception:
+                                    pass
             except Exception as e:
                 logging.error(f"Error logging incoming message: {e}")
         return await handler(event, data)
@@ -101,6 +172,8 @@ async def main():
         )
     finally:
         await bot.session.close()
+        if log_bot:
+            await log_bot.session.close()
 
 if __name__ == "__main__":
     asyncio.run(main())

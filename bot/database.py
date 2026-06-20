@@ -6,19 +6,58 @@ from bot.config import DB_FILE
 
 current_sender = contextvars.ContextVar("current_sender", default="bot")
 chat_message_callbacks = []
+active_subscriptions = {}
 
 async def init_db():
     """Ініціалізація бази даних та створення таблиць"""
     async with aiosqlite.connect(DB_FILE) as db:
-        # Таблиця для збереження телефонних ліній
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS lines (
-                id INTEGER PRIMARY KEY,
-                phone_number TEXT NOT NULL,
-                bank TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'available'
-            )
-        """)
+        # Перевірка наявності та формату таблиці lines
+        table_exists = False
+        has_line_id = False
+        try:
+            async with db.execute("PRAGMA table_info(lines)") as cursor:
+                columns = await cursor.fetchall()
+                if columns:
+                    table_exists = True
+                    for col in columns:
+                        if col[1] == 'line_id':
+                            has_line_id = True
+                            break
+        except Exception:
+            pass
+
+        if table_exists and not has_line_id:
+            # Міграція старої таблиці
+            await db.execute("ALTER TABLE lines RENAME TO lines_old")
+            await db.execute("""
+                CREATE TABLE lines (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    line_id INTEGER NOT NULL,
+                    phone_number TEXT NOT NULL,
+                    bank TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'available',
+                    UNIQUE(line_id, bank)
+                )
+            """)
+            await db.execute("""
+                INSERT INTO lines (id, line_id, phone_number, bank, status)
+                SELECT id, id, phone_number, bank, status FROM lines_old
+            """)
+            await db.execute("DROP TABLE lines_old")
+            await db.commit()
+        elif not table_exists:
+            # Створення з нуля
+            await db.execute("""
+                CREATE TABLE lines (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    line_id INTEGER NOT NULL,
+                    phone_number TEXT NOT NULL,
+                    bank TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'available',
+                    UNIQUE(line_id, bank)
+                )
+            """)
+            await db.commit()
         
         # Таблиця для збереження активних сесій верифікації
         await db.execute("""
@@ -65,6 +104,16 @@ async def init_db():
 
         try:
             await db.execute("ALTER TABLE sessions ADD COLUMN card_photo_id TEXT")
+        except aiosqlite.OperationalError:
+            pass
+
+        try:
+            await db.execute("ALTER TABLE sessions ADD COLUMN waiting_message_id INTEGER")
+        except aiosqlite.OperationalError:
+            pass
+
+        try:
+            await db.execute("ALTER TABLE sessions ADD COLUMN instruction_message_id INTEGER")
         except aiosqlite.OperationalError:
             pass
 
@@ -191,11 +240,10 @@ async def add_or_update_line(line_id: int, phone_number: str, bank: str):
     """Додавання нової або оновлення існуючої лінії"""
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("""
-            INSERT INTO lines (id, phone_number, bank, status)
+            INSERT INTO lines (line_id, phone_number, bank, status)
             VALUES (?, ?, ?, 'available')
-            ON CONFLICT(id) DO UPDATE SET
+            ON CONFLICT(line_id, bank) DO UPDATE SET
                 phone_number = excluded.phone_number,
-                bank = excluded.bank,
                 status = 'available'
         """, (line_id, phone_number, bank))
         await db.commit()
@@ -340,6 +388,18 @@ async def update_session_message_id(client_id: int, message_id: int):
         await db.execute("UPDATE sessions SET client_message_id = ? WHERE client_id = ?", (message_id, client_id))
         await db.commit()
 
+async def update_session_waiting_message_id(client_id: int, message_id: int):
+    """Оновлення ID повідомлення про очікування номера у клієнта"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("UPDATE sessions SET waiting_message_id = ? WHERE client_id = ?", (message_id, client_id))
+        await db.commit()
+
+async def update_session_instruction_message_id(client_id: int, message_id: int):
+    """Оновлення ID повідомлення з інструкцією банку у клієнта"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("UPDATE sessions SET instruction_message_id = ? WHERE client_id = ?", (message_id, client_id))
+        await db.commit()
+
 async def update_session_banks(client_id: int, selected_banks: str, remaining_banks: str):
     """Оновлення списків обраних та залишкових банків для сесії"""
     async with aiosqlite.connect(DB_FILE) as db:
@@ -356,6 +416,98 @@ async def set_session_status(client_id: int, status: str):
         await db.execute("UPDATE sessions SET status = ? WHERE client_id = ?", (status, client_id))
         await db.commit()
 
+async def send_archive_report(client_id: int, bot):
+    """Генерує текстовий звіт про сесію та надсилає його в архівну групу"""
+    try:
+        from bot.config import ARCHIVE_GROUP_ID, LOG_BOT_TOKEN
+        if not ARCHIVE_GROUP_ID:
+            return
+            
+        import re
+        import os
+        from aiogram import Bot
+        
+        # 1. Отримуємо дані сесії
+        session = await get_session(client_id)
+        if not session:
+            return
+            
+        # 2. Формуємо текст картки-звіту
+        username = session['username'] or "Невідомий"
+        
+        # Парсимо client_data (вона містить ПІБ, ДР, Телефон тощо)
+        client_data = session['client_data'] or ""
+        
+        # Спробуємо дістати телефон та інші дані з тексту
+        phone_match = re.search(r'(?:Телефон|Тлф|Номер):\s*([^\n]+)', client_data, re.IGNORECASE)
+        phone = phone_match.group(1).strip() if phone_match else "Не вказано"
+        
+        # Отримуємо реквізити картки
+        card_first4 = session.get('card_first4') or ""
+        card_last4 = session.get('card_last4') or ""
+        card_info = f"{card_first4}...{card_last4}" if (card_first4 and card_last4) else "Не розпізнано"
+        
+        # Запит на успішно пройдені банки
+        passed_banks = []
+        async with aiosqlite.connect(DB_FILE) as conn:
+            conn.row_factory = aiosqlite.Row
+            async with conn.execute("""
+                SELECT bank, status FROM bank_verifications 
+                WHERE client_id = ? AND status = 'success'
+            """, (client_id,)) as cursor:
+                rows = await cursor.fetchall()
+                passed_banks = [r['bank'] for r in rows]
+        
+        banks_str = ", ".join(passed_banks) if passed_banks else "Немає успішних реєстрацій"
+        
+        # Формуємо красивий звіт
+        report_lines = [
+            "✅ <b>СЕСІЮ ЗАВЕРШЕНО</b>",
+            f"👤 <b>Клієнт:</b> @{username} (ID: <code>{client_id}</code>)",
+            f"📞 <b>Телефон:</b> <code>{phone}</code>",
+            f"🏦 <b>Пройдені банки:</b> {banks_str}",
+            f"💳 <b>Картка:</b> <code>{card_info}</code>",
+        ]
+        
+        # Спробуємо виділити ПІБ та ДР
+        pib_match = re.search(r'(?:ПІБ|ФИО|Ім\'я):\s*([^\n]+)', client_data, re.IGNORECASE)
+        dob_match = re.search(r'(?:ДР|Дата народження|Дата|Дар):\s*([^\n]+)', client_data, re.IGNORECASE)
+        if pib_match:
+            report_lines.insert(2, f"📝 <b>ПІБ:</b> {pib_match.group(1).strip()}")
+        if dob_match:
+            report_lines.insert(3, f"📅 <b>ДР:</b> {dob_match.group(1).strip()}")
+            
+        report_text = "\n".join(report_lines)
+        
+        # Створюємо/вибираємо інстанс бота для відправки логів
+        send_bot = bot
+        close_send_bot = False
+        if LOG_BOT_TOKEN:
+            try:
+                send_bot = Bot(token=LOG_BOT_TOKEN)
+                close_send_bot = True
+            except Exception as e:
+                logging.error(f"Помилка створення log_bot з LOG_BOT_TOKEN: {e}. Використовуємо дефолтного бота.")
+                send_bot = bot
+
+        try:
+            # Надсилаємо картку-звіт
+            await send_bot.send_message(
+                chat_id=ARCHIVE_GROUP_ID,
+                text=report_text,
+                parse_mode="HTML"
+            )
+        finally:
+            # Закриваємо сесію log_bot, якщо створювали новий інстанс
+            if close_send_bot:
+                try:
+                    await send_bot.session.close()
+                except Exception as e:
+                    logging.error(f"Помилка закриття сесії log_bot: {e}")
+                
+    except Exception as e:
+        logging.error(f"Помилка надсилання архівного звіту: {e}")
+
 async def close_session(client_id: int):
     """Завершення сесії: звільняємо лінію та видаляємо/архівуємо сесію"""
     async with aiosqlite.connect(DB_FILE) as db:
@@ -371,10 +523,19 @@ async def close_session(client_id: int):
         await db.execute("UPDATE sessions SET status = 'completed' WHERE client_id = ?", (client_id,))
         await db.commit()
 
+    # Відправляємо звіт та лог чату в Telegram групу-архів
+    try:
+        import web.app
+        bot = web.app.bot
+        if bot:
+            await send_archive_report(client_id, bot)
+    except Exception as e:
+        logging.error(f"Помилка відправки архівного звіту: {e}")
+
 async def get_max_line_id() -> int:
     """Отримання максимального ID лінії в базі даних"""
     async with aiosqlite.connect(DB_FILE) as db:
-        async with db.execute("SELECT MAX(id) FROM lines") as cursor:
+        async with db.execute("SELECT MAX(line_id) FROM lines") as cursor:
             row = await cursor.fetchone()
             return row[0] if row and row[0] is not None else 0
 
