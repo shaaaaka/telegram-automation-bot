@@ -11,6 +11,10 @@ active_subscriptions = {}
 async def init_db():
     """Ініціалізація бази даних та створення таблиць"""
     async with aiosqlite.connect(DB_FILE) as db:
+        # Налаштування SQLite для паралельної роботи в SaaS (WAL-режим)
+        await db.execute("PRAGMA journal_mode=WAL;")
+        await db.execute("PRAGMA synchronous=NORMAL;")
+
         # Перевірка наявності та формату таблиці lines
         table_exists = False
         has_line_id = False
@@ -76,46 +80,32 @@ async def init_db():
             )
         """)
         
+        # Отримуємо існуючі колонки таблиці sessions
+        sessions_columns = set()
+        async with db.execute("PRAGMA table_info(sessions)") as cursor:
+            async for col in cursor:
+                sessions_columns.add(col[1])
+
         # Додаємо нові колонки, якщо вони ще не існують (для зворотної сумісності)
-        try:
-            await db.execute("ALTER TABLE sessions ADD COLUMN assigned_at TIMESTAMP")
-        except aiosqlite.OperationalError:
-            pass
-            
-        try:
-            await db.execute("ALTER TABLE sessions ADD COLUMN last_reminder_sent_at TIMESTAMP")
-        except aiosqlite.OperationalError:
-            pass
-
-        try:
-            await db.execute("ALTER TABLE sessions ADD COLUMN success_photo_id TEXT")
-        except aiosqlite.OperationalError:
-            pass
-
-        try:
-            await db.execute("ALTER TABLE sessions ADD COLUMN card_first4 TEXT")
-        except aiosqlite.OperationalError:
-            pass
-
-        try:
-            await db.execute("ALTER TABLE sessions ADD COLUMN card_last4 TEXT")
-        except aiosqlite.OperationalError:
-            pass
-
-        try:
-            await db.execute("ALTER TABLE sessions ADD COLUMN card_photo_id TEXT")
-        except aiosqlite.OperationalError:
-            pass
-
-        try:
-            await db.execute("ALTER TABLE sessions ADD COLUMN waiting_message_id INTEGER")
-        except aiosqlite.OperationalError:
-            pass
-
-        try:
-            await db.execute("ALTER TABLE sessions ADD COLUMN instruction_message_id INTEGER")
-        except aiosqlite.OperationalError:
-            pass
+        new_columns = [
+            ("assigned_at", "TIMESTAMP"),
+            ("last_reminder_sent_at", "TIMESTAMP"),
+            ("success_photo_id", "TEXT"),
+            ("card_first4", "TEXT"),
+            ("card_last4", "TEXT"),
+            ("card_photo_id", "TEXT"),
+            ("waiting_message_id", "INTEGER"),
+            ("instruction_message_id", "INTEGER")
+        ]
+        
+        for col_name, col_type in new_columns:
+            if col_name not in sessions_columns:
+                try:
+                    await db.execute(f"ALTER TABLE sessions ADD COLUMN {col_name} {col_type}")
+                    logging.info(f"Додано нову колонку '{col_name}' ({col_type}) до таблиці sessions")
+                except Exception as e:
+                    logging.error(f"Помилка при додаванні колонки '{col_name}': {e}")
+                    raise
 
         # Таблиця для логування статистики верифікацій
         await db.execute("""
@@ -368,9 +358,19 @@ async def get_all_waiting_sessions():
 async def assign_line_to_session(client_id: int, line_id: int):
     """Призначення лінії для клієнта"""
     async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        # Відкриваємо транзакцію з негайним блокуванням запису для уникнення race condition
+        await db.execute("BEGIN IMMEDIATE")
+        
+        # Отримуємо попередньо призначену лінію (якщо вона є) та звільняємо її
+        async with db.execute("SELECT line_id FROM sessions WHERE client_id = ?", (client_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row and row['line_id'] and row['line_id'] != line_id:
+                await db.execute("UPDATE lines SET status = 'available' WHERE id = ?", (row['line_id'],))
+
         # Встановлюємо статус сесії та очищуємо верифікаційні дані від попереднього банку
         await db.execute("""
-            UPDATE sessions
+            UPDATE sessions 
             SET line_id = ?, status = 'number_assigned',
                 success_photo_id = NULL,
                 card_photo_id = NULL,
@@ -522,6 +522,11 @@ async def close_session(client_id: int):
         # Переводимо сесію в статус завершеної
         await db.execute("UPDATE sessions SET status = 'completed' WHERE client_id = ?", (client_id,))
         await db.commit()
+
+    # Видаляємо активні підписки стеження за цим клієнтом
+    for admin_id, sub_client_id in list(active_subscriptions.items()):
+        if sub_client_id == client_id:
+            active_subscriptions.pop(admin_id, None)
 
     # Відправляємо звіт та лог чату в Telegram групу-архів
     try:

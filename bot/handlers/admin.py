@@ -605,9 +605,13 @@ async def handle_toggle_bank(callback: CallbackQuery, bot: Bot, state: FSMContex
     else:
         selected.append(bank)
 
-    # Зберігаємо оновлений вибір
+    # Зберігаємо оновлений вибір (тільки selected_banks, не змінюючи remaining_banks)
     new_selected_str = ",".join(selected)
-    await db.update_session_banks(client_id, new_selected_str, "")
+    import aiosqlite
+    from bot.config import DB_FILE
+    async with aiosqlite.connect(DB_FILE) as db_conn:
+        await db_conn.execute("UPDATE sessions SET selected_banks = ? WHERE client_id = ?", (new_selected_str, client_id))
+        await db_conn.commit()
 
     # Отримуємо унікальні назви банків з бази для перемальовування
     unique_banks_db = await db.get_unique_banks()
@@ -659,8 +663,45 @@ async def handle_save_banks(callback: CallbackQuery, bot: Bot, state: FSMContext
         await callback.answer("Оберіть хоча б один банк для верифікації!", show_alert=True)
         return
 
-    # Ініціалізуємо список залишкових банків (копіюємо туди обрані банки)
-    await db.update_session_banks(client_id, selected_banks, selected_banks)
+    # Розраховуємо новий список залишкових банків без скидання прогресу
+    state_data = await state.get_data()
+    old_selected_str = state_data.get(f"old_selected_{client_id}")
+    old_remaining_str = state_data.get(f"old_remaining_{client_id}")
+    
+    if session['status'] == 'registered' or old_selected_str is None:
+        # Для нової сесії просто копіюємо обрані банки
+        new_remaining_str = selected_banks
+    else:
+        # Для активної сесії оновлюємо залишкові банки розумно
+        old_sel = old_selected_str.split(",") if old_selected_str else []
+        old_rem = old_remaining_str.split(",") if old_remaining_str else []
+        new_sel = selected_banks.split(",") if selected_banks else []
+        
+        # Починаємо з поточного списку залишкових банків
+        new_rem = old_rem[:]
+        
+        # Додаємо нові банки, які щойно обрали
+        for b in new_sel:
+            if b not in old_sel and b not in new_rem:
+                new_rem.append(b)
+                
+        # Видаляємо банки, які адмін зняв
+        for b in old_rem:
+            if b not in new_sel:
+                try:
+                    new_rem.remove(b)
+                except ValueError:
+                    pass
+                    
+        new_remaining_str = ",".join(new_rem)
+
+    await db.update_session_banks(client_id, selected_banks, new_remaining_str)
+
+    # Очищуємо збережені у стані тимчасові дані
+    await state.update_data(**{
+        f"old_selected_{client_id}": None,
+        f"old_remaining_{client_id}": None
+    })
 
     # Показуємо головну картку клієнта
     await show_session_card(callback.message, client_id, edit=True)
@@ -1113,6 +1154,12 @@ async def handle_manage_banks(callback: CallbackQuery, bot: Bot, state: FSMConte
     if not session:
         await callback.answer("Сесію не знайдено.", show_alert=True)
         return
+        
+    # Зберігаємо старий стан вибору банків
+    await state.update_data(**{
+        f"old_selected_{client_id}": session['selected_banks'],
+        f"old_remaining_{client_id}": session['remaining_banks']
+    })
         
     selected_banks = session['selected_banks']
     selected = selected_banks.split(",") if selected_banks else []
