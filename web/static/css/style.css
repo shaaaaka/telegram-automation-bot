@@ -1841,21 +1841,73 @@ input[type=number] {
     /* CRM Chat page mobile responsiveness */
     .chat-page-layout {
         flex-direction: column !important;
-        height: 750px !important; /* Lock height so children flex panels scroll correctly */
+        height: 650px !important;
         max-height: 80vh !important;
         border-radius: 16px !important;
     }
-    .chat-sidebar {
+    
+    /* Toggle between list and active chat window */
+    .chat-page-layout:not(.chat-selected) .chat-sidebar {
+        display: flex !important;
         width: 100% !important;
-        height: 250px !important;
-        flex-basis: 250px !important;
+        height: 100% !important;
         border-right: none !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+        border-bottom: none !important;
     }
-    .chat-window {
+    .chat-page-layout:not(.chat-selected) .chat-window {
+        display: none !important;
+    }
+    
+    .chat-page-layout.chat-selected .chat-sidebar {
+        display: none !important;
+    }
+    .chat-page-layout.chat-selected .chat-window {
+        display: flex !important;
         width: 100% !important;
-        height: calc(100% - 250px) !important;
-        flex-grow: 1 !important;
+        height: 100% !important;
+    }
+    
+    .chat-back-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        color: var(--accent-primary) !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        padding: 6px 12px !important;
+        border-radius: 8px !important;
+        margin-right: 12px !important;
+        transition: all 0.2s ease !important;
+    }
+    .chat-back-btn:hover {
+        background: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    /* Make message bubbles distinct and readable on mobile */
+    .msg-client .chat-msg-bubble {
+        background: rgba(26, 36, 52, 0.95) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        color: #f8fafc !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+    }
+    .msg-admin .chat-msg-bubble {
+        background: linear-gradient(135deg, rgba(79, 70, 229, 0.95), rgba(124, 58, 237, 0.95)) !important;
+        border: 1px solid rgba(139, 92, 246, 0.4) !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2) !important;
+    }
+    .msg-bot .chat-msg-bubble {
+        background: linear-gradient(135deg, rgba(2, 132, 199, 0.95), rgba(14, 116, 144, 0.95)) !important;
+        border: 1px solid rgba(14, 165, 233, 0.4) !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2) !important;
+    }
+    .chat-msg-bubble {
+        max-width: 85% !important;
+        font-size: 0.9rem !important;
+        padding: 8px 12px 20px 12px !important;
     }
 }
 
@@ -1936,17 +1988,15 @@ input[type=number] {
 
 .chat-message.client {
     align-self: flex-start;
-    background: rgba(30, 41, 59, 0.5) !important;
-    backdrop-filter: blur(8px);
+    background: rgba(26, 36, 52, 0.95) !important;
     color: #f8fafc !important;
     border-radius: 18px 18px 18px 4px !important;
-    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 .chat-message.bot, .chat-message.admin {
     align-self: flex-end;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.22) 100%) !important;
-    backdrop-filter: blur(8px);
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.95) 0%, rgba(124, 58, 237, 0.95) 100%) !important;
     color: #e0e7ff !important;
     border-radius: 18px 18px 4px 18px !important;
     border: 1px solid rgba(139, 92, 246, 0.35) !important;
@@ -2364,6 +2414,11 @@ input[type=number] {
 
 .btn-chat-modal:active {
     transform: translateY(0);
+}
+
+/* Back button hidden by default */
+.chat-back-btn {
+    display: none;
 }
 
 /* CRM Chat Page Layout */

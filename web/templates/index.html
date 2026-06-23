@@ -129,7 +129,7 @@
 
         <!-- Вкладка Чат: CRM чат-кімната -->
         <div id="tab-content-chat" class="tab-content">
-            <div class="chat-page-layout">
+            <div class="chat-page-layout" id="chat-page-layout-container">
                 <!-- Ліва колонка: Список клієнтів -->
                 <div class="chat-sidebar">
                     <div class="chat-sidebar-header">
@@ -1211,16 +1211,20 @@
                 const statusData = await statusRes.json();
                 const statusBadge = document.getElementById('bot-status');
                 if (statusBadge) {
-                    if (statusData.bot_configured) {
-                        statusBadge.innerHTML = '<span class="status-dot-inline" style="background:#10b981;box-shadow:0 0 8px #10b981;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span class="hide-mobile" style="margin-left:8px;">Бот Онлайн</span>';
-                        statusBadge.style.color = '#10b981';
-                        statusBadge.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-                        statusBadge.style.background = 'rgba(16, 185, 129, 0.1)';
-                    } else {
-                        statusBadge.innerHTML = '<span class="status-dot-inline" style="background:#ef4444;box-shadow:0 0 8px #ef4444;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span class="hide-mobile" style="margin-left:8px;">Помилка бота</span>';
-                        statusBadge.style.color = '#ef4444';
-                        statusBadge.style.borderColor = 'rgba(239, 68, 68, 0.2)';
-                        statusBadge.style.background = 'rgba(239, 68, 68, 0.1)';
+                    const isConfigured = statusData.bot_configured ? 'true' : 'false';
+                    if (statusBadge.dataset.lastConfigured !== isConfigured) {
+                        statusBadge.dataset.lastConfigured = isConfigured;
+                        if (statusData.bot_configured) {
+                            statusBadge.innerHTML = '<span class="status-dot-inline" style="background:#10b981;box-shadow:0 0 8px #10b981;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span class="hide-mobile" style="margin-left:8px;">Бот Онлайн</span>';
+                            statusBadge.style.color = '#10b981';
+                            statusBadge.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                            statusBadge.style.background = 'rgba(16, 185, 129, 0.1)';
+                        } else {
+                            statusBadge.innerHTML = '<span class="status-dot-inline" style="background:#ef4444;box-shadow:0 0 8px #ef4444;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span class="hide-mobile" style="margin-left:8px;">Помилка бота</span>';
+                            statusBadge.style.color = '#ef4444';
+                            statusBadge.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                            statusBadge.style.background = 'rgba(239, 68, 68, 0.1)';
+                        }
                     }
                 }
 
@@ -3073,6 +3077,11 @@
             chatUnreadCounts[clientId] = 0;
             renderChatSidebar(); // Update unread badges
             
+            const layout = document.getElementById('chat-page-layout-container');
+            if (layout) {
+                layout.classList.add('chat-selected');
+            }
+            
             const windowContainer = document.getElementById('chat-window-container');
             if (!windowContainer) return;
             
@@ -3090,6 +3099,7 @@
             windowContainer.innerHTML = `
                 <div class="chat-window-header">
                     <div class="chat-window-client-info">
+                        <button class="chat-back-btn" onclick="backToChatList()">← Назад</button>
                         <div class="chat-window-avatar">
                             <span id="avatar-placeholder-${session.client_id}">${displayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К'}</span>
                             <img src="/api/avatar/${session.client_id}" onload="const el = document.getElementById('avatar-placeholder-${session.client_id}'); if(el) el.style.display='none';" onerror="this.remove();">
@@ -3130,6 +3140,32 @@
             
             // Load message log history
             await refreshChatPageMessages(clientId);
+        }
+
+        function backToChatList() {
+            selectedChatClientId = null;
+            try {
+                localStorage.removeItem('selectedChatClientId');
+            } catch (e) {}
+            const layout = document.getElementById('chat-page-layout-container');
+            if (layout) {
+                layout.classList.remove('chat-selected');
+            }
+            // Clear active class from all chat list items
+            const activeItems = document.querySelectorAll('.chat-item.active');
+            activeItems.forEach(item => item.classList.remove('active'));
+            
+            // Reset windowContainer to no selection view
+            const windowContainer = document.getElementById('chat-window-container');
+            if (windowContainer) {
+                windowContainer.innerHTML = `
+                    <div class="chat-no-selection">
+                        <div class="chat-no-selection-icon">💬</div>
+                        <p>Оберіть чат зі списку ліворуч, щоб розпочати листування</p>
+                    </div>
+                `;
+            }
+            renderChatSidebar();
         }
 
         function renderChatPageTemplates() {
@@ -3375,9 +3411,9 @@
         const savedTab = localStorage.getItem('activeTab') || 'control';
         switchTab(savedTab);
 
-        // Initial fetch and poll scheduling (every 1s)
+        // Initial fetch and poll scheduling (every 3s)
         pollData();
-        setInterval(pollData, 1000);
+        setInterval(pollData, 3000);
         
         // Update SLA timers (every 1s)
         setInterval(updateTimers, 1000);
