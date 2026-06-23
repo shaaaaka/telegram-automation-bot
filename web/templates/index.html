@@ -316,7 +316,7 @@
                     <h2 class="panel-title">🤖 Налаштування параметрів ШІ (Gemini)</h2>
                 </div>
                 <form id="ai-settings-form" onsubmit="saveAISettings(event)" style="display: flex; flex-direction: column; gap: 16px; margin-top: 16px;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="grid-2col">
                         <div class="form-group">
                             <label for="ai-settings-income" class="form-label">Дохід для анкети (грн)</label>
                             <input type="text" id="ai-settings-income" class="form-control" required style="width: 100%;">
@@ -326,7 +326,7 @@
                             <input type="text" id="ai-settings-turnover" class="form-control" required style="width: 100%;">
                         </div>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 8px;">
+                    <div class="grid-3col" style="margin-top: 8px;">
                         <div class="form-group">
                             <label for="ai-settings-pwd-eco" class="form-label">Пароль EcoBank</label>
                             <input type="text" id="ai-settings-pwd-eco" class="form-control" required style="width: 100%;">
@@ -402,7 +402,7 @@
 
                 <div class="divider-top" style="margin-top: 24px; padding-top: 24px;">
                     <div class="section-label" style="font-weight: 600; margin-bottom: 12px; font-size: 14px;">Додати нове правило вручну</div>
-                    <form id="add-rule-form" onsubmit="handleAddRule(event)" style="display: flex; gap: 12px; align-items: end; margin-top: 12px;">
+                    <form id="add-rule-form" onsubmit="handleAddRule(event)" class="form-row-responsive" style="margin-top: 12px;">
                         <div class="form-group" style="width: 200px; margin: 0;">
                             <label for="new-rule-category" class="form-label" style="font-size: 12px;">Категорія</label>
                             <select id="new-rule-category" class="form-control" style="width: 100%; height: 38px; box-sizing: border-box; padding: 0 10px;">
@@ -443,7 +443,7 @@
 
                 <div class="divider-top" style="margin-top: 24px; padding-top: 24px;">
                     <div class="section-label" style="font-weight: 600; margin-bottom: 12px; font-size: 14px;">Додати приклад діалогу</div>
-                    <form id="add-example-form" onsubmit="handleAddExample(event)" style="display: flex; gap: 12px; align-items: end; margin-top: 12px;">
+                    <form id="add-example-form" onsubmit="handleAddExample(event)" class="form-row-responsive" style="margin-top: 12px;">
                         <div class="form-group" style="flex: 1; margin: 0;">
                             <label for="new-example-client" class="form-label" style="font-size: 12px;">Питання/повідомлення клієнта</label>
                             <input type="text" id="new-example-client" class="form-control" placeholder="Напр. Який пароль ставити?" required style="width: 100%; height: 38px; box-sizing: border-box;">

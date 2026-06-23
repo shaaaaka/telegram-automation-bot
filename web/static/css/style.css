@@ -1573,6 +1573,42 @@ input[type=number] {
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
 }
 
+/* --- Responsive Form Layouts --- */
+.grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.grid-3col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+}
+.form-row-responsive {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+}
+@media (max-width: 768px) {
+    .grid-2col, .grid-3col {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+    .form-row-responsive {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+    }
+    .form-row-responsive .form-group {
+        width: 100% !important;
+    }
+    .form-row-responsive button {
+        width: 100% !important;
+        height: 38px !important;
+    }
+}
+
+
 #add-template-form input {
     background: rgba(13, 17, 28, 0.6) !important;
     border: 1px solid rgba(255, 255, 255, 0.06) !important;
@@ -1695,25 +1731,37 @@ input[type=number] {
         padding: 16px;
         border-radius: 16px;
     }
+    
+    /* Horizontal Scrollable Tabs Navigation on Mobile */
     .tabs-nav {
-        flex-direction: row;
-        width: 100%;
-        border-right: none;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        padding-right: 0;
-        padding-bottom: 12px;
-        margin-bottom: 20px;
-        position: static;
-        gap: 6px;
-        justify-content: space-around;
-        height: auto;
+        flex-direction: row !important;
+        width: 100% !important;
+        border-right: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+        padding-right: 0 !important;
+        padding-bottom: 12px !important;
+        margin-bottom: 20px !important;
+        position: static !important;
+        gap: 8px !important;
+        justify-content: flex-start !important; /* Align left to allow scrolling */
+        height: auto !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important; /* Hide scrollbar for Firefox */
+    }
+    .tabs-nav::-webkit-scrollbar {
+        display: none !important; /* Hide scrollbar for Chrome/Safari/Webkit */
     }
     .tab-btn {
-        padding: 8px 12px;
-        font-size: 0.85rem;
-        flex-grow: 1;
-        justify-content: center;
-        width: auto;
+        padding: 8px 14px !important;
+        font-size: 0.85rem !important;
+        flex-grow: 0 !important;
+        flex-shrink: 0 !important; /* Do not shrink buttons */
+        justify-content: center !important;
+        width: auto !important;
+        display: inline-flex !important;
+        align-items: center !important;
     }
     .tab-btn-settings {
         margin-top: 0;
@@ -1758,10 +1806,13 @@ input[type=number] {
     /* Table Responsive Scrollable Layout */
     .lines-list-container {
         overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
     }
     .lines-table {
         display: table !important;
-        min-width: 580px !important;
+        width: 600px !important; /* Force min table width to overflow container and scroll */
+        min-width: 600px !important;
+        table-layout: fixed !important;
         font-size: 0.85rem !important;
     }
     .lines-table thead {
@@ -1779,6 +1830,32 @@ input[type=number] {
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
+    }
+
+    /* Wrap line filters on mobile */
+    .lines-filter {
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+
+    /* CRM Chat page mobile responsiveness */
+    .chat-page-layout {
+        flex-direction: column !important;
+        height: 750px !important; /* Lock height so children flex panels scroll correctly */
+        max-height: 80vh !important;
+        border-radius: 16px !important;
+    }
+    .chat-sidebar {
+        width: 100% !important;
+        height: 250px !important;
+        flex-basis: 250px !important;
+        border-right: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    }
+    .chat-window {
+        width: 100% !important;
+        height: calc(100% - 250px) !important;
+        flex-grow: 1 !important;
     }
 }
 
