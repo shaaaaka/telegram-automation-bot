@@ -1715,6 +1715,9 @@ input[type=number] {
 }
 
 @media (max-width: 900px) {
+    html {
+        font-size: 14px !important;
+    }
     body {
         height: auto;
         overflow: auto;
@@ -1728,8 +1731,8 @@ input[type=number] {
         display: block;
     }
     .panel {
-        padding: 16px;
-        border-radius: 16px;
+        padding: 12px !important;
+        border-radius: 12px !important;
     }
     
     /* Horizontal Scrollable Tabs Navigation on Mobile */
@@ -1800,7 +1803,7 @@ input[type=number] {
         justify-content: flex-start;
     }
     .session-card.expanded .card-body-details {
-        padding: 16px;
+        padding: 14px 12px !important;
     }
     
     /* Table Responsive Scrollable Layout */
@@ -1908,6 +1911,28 @@ input[type=number] {
         max-width: 85% !important;
         font-size: 0.9rem !important;
         padding: 8px 12px 20px 12px !important;
+    }
+
+    /* Wrap and optimize action buttons in session cards on mobile */
+    .action-footer {
+        flex-wrap: wrap !important;
+        justify-content: flex-start !important;
+        gap: 8px !important;
+        padding-top: 12px !important;
+        margin-top: 12px !important;
+    }
+    .action-footer button {
+        flex-grow: 1 !important;
+        padding: 8px 12px !important;
+        font-size: 0.8rem !important;
+        min-width: calc(50% - 8px) !important; /* Stack into 2x2 layout */
+    }
+}
+
+/* Extra small screens scale down */
+@media (max-width: 480px) {
+    html {
+        font-size: 13px !important;
     }
 }
 
