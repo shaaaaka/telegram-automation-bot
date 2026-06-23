@@ -159,7 +159,9 @@ async def main():
     set_bot(bot)
 
     # Налаштування конфігурації Uvicorn
-    config = uvicorn.Config(web_app, host="0.0.0.0", port=8000, loop="asyncio")
+    import os
+    web_port = int(os.getenv("PORT", 8000))
+    config = uvicorn.Config(web_app, host="0.0.0.0", port=web_port, loop="asyncio")
     server = uvicorn.Server(config)
 
     logging.info("Запуск бота та веб-панелі...")

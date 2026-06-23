@@ -5,7 +5,7 @@ mimetypes.init()
 mimetypes.add_type("text/css", ".css", True)
 mimetypes.add_type("application/javascript", ".js", True)
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Depends, status
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import io
@@ -14,12 +14,37 @@ from typing import List, Optional
 import aiosqlite
 from aiogram import Bot
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile, ReplyKeyboardRemove
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import secrets
 
 from bot.config import DB_FILE, ADMIN_ID, get_bank_template, get_bank_template_with_key, get_template_photo
 import bot.database as db
 from bot.database import current_sender, chat_message_callbacks
 
-app = FastAPI(title="Verification Bot Web Admin")
+security = HTTPBasic(auto_error=False)
+
+async def check_admin_auth(request: Request, credentials: Optional[HTTPBasicCredentials] = Depends(security)):
+    username_env = os.getenv("WEB_USERNAME")
+    password_env = os.getenv("WEB_PASSWORD")
+    if not username_env or not password_env:
+        return True
+
+    if request.scope.get("type") == "websocket":
+        return True
+
+    if credentials:
+        is_username_correct = secrets.compare_digest(credentials.username, username_env)
+        is_password_correct = secrets.compare_digest(credentials.password, password_env)
+        if is_username_correct and is_password_correct:
+            return True
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Unauthorized",
+        headers={"WWW-Authenticate": "Basic"},
+    )
+
+app = FastAPI(title="Verification Bot Web Admin", dependencies=[Depends(check_admin_auth)])
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
 # WebSocket Connection Manager for real-time CRM chat updates
 class ConnectionManager:
