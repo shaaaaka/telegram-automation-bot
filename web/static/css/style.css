@@ -3285,3 +3285,33 @@ body.sidebar-hidden .tab-content {
     width: 16px !important;
     height: 16px !important;
 }
+
+/* Panel Header Premium Icons */
+.panel-icon-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    transition: all 0.25s var(--transition-curve);
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+.panel-icon-wrapper svg {
+    width: 15px;
+    height: 15px;
+    stroke: var(--text-muted);
+    fill: none;
+    transition: stroke 0.3s ease;
+}
+.panel:hover .panel-icon-wrapper {
+    background: rgba(244, 63, 94, 0.08);
+    border-color: rgba(244, 63, 94, 0.25);
+    box-shadow: 0 0 10px rgba(244, 63, 94, 0.15);
+}
+.panel:hover .panel-icon-wrapper svg {
+    stroke: #f43f5e !important;
+}

@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=59.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=60.0">
 </head>
 <body>
     <div class="container">
@@ -218,7 +218,7 @@
             <!-- Panel 1: Загальні налаштування бота -->
             <div class="panel collapsed">
                 <div class="panel-header" onclick="togglePanelCollapse(this, event)" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
-                    <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;">⚙️ Загальні налаштування <span class="collapse-chevron">▼</span></h2>
+                    <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;"><span class="panel-icon-wrapper"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.5 1z"></path></svg></span>Загальні налаштування <span class="collapse-chevron">▼</span></h2>
                     <label class="switch-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">Нагадування</span>
                         <div class="switch">
@@ -276,7 +276,7 @@
             <!-- Panel 2: Шаблони банків (Швидкі заготовки) -->
             <div class="panel collapsed" style="margin-top: 24px;">
                 <div class="panel-header" onclick="togglePanelCollapse(this, event)" style="cursor: pointer; user-select: none;">
-                    <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;">🏦 Шаблони банків (Швидкі заготовки) <span class="collapse-chevron">▼</span></h2>
+                    <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;"><span class="panel-icon-wrapper"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"></path></svg></span>Шаблони банків (Швидкі заготовки) <span class="collapse-chevron">▼</span></h2>
                 </div>
                 <div class="panel-body-wrapper">
                     <div class="lines-list-container">
@@ -318,7 +318,7 @@
             <!-- Panel 3: Налаштування параметрів ШІ (Gemini) -->
             <div class="panel collapsed" style="margin-top: 24px;">
                 <div class="panel-header" onclick="togglePanelCollapse(this, event)" style="cursor: pointer; user-select: none;">
-                    <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;">🤖 Налаштування параметрів ШІ (Gemini) <span class="collapse-chevron">▼</span></h2>
+                    <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;"><span class="panel-icon-wrapper"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="15" x2="23" y2="15"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="15" x2="4" y2="15"></line></svg></span>Налаштування параметрів ШІ (Gemini) <span class="collapse-chevron">▼</span></h2>
                 </div>
                 <div class="panel-body-wrapper">
                     <form id="ai-settings-form" onsubmit="saveAISettings(event)" style="display: flex; flex-direction: column; gap: 16px;">
@@ -351,7 +351,7 @@
             <!-- Panel 4: Автоматичне навчання ШІ (Аналіз чатів) -->
             <div class="panel collapsed" style="margin-top: 24px;">
                 <div class="panel-header" onclick="togglePanelCollapse(this, event)" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
-                    <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;">🧠 Автоматичне навчання ШІ (Аналіз чатів) <span class="collapse-chevron">▼</span></h2>
+                    <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;"><span class="panel-icon-wrapper"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg></span>Автоматичне навчання ШІ (Аналіз чатів) <span class="collapse-chevron">▼</span></h2>
                     <button class="btn btn-primary btn-sm" id="btn-ai-learn" onclick="runAILearn()">
                         🤖 Запустити аналіз чатів та навчання
                     </button>
@@ -385,7 +385,7 @@
             <!-- Panel 5: Діючі інструкції та правила ШІ -->
             <div class="panel collapsed" style="margin-top: 24px;">
                 <div class="panel-header" onclick="togglePanelCollapse(this, event)" style="cursor: pointer; user-select: none;">
-                    <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;">📜 Діючі інструкції та правила ШІ <span class="collapse-chevron">▼</span></h2>
+                    <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;"><span class="panel-icon-wrapper"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></span>Діючі інструкції та правила ШІ <span class="collapse-chevron">▼</span></h2>
                 </div>
                 <div class="panel-body-wrapper">
                     <div class="lines-list-container">
@@ -428,7 +428,7 @@
             <!-- Panel 6: Приклади ідеальних діалогів (Few-Shot Learning) -->
             <div class="panel collapsed" style="margin-top: 24px; margin-bottom: 24px;">
                 <div class="panel-header" onclick="togglePanelCollapse(this, event)" style="cursor: pointer; user-select: none;">
-                    <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;">💬 Приклади ідеальних діалогів (Few-Shot Learning) <span class="collapse-chevron">▼</span></h2>
+                    <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;"><span class="panel-icon-wrapper"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span>Приклади ідеальних діалогів (Few-Shot Learning) <span class="collapse-chevron">▼</span></h2>
                 </div>
                 <div class="panel-body-wrapper">
                     <div class="lines-list-container">
