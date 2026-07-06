@@ -186,7 +186,6 @@ async def init_db():
             if count_row and count_row[0] == 0:
                 default_rules = [
                     ("Звертатися до клієнта виключно на 'ви', але з маленької літери (ви, вам, вас).", "general"),
-                    ("Для ЕкоБанку (EcoBank) пропонуйте ставити пароль Qwerty123", "bank_rules"),
                     ("Для bank.kd пропонуйте ставити легкий 5-значний пін, наприклад 12345", "bank_rules"),
                     ("Для інших банків пропонуйте легкі пін-коди, наприклад 1111 або 1234", "bank_rules"),
                     ("Якщо зависла Дія або банківський додаток, порадьте повністю закрити додаток, вивантажити з фону і зайти знову за 15 секунд.", "troubleshooting"),
@@ -265,10 +264,10 @@ async def get_unique_banks():
     async with aiosqlite.connect(DB_FILE) as db:
         async with db.execute("SELECT DISTINCT bank FROM lines") as cursor:
             rows = await cursor.fetchall()
-            banks = [row[0] for row in rows]
+            banks = [row[0] for row in rows if row[0] and row[0].lower() not in ('ecobank', 'pumb')]
             
             # Сортування за послідовністю користувача
-            custom_order = ["PUMB", "bank.kd", "IziBank", "EcoBank", "Alliance", "LvivBank", "AmoBank"]
+            custom_order = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"]
             def get_sort_key(bank):
                 try:
                     return custom_order.index(bank)

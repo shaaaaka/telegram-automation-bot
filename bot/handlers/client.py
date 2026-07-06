@@ -469,7 +469,7 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
 
     # Отримуємо унікальні назви банків для вибору адміном
     unique_banks_db = await db.get_unique_banks()
-    custom_order = ["PUMB", "bank.kd", "IziBank", "EcoBank", "Alliance", "LvivBank", "AmoBank"]
+    custom_order = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"]
     all_banks = list(dict.fromkeys(custom_order + unique_banks_db))
     
     warning_text = ""
@@ -648,7 +648,7 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
     if line_id:
         line_info = await db.get_line(line_id)
         if line_info:
-            line_str = f"Line {line_id} Return: {line_info['phone_number']} | {line_info['bank']}"
+            line_str = f"Return: {line_info['phone_number']} | {line_info['bank']}"
             bank_name = line_info['bank']
 
     # Формуємо анкету без "РЕЄСТРАЦІЙНІ ДАНІ"
@@ -1193,19 +1193,7 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
             await trigger_sms_code_request(client_id, bot, state, notify)
             return
 
-        # 3. Перевірка на неможливість зробити скріншот для EcoBank
-        is_ecobank = current_bank_name and "eco" in current_bank_name.lower()
-        if is_ecobank and is_no_screenshot_text(message.text):
-            bank_label = current_bank_name if current_bank_name else "EcoBank"
-            success_text = (
-                f"Чудово {bank_label} успішно зареєстрували.\n\n"
-                f"Який пін-код чи пароль ставили на додаток?"
-            )
-            await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
-            await state.update_data(success_photo_id=None)
-            await db.update_session_verification_data(client_id, success_photo_id=None, card_first4=None, card_last4=None)
-            await state.set_state(RegistrationStates.waiting_password)
-            return
+
 
         from bot.openai_client import get_support_response
         response = await get_support_response(
@@ -1304,19 +1292,7 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
         await bot.download_file(photo_file.file_path, photo_bytes)
         photo_data = photo_bytes.getvalue()
         
-        # 3. Перевірка на повністю чорний скріншот для EcoBank (через політику безпеки)
-        is_ecobank = current_bank_name and "eco" in current_bank_name.lower()
-        if is_ecobank and is_image_completely_black(photo_data):
-            bank_label = current_bank_name if current_bank_name else "EcoBank"
-            success_text = (
-                f"Чудово {bank_label} успішно зареєстрували.\n\n"
-                f"Який пін-код чи пароль ставили на додаток?"
-            )
-            await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
-            await state.update_data(success_photo_id=photo.file_id)
-            await db.update_session_verification_data(client_id, success_photo_id=photo.file_id, card_first4=None, card_last4=None)
-            await state.set_state(RegistrationStates.waiting_password)
-            return
+
         
         from bot.openai_client import get_support_response
         response = await get_support_response(

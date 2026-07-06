@@ -97,7 +97,7 @@ async def send_or_edit_bank_selection(
     selected_banks = data.get("selected_banks", [])
     custom_banks = data.get("custom_banks", [])
     
-    customOrder = ["PUMB", "bank.kd", "IziBank", "EcoBank", "Alliance", "LvivBank", "AmoBank"]
+    customOrder = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"]
     unique_banks = await db.get_unique_banks()
     all_banks = list(dict.fromkeys(customOrder + unique_banks + custom_banks))
     
@@ -615,7 +615,7 @@ async def handle_toggle_bank(callback: CallbackQuery, bot: Bot, state: FSMContex
 
     # Отримуємо унікальні назви банків з бази для перемальовування
     unique_banks_db = await db.get_unique_banks()
-    custom_order = ["PUMB", "bank.kd", "IziBank", "EcoBank", "Alliance", "LvivBank", "AmoBank"]
+    custom_order = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"]
     all_banks = list(dict.fromkeys(custom_order + unique_banks_db))
     
     keyboard_buttons = []
@@ -1165,7 +1165,7 @@ async def handle_manage_banks(callback: CallbackQuery, bot: Bot, state: FSMConte
     selected = selected_banks.split(",") if selected_banks else []
     
     unique_banks_db = await db.get_unique_banks()
-    custom_order = ["PUMB", "bank.kd", "IziBank", "EcoBank", "Alliance", "LvivBank", "AmoBank"]
+    custom_order = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"]
     all_banks = list(dict.fromkeys(custom_order + unique_banks_db))
     
     keyboard_buttons = []
@@ -1348,9 +1348,9 @@ async def show_session_card(message: Message, client_id: int, edit: bool = True)
     if s['line_id']:
         line_row = await db.get_line(s['line_id'])
         if line_row:
-            line_info_str = f"Line {line_row['line_id']} ({line_row['bank']})"
+            line_info_str = f"+{line_row['phone_number']} ({line_row['bank']})"
         else:
-            line_info_str = f"Line {s['line_id']}"
+            line_info_str = f"ID {s['line_id']}"
             
     selected_banks = s['selected_banks'] or "Не обрано"
     remaining_banks = s['remaining_banks'] or "Немає"
@@ -1437,7 +1437,7 @@ async def show_next_assignment_menu(message: Message, client_id: int, edit: bool
 
     keyboard_buttons = []
     for line in filtered_lines:
-        button_text = f"Line {line['line_id']} ({line['bank']})"
+        button_text = f"+{line['phone_number']} ({line['bank']})"
         callback_data = f"assign_{client_id}_{line['id']}"
         keyboard_buttons.append([InlineKeyboardButton(text=button_text, callback_data=callback_data)])
     

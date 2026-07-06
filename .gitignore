@@ -11,6 +11,9 @@ __pycache__/
 
 # Local database
 bot.db
+database.db
+*.db
+*.db.bak
 
 # Private environment variables
 .env

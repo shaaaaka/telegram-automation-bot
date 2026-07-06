@@ -45,10 +45,6 @@ BANK_TEMPLATES = {
         "command": "/ЗАВАНТАЖізі",
         "text": "Завантажуйте будь ласка додаток \"izi bank\""
     },
-    "ecobank": {
-        "command": "/ЗАВАНТАЖеко",
-        "text": "Завантажуйте будь ласка додаток \"ЕкоБанк\""
-    },
     "amobank": {
         "command": "/ЗАВАНТАЖамо",
         "text": "Завантажуйте будь ласка додаток \"amobank\""
@@ -60,10 +56,6 @@ BANK_TEMPLATES = {
     "bank.kd": {
         "command": "/ЗАВАНТАЖкд",
         "text": "Завантажуйте будь ласка додаток \"bank.kd\""
-    },
-    "pumb": {
-        "command": "/ЗАВАНТАЖпумб",
-        "text": "Завантажуйте будь ласка додаток \"ПУМБ\""
     },
     "alliance": {
         "command": "/ЗАВАНТАЖальянс",
@@ -111,7 +103,6 @@ def get_expected_code_length(bank_name: str) -> int | None:
     norm_lengths = {
         "bankkd": 6,
         "izibank": 4,
-        "ecobank": 4,
         "alliance": 4,
         "lvivbank": 6,
         "amobank": 4

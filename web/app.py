@@ -23,20 +23,22 @@ from bot.database import current_sender, chat_message_callbacks
 
 security = HTTPBasic(auto_error=False)
 
-async def check_admin_auth(request: Request, credentials: Optional[HTTPBasicCredentials] = Depends(security)):
+async def check_admin_auth(request: Request = None, websocket: WebSocket = None):
     username_env = os.getenv("WEB_USERNAME")
     password_env = os.getenv("WEB_PASSWORD")
     if not username_env or not password_env:
         return True
 
-    if request.scope.get("type") == "websocket":
+    if websocket is not None or (request and request.scope.get("type") == "websocket"):
         return True
 
-    if credentials:
-        is_username_correct = secrets.compare_digest(credentials.username, username_env)
-        is_password_correct = secrets.compare_digest(credentials.password, password_env)
-        if is_username_correct and is_password_correct:
-            return True
+    if request is not None:
+        credentials = await security(request)
+        if credentials:
+            is_username_correct = secrets.compare_digest(credentials.username, username_env)
+            is_password_correct = secrets.compare_digest(credentials.password, password_env)
+            if is_username_correct and is_password_correct:
+                return True
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -143,13 +145,29 @@ async def get_lines():
 
 class LineAdd(BaseModel):
     id: int
+    line_id: int | None = None
     phone_number: str
     bank: str
 
 @app.post("/api/lines")
 async def add_line(body: LineAdd):
     """Додавання нової лінії вручну"""
-    await db.add_or_update_line(body.id, body.phone_number, body.bank)
+    async with aiosqlite.connect(DB_FILE) as conn:
+        conn.row_factory = aiosqlite.Row
+        if body.line_id is not None and body.line_id > 0:
+            line_id = body.line_id
+        else:
+            async with conn.execute("SELECT line_id FROM lines WHERE phone_number = ? LIMIT 1", (body.phone_number,)) as cursor:
+                existing = await cursor.fetchone()
+                if existing:
+                    line_id = existing["line_id"]
+                else:
+                    async with conn.execute("SELECT MAX(line_id) as max_id FROM lines") as max_cursor:
+                        row = await max_cursor.fetchone()
+                        max_id = row["max_id"] if row and row["max_id"] is not None else 0
+                        line_id = max_id + 1
+    
+    await db.add_or_update_line(line_id, body.phone_number, body.bank)
     return {"status": "success"}
 
 
@@ -813,7 +831,6 @@ class AIExampleCreate(BaseModel):
 class AISettingsUpdate(BaseModel):
     ai_income_limit: str
     ai_turnover_limit: str
-    ai_password_ecobank: str
     ai_password_kd: str
     ai_password_other: str
 
@@ -886,13 +903,11 @@ async def get_ai_settings():
     try:
         income = await db.get_setting("ai_income_limit", "25000")
         turnover = await db.get_setting("ai_turnover_limit", "30000")
-        password_eco = await db.get_setting("ai_password_ecobank", "Qwerty123")
         password_kd = await db.get_setting("ai_password_kd", "12345")
         password_other = await db.get_setting("ai_password_other", "1111, 1234 або 1232")
         return {
             "ai_income_limit": income,
             "ai_turnover_limit": turnover,
-            "ai_password_ecobank": password_eco,
             "ai_password_kd": password_kd,
             "ai_password_other": password_other
         }
@@ -905,7 +920,6 @@ async def update_ai_settings(body: AISettingsUpdate):
     try:
         await db.set_setting("ai_income_limit", body.ai_income_limit)
         await db.set_setting("ai_turnover_limit", body.ai_turnover_limit)
-        await db.set_setting("ai_password_ecobank", body.ai_password_ecobank)
         await db.set_setting("ai_password_kd", body.ai_password_kd)
         await db.set_setting("ai_password_other", body.ai_password_other)
         return {"status": "success"}

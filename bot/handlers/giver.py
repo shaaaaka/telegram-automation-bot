@@ -137,7 +137,7 @@ async def handle_giver_message(message: Message, bot: Bot):
         bank_name = line_info['bank'] if line_info else "Невідомий банк"
         line_id = s['line_id']
         
-        button_text = f"Line {line_id} ({bank_name})"
+        button_text = f"+{line_info['phone_number']} ({bank_name})" if line_info else f"Клієнт {s['client_id']} ({bank_name})"
         callback_data = f"route_{s['client_id']}_{code}"
         keyboard_buttons.append([InlineKeyboardButton(text=button_text, callback_data=callback_data)])
         
@@ -180,10 +180,11 @@ async def send_code_to_client(bot: Bot, session: dict, line_info: dict, code: st
     await db.set_session_status(client_id, 'number_assigned')
 
     # Звітуємо адміну
+    phone_str = f" (+{line_info['phone_number']})" if line_info else ""
     await bot.send_message(
         chat_id=ADMIN_ID,
         text=(
-            f"Код {code} автоматично переслано користувачу @{username} (Line {line_id} - {bank_name}).\n"
+            f"Код {code} автоматично переслано користувачу @{username}{phone_str} ({bank_name}).\n"
             f"Сесія залишається активною для наступних запитів."
         ),
         parse_mode="Markdown"
@@ -216,10 +217,11 @@ async def handle_giver_refusal(bot: Bot, session: dict, line_info: dict):
     await db.set_session_status(client_id, 'number_assigned')
 
     # Звітуємо адміну
+    phone_str = f" (+{line_info['phone_number']})" if line_info else ""
     await bot.send_message(
         chat_id=ADMIN_ID,
         text=(
-            f"Гівер надіслав відмову (`-`) для користувача @{username} (Line {line_id} - {bank_name}).\n"
+            f"Гівер надіслав відмову (`-`) для користувача @{username}{phone_str} ({bank_name}).\n"
             f"Статус сесії скинуто на 'Номер видано'."
         ),
         parse_mode="Markdown"

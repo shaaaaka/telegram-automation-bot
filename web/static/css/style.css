@@ -900,10 +900,10 @@ textarea:focus {
     vertical-align: middle;
 }
 
-.lines-table th:nth-child(1) { width: 10% !important; text-align: center !important; }
-.lines-table th:nth-child(2) { width: 34% !important; }
-.lines-table th:nth-child(3) { width: 22% !important; }
-.lines-table th:nth-child(4) { width: 22% !important; }
+.lines-table th:nth-child(1) { width: 12% !important; text-align: center !important; }
+.lines-table th:nth-child(2) { width: 36% !important; }
+.lines-table th:nth-child(3) { width: 20% !important; }
+.lines-table th:nth-child(4) { width: 20% !important; }
 .lines-table th:nth-child(5) { width: 12% !important; text-align: center !important; }
 
 .lines-table td:nth-child(1) { text-align: center !important; }
@@ -983,12 +983,12 @@ textarea:focus {
 /* Custom Grid manual add form */
 .add-line-form {
     display: grid;
-    grid-template-columns: 0.8fr 2.3fr 1.6fr auto;
+    grid-template-columns: 2.7fr 1.6fr auto;
     gap: 10px;
     margin-top: 15px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 768px) {
     .add-line-form {
         grid-template-columns: 1fr;
     }
@@ -1001,14 +1001,112 @@ textarea:focus {
     color: #ffffff !important;
     padding: 10px 14px !important;
     border-radius: 8px !important;
-    font-family: var(--font-family) !important;
-    font-size: 0.88rem !important;
+    font-size: 0.9rem !important;
+    transition: all 0.25s ease !important;
+    box-sizing: border-box !important;
     outline: none !important;
-    transition: all 0.3s;
 }
+
+.add-line-form input:hover {
+    background: rgba(13, 17, 28, 0.85) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
 .add-line-form input:focus {
     border-color: var(--accent-primary) !important;
+    background: rgba(13, 17, 28, 0.95) !important;
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+}
+
+/* Add Bank custom dropdown style */
+.add-bank-select-container {
+    position: relative;
+    width: 100%;
+}
+
+.add-bank-select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: rgba(13, 17, 28, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    box-sizing: border-box;
+    user-select: none;
+    height: 100%;
+}
+
+.add-bank-select-trigger:hover {
+    background: rgba(13, 17, 28, 0.85);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.add-bank-select-container.active .add-bank-select-trigger {
+    border-color: var(--accent-primary);
+    background: rgba(13, 17, 28, 0.95);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.add-bank-select-arrow {
+    color: #818cf8;
+    transition: transform 0.25s ease;
+}
+
+.add-bank-select-container.active .add-bank-select-arrow {
+    transform: rotate(180deg);
+}
+
+.add-bank-select-options {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 100%;
+    background: rgba(15, 21, 36, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+}
+
+.add-bank-select-container.active .add-bank-select-options {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.add-bank-option {
+    padding: 10px 14px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+}
+
+.add-bank-option:hover {
+    background: rgba(99, 102, 241, 0.15);
+    color: #ffffff;
+    padding-left: 18px;
+}
+
+.add-bank-option.selected {
+    background: var(--accent-primary);
+    color: #ffffff;
+    font-weight: 600;
 }
 
 .lines-filter {
@@ -1017,15 +1115,6 @@ textarea:focus {
     margin-bottom: 16px;
 }
 
-.empty-state {
-    text-align: center;
-    color: var(--text-muted);
-    padding: 40px 15px;
-    font-size: 0.95rem;
-    font-weight: 500;
-}
-
-/* Premium Toast design */
 .toast-container {
     position: fixed;
     top: 92px;
@@ -1037,7 +1126,6 @@ textarea:focus {
 }
 
 .toast {
-    background: rgba(10, 14, 26, 0.85);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-left: 5px solid var(--accent-primary);
     color: #ffffff;
@@ -2982,4 +3070,150 @@ input[type=number] {
     color: #ffffff;
     background: var(--accent-danger);
 }
-
+
+
+/* Collapsible Panels */
+.panel {
+    transition: margin 0.3s ease, padding 0.3s ease, border-color 0.3s ease;
+}
+
+.panel-header {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s ease, margin-bottom 0.3s ease, padding-bottom 0.3s ease, border-color 0.3s ease;
+}
+
+.panel-header:hover {
+    opacity: 0.95;
+}
+
+.panel.collapsed .panel-header {
+    border-bottom-color: transparent;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.collapse-chevron {
+    display: inline-block;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    transition: transform 0.3s ease;
+    margin-left: 8px;
+}
+
+.panel.collapsed .collapse-chevron {
+    transform: rotate(-90deg);
+}
+
+.panel-body-wrapper {
+    max-height: 3000px;
+    opacity: 1;
+    overflow: visible;
+    transition: max-height 0.4s cubic-bezier(0, 1, 0, 1), opacity 0.3s ease, margin-top 0.3s ease;
+    margin-top: 16px;
+}
+
+.panel.collapsed .panel-body-wrapper {
+    max-height: 0 !important;
+    opacity: 0;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* Hide other header controls when panel is collapsed */
+.panel.collapsed .panel-header > *:not(.panel-title) {
+    display: none !important;
+}
+
+/* Collapsible Panel hover highlight effect */
+.panel {
+    transition: margin 0.3s ease, padding 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+
+.panel:hover {
+    border-color: rgba(99, 102, 241, 0.25) !important;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45), 0 0 20px rgba(99, 102, 241, 0.08) !important;
+    background: rgba(255, 255, 255, 0.015) !important;
+}
+
+/* Sidebar toggle and transitions */
+.container {
+    transition: gap 0.3s ease;
+}
+
+body.sidebar-hidden .container {
+    gap: 0 !important;
+}
+
+.tabs-nav {
+    transition: width 0.3s ease, min-width 0.3s ease, margin-right 0.3s ease, opacity 0.2s ease, padding 0.3s ease;
+}
+
+body.sidebar-hidden .tabs-nav {
+    width: 0 !important;
+    min-width: 0 !important;
+    margin-right: 0 !important;
+    opacity: 0 !important;
+    padding: 0 !important;
+    border-right: none !important;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+/* Custom premium tab SVG icon styling */
+.tab-icon-wrapper svg {
+    width: 20px;
+    height: 20px;
+    stroke: var(--text-muted);
+    fill: none;
+    transition: stroke 0.3s ease, transform 0.3s ease;
+}
+
+.tab-btn.active .tab-icon-wrapper svg,
+.tab-btn:hover .tab-icon-wrapper svg {
+    stroke: #ffffff !important;
+    transform: scale(1.1);
+}
+
+#toggle-sidebar-btn:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+#toggle-sidebar-btn:hover svg {
+    stroke: #ffffff !important;
+}
+
+/* Hide header completely */
+header {
+    display: none !important;
+}
+
+/* Floating open sidebar button */
+#floating-toggle-btn {
+    display: none;
+    padding: 0 !important;
+}
+body.sidebar-hidden #floating-toggle-btn {
+    display: flex !important;
+}
+
+/* Content spacing adjustments when sidebar is hidden */
+body.sidebar-hidden .tab-content {
+    padding-left: 72px !important;
+    padding-top: 20px !important;
+}
+
+/* Add custom margin top to container since header is gone */
+.container {
+    margin-top: 15px !important;
+    padding-top: 15px !important;
+}
+
+#floating-toggle-btn svg {
+    width: 16px !important;
+    height: 16px !important;
+}
