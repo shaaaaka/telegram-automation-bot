@@ -1557,7 +1557,9 @@ input[type=number] {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.04);
     font-size: 1.05rem;
-    transition: all 0.25s var(--transition-curve);
+    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    will-change: transform, background, border-color, box-shadow;
+    transform: translate3d(0, 0, 0);
 }
 .tab-btn:hover {
     color: var(--text-main);
@@ -1567,7 +1569,7 @@ input[type=number] {
 .tab-btn:hover .tab-icon-wrapper {
     background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.08);
-    transform: scale(1.05);
+    transform: scale(1.05) translate3d(0, 0, 0);
 }
 .tab-btn.active {
     color: #ffffff;
@@ -3237,13 +3239,15 @@ body.sidebar-hidden .tabs-nav {
     height: 20px;
     stroke: var(--text-muted);
     fill: none;
-    transition: stroke 0.3s ease, transform 0.3s ease;
+    transition: stroke 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    will-change: stroke, transform;
+    transform: translate3d(0, 0, 0);
 }
 
 .tab-btn.active .tab-icon-wrapper svg,
 .tab-btn:hover .tab-icon-wrapper svg {
     stroke: #ffffff !important;
-    transform: scale(1.1);
+    transform: scale(1.08) translate3d(0, 0, 0);
 }
 
 #toggle-sidebar-btn:hover {
@@ -3296,7 +3300,9 @@ body.sidebar-hidden .tab-content {
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.04);
-    transition: all 0.25s var(--transition-curve);
+    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    will-change: transform, background, border-color, box-shadow;
+    transform: translate3d(0, 0, 0);
     margin-right: 10px;
     flex-shrink: 0;
 }
@@ -3305,13 +3311,17 @@ body.sidebar-hidden .tab-content {
     height: 15px;
     stroke: var(--text-muted);
     fill: none;
-    transition: stroke 0.3s ease;
+    transition: stroke 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    will-change: stroke, transform;
+    transform: translate3d(0, 0, 0);
 }
 .panel:hover .panel-icon-wrapper {
     background: rgba(244, 63, 94, 0.08);
     border-color: rgba(244, 63, 94, 0.25);
     box-shadow: 0 0 10px rgba(244, 63, 94, 0.15);
+    transform: scale(1.04) translate3d(0, 0, 0);
 }
 .panel:hover .panel-icon-wrapper svg {
     stroke: #f43f5e !important;
+    transform: scale(1.04) translate3d(0, 0, 0);
 }
