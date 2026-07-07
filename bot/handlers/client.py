@@ -201,9 +201,6 @@ async def cmd_start(message: Message, state: FSMContext):
             pib = pib_match.group(1)
             dob = dob_match.group(1)
             
-            # Очищуємо стару екранну клавіатуру, якщо вона залишилась
-            msg1 = await message.answer("Починаємо нову сесію верифікації...", reply_markup=get_cancel_keyboard())
-            
             welcome_text = (
                 f"Привіт! Знайдено ваші попередні дані верифікації:\n\n"
                 f"• **ПІБ:** {pib}\n"
@@ -215,8 +212,8 @@ async def cmd_start(message: Message, state: FSMContext):
                 [InlineKeyboardButton(text="🔄 Використати ці дані", callback_data="autofill_use")],
                 [InlineKeyboardButton(text="✍️ Ввести нові дані", callback_data="autofill_new")]
             ])
-            msg2 = await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
-            await state.update_data(welcome_msg_ids=[msg1.message_id, msg2.message_id])
+            msg = await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
+            await state.update_data(welcome_msg_ids=[msg.message_id])
             await state.set_state(RegistrationStates.waiting_pib_dob)
             return
 
@@ -266,10 +263,13 @@ async def handle_autofill_use(callback: CallbackQuery, state: FSMContext):
         [InlineKeyboardButton(text="🔄 Заповнити заново", callback_data="restart_reg")]
     ])
     
-    try:
-        await callback.message.delete()
-    except Exception:
-        await callback.message.edit_reply_markup(reply_markup=None)
+    state_data = await state.get_data()
+    welcome_msg_ids = state_data.get('welcome_msg_ids', [])
+    for msg_id in welcome_msg_ids:
+        try:
+            await callback.bot.delete_message(chat_id=callback.message.chat.id, message_id=msg_id)
+        except Exception:
+            pass
     await callback.message.answer(confirm_text, reply_markup=keyboard, parse_mode="Markdown")
     await state.set_state(RegistrationStates.waiting_confirm)
     await callback.answer()
@@ -279,10 +279,13 @@ async def handle_autofill_use(callback: CallbackQuery, state: FSMContext):
 async def handle_autofill_new(callback: CallbackQuery, state: FSMContext):
     """Обробник вибору ручного введення нових даних"""
     await state.clear()
-    try:
-        await callback.message.delete()
-    except Exception:
-        await callback.message.edit_reply_markup(reply_markup=None)
+    state_data = await state.get_data()
+    welcome_msg_ids = state_data.get('welcome_msg_ids', [])
+    for msg_id in welcome_msg_ids:
+        try:
+            await callback.bot.delete_message(chat_id=callback.message.chat.id, message_id=msg_id)
+        except Exception:
+            pass
     pib_msg = await callback.message.answer(
         "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
         reply_markup=get_cancel_keyboard()
