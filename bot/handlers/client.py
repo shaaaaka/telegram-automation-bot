@@ -671,7 +671,7 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
     if line_id:
         line_info = await db.get_line(line_id)
         if line_info:
-            line_str = f"Line {line_id} | Return: {line_info['phone_number']} | {line_info['bank']}"
+            line_str = f"Line {line_id} Return: {line_info['phone_number']} | {line_info['bank']}"
             bank_name = line_info['bank']
 
     # Формуємо анкету без "РЕЄСТРАЦІЙНІ ДАНІ"
