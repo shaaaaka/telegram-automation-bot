@@ -151,26 +151,7 @@ def is_no_screenshot_text(text: str) -> bool:
             
     return False
 
-@router.message(CommandStart(), F.chat.type == "private")
-@router.message(F.chat.type == "private", F.text.in_({"Розпочати знову", "🔄 Розпочати знову"}))
-async def cmd_start(message: Message, state: FSMContext):
-    """Обробник команди /start для клієнта"""
-    if message.from_user.id == ADMIN_ID:
-        from bot.handlers.admin import get_admin_keyboard, clear_previous_admin_messages, register_admin_message
-        msg = await message.answer(
-            "Привіт, Адміне!\n\n"
-            "Оберіть потрібну дію на клавіатурі нижче:",
-            reply_markup=get_admin_keyboard()
-        )
-        if state:
-            await clear_previous_admin_messages(message.chat.id, state, message.bot)
-            try:
-                await message.delete()
-            except Exception:
-                pass
-            await register_admin_message(msg, state)
-        return
-
+async def start_client_flow(message: Message, state: FSMContext):
     client_id = message.from_user.id
     existing_session = await db.get_session(client_id)
 
@@ -226,6 +207,36 @@ async def cmd_start(message: Message, state: FSMContext):
     )
     await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
     await state.set_state(RegistrationStates.waiting_pib_dob)
+
+
+@router.message(CommandStart(), F.chat.type == "private")
+@router.message(F.chat.type == "private", F.text.in_({"Розпочати знову", "🔄 Розпочати знову"}))
+async def cmd_start(message: Message, state: FSMContext):
+    """Обробник команди /start для клієнта"""
+    if message.from_user.id == ADMIN_ID:
+        from bot.handlers.admin import get_admin_keyboard, clear_previous_admin_messages, register_admin_message
+        msg = await message.answer(
+            "Привіт, Адміне!\n\n"
+            "Оберіть потрібну дію на клавіатурі нижче:",
+            reply_markup=get_admin_keyboard()
+        )
+        if state:
+            await clear_previous_admin_messages(message.chat.id, state, message.bot)
+            try:
+                await message.delete()
+            except Exception:
+                pass
+            await register_admin_message(msg, state)
+        return
+
+    await start_client_flow(message, state)
+
+
+@router.message(F.chat.type == "private", F.text == "🧪 Тест Клієнта")
+@router.message(Command("start_client"), F.chat.type == "private")
+async def cmd_start_client(message: Message, state: FSMContext):
+    """Спеціальний обробник для запуску клієнтського флоу адміном (або за командою)"""
+    await start_client_flow(message, state)
 
 
 @router.callback_query(F.data == "autofill_use")

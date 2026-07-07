@@ -25,6 +25,9 @@ def get_admin_keyboard() -> ReplyKeyboardMarkup:
             [
                 KeyboardButton(text="➕ Додати лінію"),
                 KeyboardButton(text="🗑️ Очистити лінії")
+            ],
+            [
+                KeyboardButton(text="🧪 Тест Клієнта")
             ]
         ],
         resize_keyboard=True
