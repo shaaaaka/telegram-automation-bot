@@ -336,16 +336,16 @@ async def process_pib_dob(message: Message, state: FSMContext):
     pib = clean_pib(text_rest) if text_rest else ""
 
     # Отримуємо накопичені дані з стану
-    saved_pib = state_data.get('client_pib')
-    saved_dob = state_data.get('client_dob')
+    saved_pib = state_data.get('pib')
+    saved_dob = state_data.get('dob')
 
     # Оновлюємо значення
     if dob:
         saved_dob = dob
-        await state.update_data(client_dob=dob)
+        await state.update_data(dob=dob)
     if len(pib.split()) >= 2 and len(pib) >= 5:
         saved_pib = pib
-        await state.update_data(client_pib=pib)
+        await state.update_data(pib=pib)
 
     # Перевіряємо збір обох частин
     if saved_pib and saved_dob:
