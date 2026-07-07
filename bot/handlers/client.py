@@ -671,7 +671,7 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
     if line_id:
         line_info = await db.get_line(line_id)
         if line_info:
-            line_str = f"Line {line_id} Return: {line_info['phone_number']} | {line_info['bank']}"
+            line_str = f"Line {line_info['line_id']} Return: {line_info['phone_number']} | {line_info['bank']}"
             bank_name = line_info['bank']
 
     # Формуємо анкету без "РЕЄСТРАЦІЙНІ ДАНІ"
@@ -1482,6 +1482,7 @@ async def trigger_sms_code_request(client_id: int, bot: Bot, state: FSMContext, 
         return False
  
     line_info = await db.get_line(line_id)
+    line_num = line_info['line_id'] if line_info else line_id
     bank_name = line_info['bank'] if line_info else "Невідомий банк"
 
     is_retry = session['status'] == 'waiting_code'
@@ -1511,15 +1512,15 @@ async def trigger_sms_code_request(client_id: int, bot: Bot, state: FSMContext, 
     if is_retry:
         await notify_fn("Запит на код відправлено постачальнику. Будь ласка, очікуйте.", is_error=False, is_retry=True)
         try:
-            giver_msg = giver_retry_format.format(line_id=line_id, bank_name=bank_name)
+            giver_msg = giver_retry_format.format(line_id=line_num, bank_name=bank_name)
         except Exception:
-            giver_msg = f"Запрос {line_id} {bank_name} (ПОВТОРНО)"
+            giver_msg = f"Запрос {line_num} {bank_name} (ПОВТОРНО)"
     else:
         await notify_fn("Запит на код відправлено постачальнику. Будь ласка, очікуйте, код прийде сюди.", is_error=False, is_retry=False)
         try:
-            giver_msg = giver_format.format(line_id=line_id, bank_name=bank_name)
+            giver_msg = giver_format.format(line_id=line_num, bank_name=bank_name)
         except Exception:
-            giver_msg = f"Запрос {line_id} {bank_name}"
+            giver_msg = f"Запрос {line_num} {bank_name}"
 
     # Надсилаємо запит постачальнику кодів (Giver)
     from bot.config import GIVER_CHAT_ID
@@ -1529,7 +1530,7 @@ async def trigger_sms_code_request(client_id: int, bot: Bot, state: FSMContext, 
         # Якщо не вдалося надіслати гіверу, повідомляємо адміна
         await bot.send_message(
             chat_id=ADMIN_ID,
-            text=f"Помилка надсилання запиту гіверу (Line {line_id}): {str(e)}"
+            text=f"Помилка надсилання запиту гіверу (Line {line_num}): {str(e)}"
         )
     return True
 

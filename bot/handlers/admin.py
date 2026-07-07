@@ -863,6 +863,7 @@ async def handle_route_code(callback: CallbackQuery, bot: Bot, state: FSMContext
 
     line_id = session['line_id']
     line_info = await db.get_line(line_id)
+    line_num = line_info['line_id'] if line_info else line_id
     bank_name = line_info['bank'] if line_info else "Банк"
 
     client_kbd = ReplyKeyboardMarkup(
@@ -895,7 +896,7 @@ async def handle_route_code(callback: CallbackQuery, bot: Bot, state: FSMContext
     # 3. Оновлюємо повідомлення для адміна
     await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.edit_text(
-        f"Код {code} перенаправлено користувачу @{session['username']} (Line {line_id} - {bank_name}).\n"
+        f"Код {code} перенаправлено користувачу @{session['username']} (Line {line_num} - {bank_name}).\n"
         f"Сесія залишається активною для наступних запитів.",
         parse_mode="Markdown"
     )

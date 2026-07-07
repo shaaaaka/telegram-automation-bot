@@ -679,6 +679,7 @@ async def route_code(client_id: int, body: CodeRouting):
 
     line_id = session['line_id']
     line_info = await db.get_line(line_id) if line_id else None
+    line_num = line_info['line_id'] if line_info else line_id
     bank_name = line_info['bank'] if line_info else "Банк"
 
     # 1. Відправляємо код клієнту
@@ -707,7 +708,7 @@ async def route_code(client_id: int, body: CodeRouting):
     try:
         await bot.send_message(
             chat_id=ADMIN_ID,
-            text=f"Код {body.code} вручну переслано користувачу @{session['username']} (Line {line_id} - {bank_name}) через веб-панель."
+            text=f"Код {body.code} вручну переслано користувачу @{session['username']} (Line {line_num} - {bank_name}) через веб-панель."
         )
     except Exception:
         pass
