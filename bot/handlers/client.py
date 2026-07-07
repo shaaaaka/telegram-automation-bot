@@ -556,14 +556,24 @@ async def process_client_password(message: Message, state: FSMContext):
         state_data = await state.get_data()
         if state_data.get("client_card"):
             # Пропускаємо ручне введення карти, якщо вона вже повністю розпізнана зі скріншоту
-            await message.answer("Будь ласка, напишіть Ваш номер телефону?")
-            await state.set_state(RegistrationStates.waiting_phone)
+            # Перевіряємо, чи клієнт вже вводив номер телефону
+            if session.get('client_phone'):
+                # Якщо номер вже є, пропускаємо запит і переходимо до картки
+                await process_client_phone(message, state, message.bot, skip_validation=True)
+            else:
+                await message.answer("Будь ласка, напишіть Ваш номер телефону?")
+                await state.set_state(RegistrationStates.waiting_phone)
         else:
             await message.answer("Напишіть будь ласка повний номер картки bank.kd")
             await state.set_state(RegistrationStates.waiting_card_number)
     else:
-        await message.answer("Будь ласка, напишіть Ваш номер телефону?")
-        await state.set_state(RegistrationStates.waiting_phone)
+        # Перевіряємо, чи клієнт вже вводив номер телефону
+        if session.get('client_phone'):
+            # Якщо номер вже є, пропускаємо запит і переходимо до картки
+            await process_client_phone(message, state, message.bot, skip_validation=True)
+        else:
+            await message.answer("Будь ласка, напишіть Ваш номер телефону?")
+            await state.set_state(RegistrationStates.waiting_phone)
 
 
 @router.message(RegistrationStates.waiting_card_number, F.chat.type == "private")
@@ -605,35 +615,42 @@ async def process_client_card_number(message: Message, state: FSMContext):
 
 
 @router.message(RegistrationStates.waiting_phone, F.chat.type == "private")
-async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
+async def process_client_phone(message: Message, state: FSMContext, bot: Bot, skip_validation=False):
     text = message.text.strip()
     client_id = message.from_user.id
-    
-    # 1. Перевіряємо чи це запитання "для чого?" / "навіщо?"
-    question_pattern = re.compile(
-        r'(?i)\b(навіщо|для\s+чого|зачем|чому|почему|яка\s+ціль|для\s+яких\s+цілей|накуя|нахуя)\b'
-    )
-    if question_pattern.search(text) or text.endswith('?'):
-        await message.answer(
-            "В разі проблем з банком дзвонимо вам платимо гроші і ви їх рішаєте"
-        )
-        return
-
-    # 2. Валідуємо номер телефону
-    cleaned_phone = re.sub(r'[^\d+]', '', text)
-    digits_only = re.sub(r'\D', '', cleaned_phone)
-    
-    if len(digits_only) < 9 or len(digits_only) > 13:
-        await message.answer(
-            "Будь ласка, введіть коректний номер телефону (наприклад: +380635685804):"
-        )
-        return
-
     session = await db.get_session(client_id)
+    
+    # Якщо пропускаємо валідацію і номер вже є в сесії
+    if skip_validation and session.get('client_phone'):
+        text = session['client_phone']
+    else:
+        # 1. Перевіряємо чи це запитання "для чого?" / "навіщо?"
+        question_pattern = re.compile(
+            r'(?i)\b(навіщо|для\s+чого|зачем|чому|почему|яка\s+ціль|для\s+яких\s+цілей|накуя|нахуя)\b'
+        )
+        if question_pattern.search(text) or text.endswith('?'):
+            await message.answer(
+                "В разі проблем з банком дзвонимо вам платимо гроші і ви їх рішаєте"
+            )
+            return
+
+        # 2. Валідуємо номер телефону
+        cleaned_phone = re.sub(r'[^\d+]', '', text)
+        digits_only = re.sub(r'\D', '', cleaned_phone)
+        
+        if len(digits_only) < 9 or len(digits_only) > 13:
+            await message.answer(
+                "Будь ласка, введіть коректний номер телефону (наприклад: +380635685804):"
+            )
+            return
+    
     if not session:
         await message.answer("Помилка: сесія не знайдена. Спробуйте /start.")
         await state.clear()
         return
+
+    # Зберігаємо номер телефону в сесію
+    await db.update_session_client_phone(client_id, text)
 
     data = await state.get_data()
     client_password = data.get('client_password')

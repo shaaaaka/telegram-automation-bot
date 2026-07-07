@@ -1657,8 +1657,11 @@
                 const remainingList = remainingBanksStr ? remainingBanksStr.split(',').filter(Boolean) : [];
                 const bankStatuses = session.bank_statuses || {};
                 
+                // Додаємо банки з історії до списку для відображення
+                const historyBanks = Object.keys(bankStatuses);
+                
                 const customOrder = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"];
-                const allPossibleBanks = Array.from(new Set([...customOrder, ...availableBanks, ...selectedList]))
+                const allPossibleBanks = Array.from(new Set([...customOrder, ...availableBanks, ...selectedList, ...historyBanks]))
                     .filter(b => b && b.toLowerCase() !== 'ecobank' && b.toLowerCase() !== 'pumb')
                     .sort((a, b) => {
                         const idxA = customOrder.findIndex(x => x.toLowerCase() === a.toLowerCase());
@@ -1674,6 +1677,7 @@
                     const isRemaining = remainingList.includes(bank);
                     const isCompleted = isSelected && !isRemaining;
                     const bankClass = getBankClass(bank);
+                    const hasHistory = bankStatuses[bank] !== undefined;
                     
                     let chipClasses = `bank-chip ${bankClass}`;
                     if (isSelected) {
@@ -1683,22 +1687,32 @@
                     let statusIcon = '';
                     let onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
                     
-                    if (isCompleted) {
+                    // Якщо є історія для цього банку, показуємо її статус
+                    if (hasHistory) {
                         const status = bankStatuses[bank] || 'released';
                         if (status === 'success') {
                             chipClasses += ' success-done';
                             statusIcon = '<span class="status-icon-done">✓</span> ';
-                            onclickAttr = ''; // Non-clickable
+                            onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
                         } else if (status === 'banned' || status === 'failure') {
                             chipClasses += ' failure-done';
                             statusIcon = '<span class="status-icon-fail">✗</span> ';
-                            onclickAttr = ''; // Non-clickable
+                            onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
                         } else {
-                            // released / simply completed
                             chipClasses += ' released-done';
                             statusIcon = '<span class="status-icon-released">↺</span> ';
-                            onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`; // Clickable to re-add
+                            if (!isSelected) {
+                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
+                            } else if (!isRemaining) {
+                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
+                            } else {
+                                onclickAttr = '';
+                            }
                         }
+                    } else if (isCompleted) {
+                        chipClasses += ' released-done';
+                        statusIcon = '<span class="status-icon-released">↺</span> ';
+                        onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
                     }
 
                     bankChipsHTML += `

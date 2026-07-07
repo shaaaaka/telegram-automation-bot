@@ -225,6 +225,15 @@ async def get_session_chat(client_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/sessions/{client_id}/history")
+async def get_client_history(client_id: int):
+    """Отримання історії верифікацій клієнта"""
+    try:
+        history = await db.get_client_verification_history(client_id)
+        return history
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/photos/{file_id}")
 async def get_telegram_photo(file_id: str):
     """Стрімінг фотографії з Telegram по її file_id"""

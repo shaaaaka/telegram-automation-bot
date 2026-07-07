@@ -1026,6 +1026,16 @@ textarea:focus {
     box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15) !important;
 }
 
+/* Стилі для запобігання білому фону при автозаповненні або вставці */
+.add-line-form input:-webkit-autofill,
+.add-line-form input:-webkit-autofill:hover, 
+.add-line-form input:-webkit-autofill:focus, 
+.add-line-form input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px rgb(20, 26, 42) inset !important;
+    -webkit-text-fill-color: #ffffff !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
 /* Add Bank custom dropdown style */
 .add-bank-select-container {
     position: relative;

@@ -95,7 +95,9 @@ async def init_db():
             ("card_last4", "TEXT"),
             ("card_photo_id", "TEXT"),
             ("waiting_message_id", "INTEGER"),
-            ("instruction_message_id", "INTEGER")
+            ("instruction_message_id", "INTEGER"),
+            ("client_phone", "TEXT"),
+            ("bank", "TEXT")
         ]
         
         for col_name, col_type in new_columns:
@@ -399,6 +401,12 @@ async def update_session_instruction_message_id(client_id: int, message_id: int)
         await db.execute("UPDATE sessions SET instruction_message_id = ? WHERE client_id = ?", (message_id, client_id))
         await db.commit()
 
+async def update_session_client_phone(client_id: int, phone: str):
+    """Збереження номера телефону клієнта"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("UPDATE sessions SET client_phone = ? WHERE client_id = ?", (phone, client_id))
+        await db.commit()
+
 async def update_session_banks(client_id: int, selected_banks: str, remaining_banks: str):
     """Оновлення списків обраних та залишкових банків для сесії"""
     async with aiosqlite.connect(DB_FILE) as db:
@@ -678,6 +686,20 @@ async def log_verification_end(client_id: int, bank: str, status: str):
                     WHERE id = ?
                 """, (status, row['id']))
                 await db.commit()
+
+async def get_client_verification_history(client_id: int):
+    """Отримання історії верифікацій клієнта"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT bank, status, assigned_at, completed_at, phone_number, duration_seconds
+            FROM bank_verifications
+            WHERE client_id = ?
+            ORDER BY assigned_at DESC
+            LIMIT 50
+        """, (client_id,)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
 
 async def get_statistics() -> dict:
     """Отримання агрегованої статистики для веб-панелі"""
