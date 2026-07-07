@@ -429,32 +429,16 @@ async def assign_line(client_id: int, body: LineAssignment):
             text="Реєстрація робиться за моїм номером телефону, скажете коли потрібен буде СМС код"
         )
 
+        from aiogram.types import ReplyKeyboardRemove
         # Потім надсилаємо картку з номером телефону
         client_msg = await bot.send_message(
             chat_id=client_id,
             text=f"`+{line_info['phone_number']}`",
-            reply_markup=None,
+            reply_markup=ReplyKeyboardRemove(),
             parse_mode="Markdown"
         )
         # Зберігаємо ID повідомлення у клієнта
         await db.update_session_message_id(client_id, client_msg.message_id)
-
-        # Додаємо Reply Keyboard кнопку для зручності
-        from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-        reply_keyboard = ReplyKeyboardMarkup(
-            keyboard=[[KeyboardButton(text="Запросити SMS-код")]],
-            resize_keyboard=True,
-            one_time_keyboard=False,
-            is_persistent=True
-        )
-        try:
-            await bot.send_message(
-                chat_id=client_id,
-                text="З'явилася кнопка внизу для швидкого запиту коду 👇",
-                reply_markup=reply_keyboard
-            )
-        except Exception:
-            pass
     except Exception as e:
         # У разі помилки відкочуємо призначення
         await db.set_line_status(body.line_id, 'available')
@@ -689,17 +673,11 @@ async def route_code(client_id: int, body: CodeRouting):
     bank_name = line_info['bank'] if line_info else "Банк"
 
     # 1. Відправляємо код клієнту
-    from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-    client_kbd = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="Запросити SMS-код")]],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-        is_persistent=True
-    )
+    from aiogram.types import ReplyKeyboardRemove
     await bot.send_message(
         chat_id=client_id,
         text=f"Ваш SMS-код для банку {bank_name}:\n\n`{body.code}`",
-        reply_markup=client_kbd,
+        reply_markup=ReplyKeyboardRemove(),
         parse_mode="Markdown"
     )
 

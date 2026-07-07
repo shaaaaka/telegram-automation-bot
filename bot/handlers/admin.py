@@ -761,13 +761,6 @@ async def handle_assign_line(callback: CallbackQuery, bot: Bot, state: FSMContex
             except Exception as e:
                 print(f"Помилка оновлення instruction_message_id в БД: {e}")
 
-    client_kbd = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="Запросити SMS-код")]],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-        is_persistent=True
-    )
-    
     await bot.send_message(
         chat_id=client_id,
         text="Реєстрація робиться за моїм номером телефону, скажете коли потрібен буде СМС код"
@@ -776,17 +769,9 @@ async def handle_assign_line(callback: CallbackQuery, bot: Bot, state: FSMContex
     client_msg = await bot.send_message(
         chat_id=client_id,
         text=f"`+{line_info['phone_number']}`",
-        parse_mode="Markdown"
+        parse_mode="Markdown",
+        reply_markup=ReplyKeyboardRemove()
     )
-
-    try:
-        await bot.send_message(
-            chat_id=client_id,
-            text="З'явилася кнопка внизу для швидкого запиту коду 👇",
-            reply_markup=client_kbd
-        )
-    except Exception as e:
-        print(f"Помилка надсилання клавіатури клієнту: {e}")
 
     # Зберігаємо ID повідомлення з кнопкою у клієнта
     await db.update_session_message_id(client_id, client_msg.message_id)
@@ -867,18 +852,11 @@ async def handle_route_code(callback: CallbackQuery, bot: Bot, state: FSMContext
     line_num = line_info['line_id'] if line_info else line_id
     bank_name = line_info['bank'] if line_info else "Банк"
 
-    client_kbd = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="Запросити SMS-код")]],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-        is_persistent=True
-    )
-
     # 1. Відправляємо код клієнту
     await bot.send_message(
         chat_id=client_id,
         text=f"Ваш SMS-код для банку {bank_name}:\n\n`{code}`",
-        reply_markup=client_kbd,
+        reply_markup=ReplyKeyboardRemove(),
         parse_mode="Markdown"
     )
 
