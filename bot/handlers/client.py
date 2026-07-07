@@ -359,7 +359,7 @@ async def process_pib_dob(message: Message, state: FSMContext):
             "Будь ласка, напишіть Ваш ІПН (10 цифр):",
             reply_markup=get_cancel_keyboard()
         )
-        await state.update_data(ipn_prompt_msg_id=ipn_msg.message_id)
+        await state.update_data(ipn_prompt_msg_ids=[ipn_msg.message_id])
         await state.set_state(RegistrationStates.waiting_ipn)
     elif saved_pib:
         err_msg = await message.answer(
