@@ -7,6 +7,9 @@ from bot.config import ADMIN_ID, BANK_TEMPLATES, get_template_photo
 import bot.database as db
 import re
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -620,7 +623,19 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
         await message.answer("Дякую! Номер телефону прийнято.")
         await continue_after_phone(message, state, bot, client_id)
     else:
-        # Якщо ШІ не розпізнав номер, просимо повторити
+        # Перевіряємо, чи клієнт відмовився надавати телефон
+        if "[REFUSED_PHONE]" in response:
+            username = message.from_user.username or "Немає юзернейму"
+            try:
+                await bot.send_message(
+                    chat_id=ADMIN_ID,
+                    text=f"⚠️ <b>Увага!</b> Клієнт @{username} (ID: {client_id}) відмовився надавати номер телефону.\nПовідомлення клієнта: <i>{text}</i>",
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                logger.error(f"Не вдалося надіслати сповіщення адміну про відмову телефону: {e}")
+        
+        # Якщо ШІ не розпізнав номер, просимо повторити (надсилаємо відповідь ШІ)
         clean_text = re.sub(r'\[[^\]]+\]', '', response).strip()
         await message.answer(clean_text or "Будь ласка, надішліть коректний номер телефону.")
 
