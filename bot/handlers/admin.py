@@ -768,13 +768,14 @@ async def handle_assign_line(callback: CallbackQuery, bot: Bot, state: FSMContex
         is_persistent=True
     )
     
+    await bot.send_message(
+        chat_id=client_id,
+        text="Реєстрація робиться за моїм номером телефону, скажете коли потрібен буде СМС код"
+    )
+
     client_msg = await bot.send_message(
         chat_id=client_id,
-        text=(
-            f"Номер телефону:\n\n"
-            f"`+{line_info['phone_number']}`\n\n"
-            f"Коли надішлете SMS і вам знадобиться код, тисніть кнопку нижче."
-        ),
+        text=f"`+{line_info['phone_number']}`",
         parse_mode="Markdown"
     )
 

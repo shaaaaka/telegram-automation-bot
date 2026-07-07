@@ -424,10 +424,15 @@ async def assign_line(client_id: int, body: LineAssignment):
             # Затримка 3 секунди перед надсиланням номера телефону
             await asyncio.sleep(3)
 
+        await bot.send_message(
+            chat_id=client_id,
+            text="Реєстрація робиться за моїм номером телефону, скажете коли потрібен буде СМС код"
+        )
+
         # Потім надсилаємо картку з номером телефону
         client_msg = await bot.send_message(
             chat_id=client_id,
-            text=message_text,
+            text=f"`+{line_info['phone_number']}`",
             reply_markup=None,
             parse_mode="Markdown"
         )
