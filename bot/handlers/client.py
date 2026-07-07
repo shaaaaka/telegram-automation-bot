@@ -1,5 +1,5 @@
 from aiogram import Router, F, Bot
-from aiogram.filters import CommandStart, StateFilter, Command
+from aiogram.filters import CommandStart, StateFilter
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove, FSInputFile, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
@@ -151,7 +151,26 @@ def is_no_screenshot_text(text: str) -> bool:
             
     return False
 
-async def start_client_flow(message: Message, state: FSMContext):
+@router.message(CommandStart(), F.chat.type == "private")
+@router.message(F.chat.type == "private", F.text.in_({"Розпочати знову", "🔄 Розпочати знову"}))
+async def cmd_start(message: Message, state: FSMContext):
+    """Обробник команди /start для клієнта"""
+    if message.from_user.id == ADMIN_ID:
+        from bot.handlers.admin import get_admin_keyboard, clear_previous_admin_messages, register_admin_message
+        msg = await message.answer(
+            "Привіт, Адміне!\n\n"
+            "Оберіть потрібну дію на клавіатурі нижче:",
+            reply_markup=get_admin_keyboard()
+        )
+        if state:
+            await clear_previous_admin_messages(message.chat.id, state, message.bot)
+            try:
+                await message.delete()
+            except Exception:
+                pass
+            await register_admin_message(msg, state)
+        return
+
     client_id = message.from_user.id
     existing_session = await db.get_session(client_id)
 
@@ -207,36 +226,6 @@ async def start_client_flow(message: Message, state: FSMContext):
     )
     await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
     await state.set_state(RegistrationStates.waiting_pib_dob)
-
-
-@router.message(CommandStart(), F.chat.type == "private")
-@router.message(F.chat.type == "private", F.text.in_({"Розпочати знову", "🔄 Розпочати знову"}))
-async def cmd_start(message: Message, state: FSMContext):
-    """Обробник команди /start для клієнта"""
-    if message.from_user.id == ADMIN_ID:
-        from bot.handlers.admin import get_admin_keyboard, clear_previous_admin_messages, register_admin_message
-        msg = await message.answer(
-            "Привіт, Адміне!\n\n"
-            "Оберіть потрібну дію на клавіатурі нижче:",
-            reply_markup=get_admin_keyboard()
-        )
-        if state:
-            await clear_previous_admin_messages(message.chat.id, state, message.bot)
-            try:
-                await message.delete()
-            except Exception:
-                pass
-            await register_admin_message(msg, state)
-        return
-
-    await start_client_flow(message, state)
-
-
-@router.message(F.chat.type == "private", F.text == "🧪 Тест Клієнта")
-@router.message(Command("start_client"), F.chat.type == "private")
-async def cmd_start_client(message: Message, state: FSMContext):
-    """Спеціальний обробник для запуску клієнтського флоу адміном (або за командою)"""
-    await start_client_flow(message, state)
 
 
 @router.callback_query(F.data == "autofill_use")
@@ -556,24 +545,14 @@ async def process_client_password(message: Message, state: FSMContext):
         state_data = await state.get_data()
         if state_data.get("client_card"):
             # Пропускаємо ручне введення карти, якщо вона вже повністю розпізнана зі скріншоту
-            # Перевіряємо, чи клієнт вже вводив номер телефону
-            if session.get('client_phone'):
-                # Якщо номер вже є, пропускаємо запит і переходимо до картки
-                await process_client_phone(message, state, message.bot, skip_validation=True)
-            else:
-                await message.answer("Будь ласка, напишіть Ваш номер телефону?")
-                await state.set_state(RegistrationStates.waiting_phone)
+            await message.answer("Будь ласка, напишіть Ваш номер телефону?")
+            await state.set_state(RegistrationStates.waiting_phone)
         else:
             await message.answer("Напишіть будь ласка повний номер картки bank.kd")
             await state.set_state(RegistrationStates.waiting_card_number)
     else:
-        # Перевіряємо, чи клієнт вже вводив номер телефону
-        if session.get('client_phone'):
-            # Якщо номер вже є, пропускаємо запит і переходимо до картки
-            await process_client_phone(message, state, message.bot, skip_validation=True)
-        else:
-            await message.answer("Будь ласка, напишіть Ваш номер телефону?")
-            await state.set_state(RegistrationStates.waiting_phone)
+        await message.answer("Будь ласка, напишіть Ваш номер телефону?")
+        await state.set_state(RegistrationStates.waiting_phone)
 
 
 @router.message(RegistrationStates.waiting_card_number, F.chat.type == "private")
@@ -615,42 +594,35 @@ async def process_client_card_number(message: Message, state: FSMContext):
 
 
 @router.message(RegistrationStates.waiting_phone, F.chat.type == "private")
-async def process_client_phone(message: Message, state: FSMContext, bot: Bot, skip_validation=False):
+async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
     text = message.text.strip()
     client_id = message.from_user.id
-    session = await db.get_session(client_id)
     
-    # Якщо пропускаємо валідацію і номер вже є в сесії
-    if skip_validation and session.get('client_phone'):
-        text = session['client_phone']
-    else:
-        # 1. Перевіряємо чи це запитання "для чого?" / "навіщо?"
-        question_pattern = re.compile(
-            r'(?i)\b(навіщо|для\s+чого|зачем|чому|почему|яка\s+ціль|для\s+яких\s+цілей|накуя|нахуя)\b'
+    # 1. Перевіряємо чи це запитання "для чого?" / "навіщо?"
+    question_pattern = re.compile(
+        r'(?i)\b(навіщо|для\s+чого|зачем|чому|почему|яка\s+ціль|для\s+яких\s+цілей|накуя|нахуя)\b'
+    )
+    if question_pattern.search(text) or text.endswith('?'):
+        await message.answer(
+            "В разі проблем з банком дзвонимо вам платимо гроші і ви їх рішаєте"
         )
-        if question_pattern.search(text) or text.endswith('?'):
-            await message.answer(
-                "В разі проблем з банком дзвонимо вам платимо гроші і ви їх рішаєте"
-            )
-            return
+        return
 
-        # 2. Валідуємо номер телефону
-        cleaned_phone = re.sub(r'[^\d+]', '', text)
-        digits_only = re.sub(r'\D', '', cleaned_phone)
-        
-        if len(digits_only) < 9 or len(digits_only) > 13:
-            await message.answer(
-                "Будь ласка, введіть коректний номер телефону (наприклад: +380635685804):"
-            )
-            return
+    # 2. Валідуємо номер телефону
+    cleaned_phone = re.sub(r'[^\d+]', '', text)
+    digits_only = re.sub(r'\D', '', cleaned_phone)
     
+    if len(digits_only) < 9 or len(digits_only) > 13:
+        await message.answer(
+            "Будь ласка, введіть коректний номер телефону (наприклад: +380635685804):"
+        )
+        return
+
+    session = await db.get_session(client_id)
     if not session:
         await message.answer("Помилка: сесія не знайдена. Спробуйте /start.")
         await state.clear()
         return
-
-    # Зберігаємо номер телефону в сесію
-    await db.update_session_client_phone(client_id, text)
 
     data = await state.get_data()
     client_password = data.get('client_password')
