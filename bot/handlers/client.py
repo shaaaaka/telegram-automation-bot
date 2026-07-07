@@ -278,9 +278,9 @@ async def handle_autofill_use(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "autofill_new")
 async def handle_autofill_new(callback: CallbackQuery, state: FSMContext):
     """Обробник вибору ручного введення нових даних"""
-    await state.clear()
     state_data = await state.get_data()
     welcome_msg_ids = state_data.get('welcome_msg_ids', [])
+    await state.clear()
     for msg_id in welcome_msg_ids:
         try:
             await callback.bot.delete_message(chat_id=callback.message.chat.id, message_id=msg_id)
