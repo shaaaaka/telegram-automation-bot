@@ -465,9 +465,7 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
         await callback.message.edit_reply_markup(reply_markup=None)
         
     msg = await callback.message.answer(
-        "Дані успішно прийнято! Номер буде надіслано до чату протягом 2-х хвилин.\n\n"
-        "⚠️ *Зверніть увагу:* я автоматичний асистент. Якщо у вас виникнуть якісь труднощі, які я не зможу вирішити — до чату обов'язково підключиться наш менеджер.",
-        parse_mode="Markdown",
+        "Зачекайте будь ласка кілька хвилин",
         reply_markup=get_waiting_keyboard()
     )
     await db.update_session_waiting_message_id(client_id, msg.message_id)
