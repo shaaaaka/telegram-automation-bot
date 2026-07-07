@@ -16,6 +16,7 @@ from aiogram import Bot
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile, ReplyKeyboardRemove
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import secrets
+from contextlib import asynccontextmanager
 
 from bot.config import DB_FILE, ADMIN_ID, get_bank_template, get_bank_template_with_key, get_template_photo
 import bot.database as db
@@ -46,7 +47,18 @@ async def check_admin_auth(request: Request = None, websocket: WebSocket = None)
         headers={"WWW-Authenticate": "Basic"},
     )
 
-app = FastAPI(title="Verification Bot Web Admin", dependencies=[Depends(check_admin_auth)])
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Ініціалізація бази даних при запуску веб-сервера
+    try:
+        from bot.database import init_db
+        await init_db()
+    except Exception as e:
+        import logging
+        logging.error(f"Помилка ініціалізації бази даних на веб-сервері: {e}")
+    yield
+
+app = FastAPI(title="Verification Bot Web Admin", dependencies=[Depends(check_admin_auth)], lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
 # WebSocket Connection Manager for real-time CRM chat updates
 class ConnectionManager:
@@ -152,23 +164,28 @@ class LineAdd(BaseModel):
 @app.post("/api/lines")
 async def add_line(body: LineAdd):
     """Додавання нової лінії вручну"""
-    async with aiosqlite.connect(DB_FILE) as conn:
-        conn.row_factory = aiosqlite.Row
-        if body.line_id is not None and body.line_id > 0:
-            line_id = body.line_id
-        else:
-            async with conn.execute("SELECT line_id FROM lines WHERE phone_number = ? LIMIT 1", (body.phone_number,)) as cursor:
-                existing = await cursor.fetchone()
-                if existing:
-                    line_id = existing["line_id"]
-                else:
-                    async with conn.execute("SELECT MAX(line_id) as max_id FROM lines") as max_cursor:
-                        row = await max_cursor.fetchone()
-                        max_id = row["max_id"] if row and row["max_id"] is not None else 0
-                        line_id = max_id + 1
-    
-    await db.add_or_update_line(line_id, body.phone_number, body.bank)
-    return {"status": "success"}
+    try:
+        async with aiosqlite.connect(DB_FILE) as conn:
+            conn.row_factory = aiosqlite.Row
+            if body.line_id is not None and body.line_id > 0:
+                line_id = body.line_id
+            else:
+                async with conn.execute("SELECT line_id FROM lines WHERE phone_number = ? LIMIT 1", (body.phone_number,)) as cursor:
+                    existing = await cursor.fetchone()
+                    if existing:
+                        line_id = existing["line_id"]
+                    else:
+                        async with conn.execute("SELECT MAX(line_id) as max_id FROM lines") as max_cursor:
+                            row = await max_cursor.fetchone()
+                            max_id = row["max_id"] if row and row["max_id"] is not None else 0
+                            line_id = max_id + 1
+        
+        await db.add_or_update_line(line_id, body.phone_number, body.bank)
+        return {"status": "success"}
+    except Exception as e:
+        import sys
+        sys.stderr.write(f"ERROR add_line: {e}\n")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 
@@ -314,12 +331,19 @@ async def save_client_banks(client_id: int, body: BanksSelection):
 @app.post("/api/sessions/{client_id}/banks/readd")
 async def readd_session_bank(client_id: int, bank: str):
     """Додавання банку назад до списку залишкових (remaining_banks)"""
+    import sys
+    sys.stderr.write(f"DEBUG readd: client_id={client_id}, bank={bank}\n")
+    
     session = await db.get_session(client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
     remaining_str = session['remaining_banks']
     remaining = remaining_str.split(",") if remaining_str else []
+    selected_str = session['selected_banks']
+    selected = selected_str.split(",") if selected_str else []
+    
+    sys.stderr.write(f"DEBUG readd: before - remaining={remaining}, selected={selected}\n")
     
     if bank not in remaining:
         remaining.append(bank)

@@ -63,6 +63,32 @@ async def init_db():
             """)
             await db.commit()
         
+        # Перевіряємо та додаємо унікальне обмеження на (line_id, bank) якщо його немає
+        # Отримуємо унікальні індекси таблиці lines
+        unique_indexes = []
+        async with db.execute("PRAGMA index_list(lines)") as cursor:
+            async for idx in cursor:
+                if idx[2] == 1:  # Прапорець унікальності (unique)
+                    unique_indexes.append(idx[1])
+        
+        # Перевіряємо, чи є унікальний індекс на (line_id, bank)
+        has_unique_constraint = False
+        for idx_name in unique_indexes:
+            async with db.execute(f"PRAGMA index_info({idx_name})") as idx_cursor:
+                columns = []
+                async for col in idx_cursor:
+                    columns.append(col[2])  # Назва стовпця
+                if len(columns) == 2 and 'line_id' in columns and 'bank' in columns:
+                    has_unique_constraint = True
+                    break
+        
+        if not has_unique_constraint:
+            try:
+                await db.execute("CREATE UNIQUE INDEX idx_lines_line_bank ON lines(line_id, bank)")
+                logging.info("Додано унікальний індекс на (line_id, bank) для таблиці lines")
+            except Exception as e:
+                logging.error(f"Помилка при додаванні унікального індексу: {e}")
+        
         # Таблиця для збереження активних сесій верифікації
         await db.execute("""
             CREATE TABLE IF NOT EXISTS sessions (

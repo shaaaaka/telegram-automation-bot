@@ -1693,11 +1693,19 @@
                         if (status === 'success') {
                             chipClasses += ' success-done';
                             statusIcon = '<span class="status-icon-done">✓</span> ';
-                            onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
+                            if (!isSelected) {
+                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
+                            } else {
+                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
+                            }
                         } else if (status === 'banned' || status === 'failure') {
                             chipClasses += ' failure-done';
                             statusIcon = '<span class="status-icon-fail">✗</span> ';
-                            onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
+                            if (!isSelected) {
+                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
+                            } else {
+                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
+                            }
                         } else {
                             chipClasses += ' released-done';
                             statusIcon = '<span class="status-icon-released">↺</span> ';
