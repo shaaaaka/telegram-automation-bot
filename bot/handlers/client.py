@@ -222,10 +222,8 @@ async def cmd_start(message: Message, state: FSMContext):
 
     # Крок 1: Запитуємо ПІБ та Дату народження
     pib_msg = await message.answer(
-        "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження\n\n"
-        "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
-        "(обов'язково пишіть все в одному повідомленні)",
-        reply_markup=get_cancel_keyboard()  # Прибирає будь-які старі кнопки і дає кнопку скасування
+        "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
+        reply_markup=get_cancel_keyboard()
     )
     await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
     await state.set_state(RegistrationStates.waiting_pib_dob)
@@ -286,9 +284,7 @@ async def handle_autofill_new(callback: CallbackQuery, state: FSMContext):
     except Exception:
         await callback.message.edit_reply_markup(reply_markup=None)
     pib_msg = await callback.message.answer(
-        "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження\n\n"
-        "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
-        "(обов'язково пишіть все в одному повідомленні)",
+        "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
         reply_markup=get_cancel_keyboard()
     )
     await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
@@ -297,8 +293,8 @@ async def handle_autofill_new(callback: CallbackQuery, state: FSMContext):
 
 @router.message(RegistrationStates.waiting_pib_dob, F.chat.type == "private")
 async def process_pib_dob(message: Message, state: FSMContext):
-    """Отримання ПІБ та Дати народження в одному повідомленні з валідацією наявності дати"""
-    pib_dob = message.text.strip()
+    """Отримання ПІБ та Дати народження (можна окремими повідомленнями)"""
+    text = message.text.strip()
     
     state_data = await state.get_data()
     welcome_msg_ids = state_data.get('welcome_msg_ids', [])
@@ -324,56 +320,63 @@ async def process_pib_dob(message: Message, state: FSMContext):
     except Exception:
         pass
 
-    # Спочатку шукаємо дату народження за регулярним виразом
-    # Підтримує формати: DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY, DD.MM.YY, DD,MM,YYYY та версії з пробілами
-    date_match = re.search(r'\b(\d{1,2}[\.\-\/,]\d{1,2}[\.\-\/,]\d{2,4})\b', pib_dob)
+    # Шукаємо дату народження
+    date_match = re.search(r'\b(\d{1,2}[\.\-\/,]\d{1,2}[\.\-\/,]\d{2,4})\b', text)
     if not date_match:
-        # Спробуємо також варіант через пробіли, наприклад, "12 05 1998"
-        date_match = re.search(r'\b(\d{1,2}\s+\d{1,2}\s+\d{4})\b', pib_dob)
+        date_match = re.search(r'\b(\d{1,2}\s+\d{1,2}\s+\d{4})\b', text)
         
-    if not date_match:
+    dob = None
+    if date_match:
+        dob_raw = date_match.group(1)
+        dob = re.sub(r'[^\d]', '.', dob_raw)
+        text_rest = text.replace(dob_raw, '').strip()
+    else:
+        text_rest = text
+
+    pib = clean_pib(text_rest) if text_rest else ""
+
+    # Отримуємо накопичені дані з стану
+    saved_pib = state_data.get('client_pib')
+    saved_dob = state_data.get('client_dob')
+
+    # Оновлюємо значення
+    if dob:
+        saved_dob = dob
+        await state.update_data(client_dob=dob)
+    if len(pib.split()) >= 2 and len(pib) >= 5:
+        saved_pib = pib
+        await state.update_data(client_pib=pib)
+
+    # Перевіряємо збір обох частин
+    if saved_pib and saved_dob:
+        client_data = f"ПІБ: {saved_pib}\nДата: {saved_dob}"
+        await state.update_data(client_data=client_data)
+        
+        ipn_msg = await message.answer(
+            "Будь ласка, напишіть Ваш ІПН (10 цифр):",
+            reply_markup=get_cancel_keyboard()
+        )
+        await state.update_data(ipn_prompt_msg_id=ipn_msg.message_id)
+        await state.set_state(RegistrationStates.waiting_ipn)
+    elif saved_pib:
         err_msg = await message.answer(
-            "Вибачте, ви не вказали Дату Народження.\n"
-            "Будь ласка, напишіть Ваші ПІБ та Дату Народження разом:\n\n"
-            "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
-            "(обов'язково пишіть все в одному повідомленні)",
-            parse_mode="Markdown"
+            "Напишіть також вашу дату народження?",
+            reply_markup=get_cancel_keyboard()
         )
         await state.update_data(pib_prompt_msg_id=err_msg.message_id)
-        return
-        
-    dob_raw = date_match.group(1)
-    dob = re.sub(r'[^\d]', '.', dob_raw) # Перетворюємо будь-які роздільники (кома, коса риска, дефіс, пробіл) на крапки для стандартизації
-    
-    # Вилучаємо дату з повідомлення, щоб отримати тільки ПІБ
-    pib_raw = pib_dob.replace(dob_raw, '').strip()
-    pib = clean_pib(pib_raw)
-    
-    # Валідуємо, чи залишилось хоча б 2 слова для ПІБ
-    if len(pib.split()) < 2 or len(pib) < 5:
+    elif saved_dob:
         err_msg = await message.answer(
-            "Будь ласка, введіть Ваші ПІБ повністю та Дату Народження:\n\n"
-            "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
-            "(обов'язково пишіть все в одному повідомленні)",
-            parse_mode="Markdown"
+            "Напишіть також ваші ПІБ (Прізвище Ім'я По Батькові)?",
+            reply_markup=get_cancel_keyboard()
         )
         await state.update_data(pib_prompt_msg_id=err_msg.message_id)
-        return
-        
-    # Зберігаємо розпарсені дані окремо
-    await state.update_data(pib=pib, dob=dob)
-    
-    # Крок 2: Запитуємо ІПН та відразу надсилаємо роз'яснення
-    msg1 = await message.answer("Також напишіть Ваш ІПН будь ласка?")
-    msg2 = await message.answer(
-        "Запитуємо ІПН виключно для перевірки через офіційні державні реєстри:\n"
-        "• щоб переконатися, що немає відкритих проваджень\n"
-        "• щоб перевірити, чи не було раніше співпраці з нашою компанією\n\n"
-        "Важливо:\n"
-        "Дані що Ви надаєте ніколи не будуть передані третім особам!"
-    )
-    await state.update_data(ipn_prompt_msg_ids=[msg1.message_id, msg2.message_id])
-    await state.set_state(RegistrationStates.waiting_ipn)
+    else:
+        err_msg = await message.answer(
+            "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
+            reply_markup=get_cancel_keyboard()
+        )
+        await state.update_data(pib_prompt_msg_id=err_msg.message_id)
+
 
 @router.message(RegistrationStates.waiting_ipn, F.chat.type == "private")
 async def process_ipn(message: Message, state: FSMContext):
@@ -996,9 +999,7 @@ async def handle_edit_my_data(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_reply_markup(reply_markup=None)
         
     pib_msg = await callback.message.answer(
-        "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження\n\n"
-        "Наприклад: Шевченко Тарас Григорович 09.03.1814\n\n"
-        "(обов'язково пишіть все в одному повідомленні)",
+        "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
         reply_markup=ReplyKeyboardRemove()
     )
     await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
