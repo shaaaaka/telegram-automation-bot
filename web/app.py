@@ -677,7 +677,7 @@ async def route_code(client_id: int, body: CodeRouting):
     await db.increment_session_sent_codes_count(client_id)
     await bot.send_message(
         chat_id=client_id,
-        text=f"Ваш SMS-код для банку {bank_name}:\n\n`{body.code}`",
+        text=f"`{body.code}`",
         reply_markup=ReplyKeyboardRemove(),
         parse_mode="Markdown"
     )

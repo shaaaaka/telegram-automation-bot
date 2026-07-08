@@ -856,7 +856,7 @@ async def handle_route_code(callback: CallbackQuery, bot: Bot, state: FSMContext
     await db.increment_session_sent_codes_count(client_id)
     await bot.send_message(
         chat_id=client_id,
-        text=f"Ваш SMS-код для банку {bank_name}:\n\n`{code}`",
+        text=f"`{code}`",
         reply_markup=ReplyKeyboardRemove(),
         parse_mode="Markdown"
     )
