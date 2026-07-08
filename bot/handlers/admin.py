@@ -966,7 +966,7 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot, state: FSMC
                 )
                 await bot.send_message(
                     chat_id=client_id,
-                    text="Роботу завершено. Дякуємо за співпрацю.\n\nНатисніть «🔄 Розпочати знову» нижче, щоб почати нову сесію верифікації.",
+                    text="Роботу завершили, дякуємо за співпрацю.",
                     parse_mode="Markdown",
                     reply_markup=kbd
                 )
@@ -1039,7 +1039,7 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot, state: FSMC
                 )
                 await bot.send_message(
                     chat_id=client_id,
-                    text="Роботу завершено. Дякуємо за співпрацю.\n\nНатисніть «🔄 Розпочати знову» нижче, щоб почати нову сесію верифікації.",
+                    text="Роботу завершили, дякуємо за співпрацю.",
                     parse_mode="Markdown",
                     reply_markup=kbd
                 )
@@ -1102,7 +1102,7 @@ async def handle_terminate_session(callback: CallbackQuery, bot: Bot, state: FSM
         )
         await bot.send_message(
             chat_id=client_id,
-            text="Роботу завершено. Дякуємо за співпрацю.\n\nНатисніть «🔄 Розпочати знову» нижче, щоб почати нову сесію верифікації.",
+            text="Роботу завершили, дякуємо за співпрацю.",
             parse_mode="Markdown",
             reply_markup=kbd
         )
@@ -1294,7 +1294,7 @@ async def handle_complete_session_manually(callback: CallbackQuery, bot: Bot, st
         )
         await bot.send_message(
             chat_id=client_id,
-            text="Роботу завершено. Дякуємо за співпрацю.\n\nНатисніть «🔄 Розпочати знову» нижче, щоб почати нову сесію верифікації.",
+            text="Роботу завершили, дякуємо за співпрацю.",
             reply_markup=kbd
         )
     except Exception as e:

@@ -537,7 +537,7 @@ async def complete_bank(client_id: int, result: str = "success"):
             )
             await bot.send_message(
                 chat_id=client_id,
-                text="Роботу завершено. Дякуємо за співпрацю.\n\nНатисніть «🔄 Розпочати знову» нижче, щоб почати нову сесію верифікації.",
+                text="Роботу завершили, дякуємо за співпрацю.",
                 parse_mode="Markdown",
                 reply_markup=kbd
             )
@@ -612,7 +612,7 @@ async def terminate_session(client_id: int):
         )
         await bot.send_message(
             chat_id=client_id,
-            text="Роботу завершено. Дякуємо за співпрацю.\n\nНатисніть «🔄 Розпочати знову» нижче, щоб почати нову сесію верифікації.",
+            text="Роботу завершили, дякуємо за співпрацю.",
             parse_mode="Markdown",
             reply_markup=kbd
         )

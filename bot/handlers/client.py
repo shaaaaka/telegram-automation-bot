@@ -802,7 +802,7 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
             is_persistent=True
         )
         await message.answer(
-            "Роботу завершено. Дякуємо за співпрацю.\n\nНатисніть «🔄 Розпочати знову» нижче, щоб почати нову сесію верифікації.",
+            "Роботу завершили, дякуємо за співпрацю.",
             reply_markup=kbd
         )
         await db.close_session(client_id)
