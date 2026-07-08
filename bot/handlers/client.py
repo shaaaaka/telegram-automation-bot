@@ -1535,14 +1535,41 @@ async def trigger_sms_code_request(client_id: int, bot: Bot, state: FSMContext, 
     giver_format = await db.get_setting("giver_request_format", "Запрос {line_id} {bank_name}")
     giver_retry_format = await db.get_setting("giver_request_retry_format", "Запрос {line_id} {bank_name} (ПОВТОРНО)")
 
+    import random
+    sent_codes_count = session.get('sent_codes_count', 0)
+    
+    if sent_codes_count == 0 and not is_retry:
+        first_phrases = [
+            "Хвилинку, очікую поки він мені надійде",
+            "Хвилинку, зараз очікую поки прийде",
+            "Секунду, чекаю поки прийде код",
+            "Зараз чекаю поки надійде код"
+        ]
+        msg_text = random.choice(first_phrases)
+    else:
+        subsequent_phrases = [
+            "Хвилину",
+            "Секунду",
+            "сек",
+            "щас, чекаю",
+            "хв, чекаю",
+            "зараз, очікую",
+            "чекаю",
+            "хвилинку",
+            "секунду, чекаю",
+            "щас прийде",
+            "щас, сек"
+        ]
+        msg_text = random.choice(subsequent_phrases)
+        
+    await notify_fn(msg_text, is_error=False, is_retry=is_retry)
+
     if is_retry:
-        await notify_fn("Запит на код відправлено постачальнику. Будь ласка, очікуйте.", is_error=False, is_retry=True)
         try:
             giver_msg = giver_retry_format.format(line_id=line_num, bank_name=bank_name)
         except Exception:
             giver_msg = f"Запрос {line_num} {bank_name} (ПОВТОРНО)"
     else:
-        await notify_fn("Запит на код відправлено постачальнику. Будь ласка, очікуйте, код прийде сюди.", is_error=False, is_retry=False)
         try:
             giver_msg = giver_format.format(line_id=line_num, bank_name=bank_name)
         except Exception:
