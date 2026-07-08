@@ -300,13 +300,6 @@ async def process_pib_dob(message: Message, state: FSMContext):
             chat_history=[]
         )
         await message.answer(response)
-        
-        # Нагадуємо ввести дані
-        pib_msg = await message.answer(
-            "Напишіть мені будь ласка Ваші ПІБ та Дату Народження",
-            reply_markup=get_cancel_keyboard()
-        )
-        await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
         return
     
     state_data = await state.get_data()
@@ -416,13 +409,6 @@ async def process_ipn(message: Message, state: FSMContext):
             chat_history=[]
         )
         await message.answer(response)
-        
-        # Нагадуємо ввести ІПН
-        ipn_msg = await message.answer(
-            "Будь ласка, напишіть Ваш ІПН (10 цифр):",
-            reply_markup=get_cancel_keyboard()
-        )
-        await state.update_data(ipn_prompt_msg_ids=[ipn_msg.message_id])
         return
     
     state_data = await state.get_data()
