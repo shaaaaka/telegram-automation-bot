@@ -23,6 +23,23 @@ class RegistrationStates(StatesGroup):
     waiting_wrong_code_confirm = State()
     waiting_card_screenshot = State()
 
+async def register_reg_msg(state: FSMContext, msg_id: int):
+    data = await state.get_data()
+    msg_ids = data.get("registration_msg_ids", [])
+    if msg_id not in msg_ids:
+        msg_ids.append(msg_id)
+        await state.update_data(registration_msg_ids=msg_ids)
+
+async def delete_reg_messages(chat_id: int, state: FSMContext, bot: Bot):
+    data = await state.get_data()
+    msg_ids = data.get("registration_msg_ids", [])
+    for msg_id in msg_ids:
+        try:
+            await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+        except Exception:
+            pass
+    await state.update_data(registration_msg_ids=[])
+
 def get_sms_request_keyboard() -> ReplyKeyboardRemove:
     return ReplyKeyboardRemove()
 
@@ -41,33 +58,8 @@ async def handle_cancel_registration(message: Message, state: FSMContext):
     if session and session['status'] in ('number_assigned', 'waiting_code'):
         return
         
-    state_data = await state.get_data()
-    
-    # Видаляємо промпт ПІБ
-    pib_prompt_msg_id = state_data.get('pib_prompt_msg_id')
-    if pib_prompt_msg_id:
-        try:
-            await message.bot.delete_message(chat_id=message.chat.id, message_id=pib_prompt_msg_id)
-        except Exception:
-            pass
-            
-    # Видаляємо промпти ІПН
-    ipn_prompt_msg_ids = state_data.get('ipn_prompt_msg_ids', [])
-    for msg_id in ipn_prompt_msg_ids:
-        try:
-            await message.bot.delete_message(chat_id=message.chat.id, message_id=msg_id)
-        except Exception:
-            pass
-            
-    # Видаляємо вітальні повідомлення
-    welcome_msg_ids = state_data.get('welcome_msg_ids', [])
-    for msg_id in welcome_msg_ids:
-        try:
-            await message.bot.delete_message(chat_id=message.chat.id, message_id=msg_id)
-        except Exception:
-            pass
-
-    # Видаляємо повідомлення користувача
+    # Видаляємо всі повідомлення реєстрації
+    await delete_reg_messages(message.chat.id, state, message.bot)
     try:
         await message.delete()
     except Exception:
@@ -179,6 +171,7 @@ async def cmd_start(message: Message, state: FSMContext):
         return
 
     await state.clear()
+    await register_reg_msg(state, message.message_id)
     
     # Перевіряємо можливість автозаповнення з попередньої завершеної сесії
     if existing_session and existing_session['status'] == 'completed' and existing_session['client_data']:
@@ -203,6 +196,7 @@ async def cmd_start(message: Message, state: FSMContext):
                 [InlineKeyboardButton(text="✍️ Ввести нові дані", callback_data="autofill_new")]
             ])
             msg = await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
+            await register_reg_msg(state, msg.message_id)
             await state.update_data(welcome_msg_ids=[msg.message_id])
             await state.set_state(RegistrationStates.waiting_pib_dob)
             return
@@ -212,6 +206,7 @@ async def cmd_start(message: Message, state: FSMContext):
         "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
         reply_markup=get_cancel_keyboard()
     )
+    await register_reg_msg(state, pib_msg.message_id)
     await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
     await state.set_state(RegistrationStates.waiting_pib_dob)
 
@@ -260,7 +255,8 @@ async def handle_autofill_use(callback: CallbackQuery, state: FSMContext):
             await callback.bot.delete_message(chat_id=callback.message.chat.id, message_id=msg_id)
         except Exception:
             pass
-    await callback.message.answer(confirm_text, reply_markup=keyboard, parse_mode="Markdown")
+    msg = await callback.message.answer(confirm_text, reply_markup=keyboard, parse_mode="Markdown")
+    await register_reg_msg(state, msg.message_id)
     await state.set_state(RegistrationStates.waiting_confirm)
     await callback.answer()
 
@@ -280,6 +276,7 @@ async def handle_autofill_new(callback: CallbackQuery, state: FSMContext):
         "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
         reply_markup=get_cancel_keyboard()
     )
+    await register_reg_msg(state, pib_msg.message_id)
     await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
     await state.set_state(RegistrationStates.waiting_pib_dob)
     await callback.answer()
@@ -302,29 +299,8 @@ async def process_pib_dob(message: Message, state: FSMContext):
         await message.answer(response)
         return
     
+    await register_reg_msg(state, message.message_id)
     state_data = await state.get_data()
-    welcome_msg_ids = state_data.get('welcome_msg_ids', [])
-    pib_prompt_msg_id = state_data.get('pib_prompt_msg_id')
-    
-    # Видаляємо вітальні повідомлення
-    for msg_id in welcome_msg_ids:
-        try:
-            await message.bot.delete_message(chat_id=message.chat.id, message_id=msg_id)
-        except Exception:
-            pass
-            
-    # Видаляємо попередній промпт ПІБ
-    if pib_prompt_msg_id:
-        try:
-            await message.bot.delete_message(chat_id=message.chat.id, message_id=pib_prompt_msg_id)
-        except Exception:
-            pass
-            
-    # Видаляємо повідомлення користувача з введенням
-    try:
-        await message.delete()
-    except Exception:
-        pass
 
     # Шукаємо дату народження
     date_match = re.search(r'\b(\d{1,2}[\.\-\/,]\d{1,2}[\.\-\/,]\d{2,4})\b', text)
@@ -371,6 +347,7 @@ async def process_pib_dob(message: Message, state: FSMContext):
             "Будь ласка, напишіть Ваш ІПН (10 цифр):",
             reply_markup=get_cancel_keyboard()
         )
+        await register_reg_msg(state, ipn_msg.message_id)
         await state.update_data(ipn_prompt_msg_ids=[ipn_msg.message_id])
         await state.set_state(RegistrationStates.waiting_ipn)
     elif saved_pib:
@@ -378,18 +355,21 @@ async def process_pib_dob(message: Message, state: FSMContext):
             "Напишіть також вашу дату народження?",
             reply_markup=get_cancel_keyboard()
         )
+        await register_reg_msg(state, err_msg.message_id)
         await state.update_data(pib_prompt_msg_id=err_msg.message_id)
     elif saved_dob:
         err_msg = await message.answer(
             "Напишіть також ваші ПІБ (Прізвище Ім'я По Батькові)?",
             reply_markup=get_cancel_keyboard()
         )
+        await register_reg_msg(state, err_msg.message_id)
         await state.update_data(pib_prompt_msg_id=err_msg.message_id)
     else:
         err_msg = await message.answer(
             "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
             reply_markup=get_cancel_keyboard()
         )
+        await register_reg_msg(state, err_msg.message_id)
         await state.update_data(pib_prompt_msg_id=err_msg.message_id)
 
 
@@ -411,21 +391,8 @@ async def process_ipn(message: Message, state: FSMContext):
         await message.answer(response)
         return
     
+    await register_reg_msg(state, message.message_id)
     state_data = await state.get_data()
-    ipn_prompt_msg_ids = state_data.get('ipn_prompt_msg_ids', [])
-    
-    # Видаляємо попередні промпти ІПН
-    for msg_id in ipn_prompt_msg_ids:
-        try:
-            await message.bot.delete_message(chat_id=message.chat.id, message_id=msg_id)
-        except Exception:
-            pass
-            
-    # Видаляємо повідомлення користувача
-    try:
-        await message.delete()
-    except Exception:
-        pass
 
     if not ipn.isdigit() or len(ipn) != 10:
         err_msg = await message.answer("ІПН має складатися рівно з 10 цифр. Будь ласка, перевірте та спробуйте ще раз:")
@@ -483,14 +450,11 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
     client_id = callback.from_user.id
     username_db = username or "Немає юзернейму"
 
+    # Видаляємо всі повідомлення процесу реєстрації
+    await delete_reg_messages(callback.message.chat.id, state, callback.bot)
+
     # Створюємо нову сесію в базі даних
     await db.create_or_update_session(client_id, username_db, client_data)
-    
-    # Забираємо кнопки з повідомлення підтвердження
-    try:
-        await callback.message.delete()
-    except Exception:
-        await callback.message.edit_reply_markup(reply_markup=None)
         
     msg = await callback.message.answer(
         "Зачекайте будь ласка кілька хвилин",
@@ -554,6 +518,7 @@ async def handle_restart_reg(callback: CallbackQuery, state: FSMContext):
         "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
         reply_markup=get_cancel_keyboard()
     )
+    await register_reg_msg(state, pib_msg.message_id)
     await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
     await state.set_state(RegistrationStates.waiting_pib_dob)
     await callback.answer("Почнемо заново!")
