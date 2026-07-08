@@ -289,6 +289,26 @@ async def process_pib_dob(message: Message, state: FSMContext):
     """Отримання ПІБ та Дати народження (можна окремими повідомленнями)"""
     text = message.text.strip()
     
+    # 0. Перевіряємо наявність запитань / заперечень через ШІ
+    if is_question_or_objection(text):
+        await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
+        from bot.openai_client import get_support_response
+        response = await get_support_response(
+            user_text=message.text,
+            client_data="",
+            current_bank_name=None,
+            chat_history=[]
+        )
+        await message.answer(response)
+        
+        # Нагадуємо ввести дані
+        pib_msg = await message.answer(
+            "Напишіть мені будь ласка Ваші ПІБ та Дату Народження",
+            reply_markup=get_cancel_keyboard()
+        )
+        await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
+        return
+    
     state_data = await state.get_data()
     welcome_msg_ids = state_data.get('welcome_msg_ids', [])
     pib_prompt_msg_id = state_data.get('pib_prompt_msg_id')
@@ -321,7 +341,16 @@ async def process_pib_dob(message: Message, state: FSMContext):
     dob = None
     if date_match:
         dob_raw = date_match.group(1)
-        dob = re.sub(r'[^\d]', '.', dob_raw)
+        dob = parse_and_validate_date(dob_raw)
+        if not dob:
+            # Знайдено щось схоже на дату, але вона недійсна (наприклад, 73.41.1889)
+            err_msg = await message.answer(
+                "Некоректний формат або значення дати народження.\n"
+                "Будь ласка, введіть реальну дату у форматі ДД.ММ.РРРР (наприклад: 15.08.1995):",
+                reply_markup=get_cancel_keyboard()
+            )
+            await state.update_data(pib_prompt_msg_id=err_msg.message_id)
+            return
         text_rest = text.replace(dob_raw, '').strip()
     else:
         text_rest = text
@@ -375,6 +404,26 @@ async def process_pib_dob(message: Message, state: FSMContext):
 async def process_ipn(message: Message, state: FSMContext):
     """Отримання ІПН та перехід до підтвердження даних"""
     ipn = message.text.strip()
+    
+    # 0. Перевіряємо наявність запитань / заперечень через ШІ
+    if is_question_or_objection(ipn):
+        await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
+        from bot.openai_client import get_support_response
+        response = await get_support_response(
+            user_text=message.text,
+            client_data="",
+            current_bank_name=None,
+            chat_history=[]
+        )
+        await message.answer(response)
+        
+        # Нагадуємо ввести ІПН
+        ipn_msg = await message.answer(
+            "Будь ласка, напишіть Ваш ІПН (10 цифр):",
+            reply_markup=get_cancel_keyboard()
+        )
+        await state.update_data(ipn_prompt_msg_ids=[ipn_msg.message_id])
+        return
     
     state_data = await state.get_data()
     ipn_prompt_msg_ids = state_data.get('ipn_prompt_msg_ids', [])
@@ -833,6 +882,45 @@ def is_acknowledgment_text(text: str) -> bool:
         if t == phrase:
             return True
             
+    return False
+
+def parse_and_validate_date(date_str: str) -> str:
+    import datetime
+    # Заміна роздільників на крапку
+    cleaned = re.sub(r'[^\d]', '.', date_str)
+    parts = cleaned.split('.')
+    if len(parts) != 3:
+        return None
+    try:
+        day = int(parts[0])
+        month = int(parts[1])
+        year = int(parts[2])
+        if year < 100:
+            if year > 26:
+                year += 1900
+            else:
+                year += 2000
+        dt = datetime.date(year, month, day)
+        current_year = datetime.datetime.now().year
+        if year < 1930 or year > current_year:
+            return None
+        return dt.strftime("%d.%m.%Y")
+    except ValueError:
+        return None
+
+def is_question_or_objection(text: str) -> bool:
+    t = text.lower().strip().strip('?').strip('.').strip('!')
+    if "?" in text:
+        return True
+    question_starters = [
+        "що таке", "що це", "як ", "якщо", "де ", "куди", "звідки", "навіщо", "для чого", "чому", "нащо",
+        "что такое", "что это", "как ", "где ", "куда", "откуда", "зачем", "для чего", "почему",
+        "чи обов'язково", "обязательно", "безпечно", "точно", "правда", "хто ви", "кто вы", "це бот", "это бот",
+        "не хочу", "не буду", "нащо", "зачем", "що за"
+    ]
+    for starter in question_starters:
+        if t.startswith(starter) or f" {starter}" in t:
+            return True
     return False
 
 def is_code_success_text(text: str) -> bool:
