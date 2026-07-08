@@ -1363,16 +1363,7 @@ async def trigger_sms_code_request(client_id: int, bot: Bot, state: FSMContext, 
     await db.set_session_status(client_id, 'waiting_code')
     await state.update_data(last_code_request_time=current_time)
 
-    # Видаляємо повідомлення інструкції про завантаження додатку (якщо є)
-    if session.get('instruction_message_id'):
-        try:
-            await bot.delete_message(chat_id=client_id, message_id=session['instruction_message_id'])
-        except Exception as e:
-            print(f"Помилка видалення повідомлення інструкції у клієнта: {e}")
-        try:
-            await db.update_session_instruction_message_id(client_id, None)
-        except Exception as e:
-            print(f"Помилка оновлення instruction_message_id в БД: {e}")
+
     
     # Запускаємо таймер на 20 секунд для автоматичного сповіщення клієнта
     asyncio.create_task(schedule_waiting_code_reminder(client_id, bot))
