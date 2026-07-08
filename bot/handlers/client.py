@@ -288,6 +288,21 @@ async def process_pib_dob(message: Message, state: FSMContext):
     
     # 0. Перевіряємо наявність запитань / заперечень через ШІ
     if is_question_or_objection(text):
+        await register_reg_msg(state, message.message_id)
+        
+        # Перевірка на спам
+        state_data = await state.get_data()
+        support_count = state_data.get('support_requests_count', 0) + 1
+        await state.update_data(support_requests_count=support_count)
+        
+        if support_count > 5:
+            msg = await message.answer(
+                "Перевищено ліміт запитань. Будь ласка, введіть коректні дані для реєстрації (ПІБ та Дату Народження). "
+                "Якщо виникли труднощі — зверніться до адміністратора."
+            )
+            await register_reg_msg(state, msg.message_id)
+            return
+            
         await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
         from bot.openai_client import get_support_response
         response = await get_support_response(
@@ -296,7 +311,8 @@ async def process_pib_dob(message: Message, state: FSMContext):
             current_bank_name=None,
             chat_history=[]
         )
-        await message.answer(response)
+        msg = await message.answer(response)
+        await register_reg_msg(state, msg.message_id)
         return
     
     await register_reg_msg(state, message.message_id)
@@ -333,10 +349,10 @@ async def process_pib_dob(message: Message, state: FSMContext):
     # Оновлюємо значення
     if dob:
         saved_dob = dob
-        await state.update_data(dob=dob)
+        await state.update_data(dob=dob, support_requests_count=0)
     if len(pib.split()) >= 2 and len(pib) >= 5:
         saved_pib = pib
-        await state.update_data(pib=pib)
+        await state.update_data(pib=pib, support_requests_count=0)
 
     # Перевіряємо збір обох частин
     if saved_pib and saved_dob:
@@ -380,6 +396,21 @@ async def process_ipn(message: Message, state: FSMContext):
     
     # 0. Перевіряємо наявність запитань / заперечень через ШІ
     if is_question_or_objection(ipn):
+        await register_reg_msg(state, message.message_id)
+        
+        # Перевірка на спам
+        state_data = await state.get_data()
+        support_count = state_data.get('support_requests_count', 0) + 1
+        await state.update_data(support_requests_count=support_count)
+        
+        if support_count > 5:
+            msg = await message.answer(
+                "Перевищено ліміт запитань. Будь ласка, напишіть Ваш ІПН (10 цифр). "
+                "Якщо виникли труднощі — зверніться до адміністратора."
+            )
+            await register_reg_msg(state, msg.message_id)
+            return
+            
         await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
         from bot.openai_client import get_support_response
         response = await get_support_response(
@@ -388,7 +419,8 @@ async def process_ipn(message: Message, state: FSMContext):
             current_bank_name=None,
             chat_history=[]
         )
-        await message.answer(response)
+        msg = await message.answer(response)
+        await register_reg_msg(state, msg.message_id)
         return
     
     await register_reg_msg(state, message.message_id)
@@ -439,6 +471,9 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
         await state.clear()
         return
 
+    # Видаляємо всі повідомлення процесу реєстрації (до очищення стану!)
+    await delete_reg_messages(callback.message.chat.id, state, callback.bot)
+
     await state.clear()
 
     # Формуємо дані для адмін-панелі та Telegram повідомлення
@@ -450,8 +485,6 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
     client_id = callback.from_user.id
     username_db = username or "Немає юзернейму"
 
-    # Видаляємо всі повідомлення процесу реєстрації
-    await delete_reg_messages(callback.message.chat.id, state, callback.bot)
 
     # Створюємо нову сесію в базі даних
     await db.create_or_update_session(client_id, username_db, client_data)
@@ -1174,10 +1207,20 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
         if is_code_request_text(message.text or ""):
             async def notify(msg: str, is_error: bool = False, is_retry: bool = False):
                 await message.answer(msg)
+            await state.update_data(support_requests_count=0)
             await trigger_sms_code_request(client_id, bot, state, notify)
             return
 
-
+        state_data = await state.get_data()
+        support_count = state_data.get('support_requests_count', 0) + 1
+        await state.update_data(support_requests_count=support_count)
+        
+        if support_count > 20:
+            await message.answer(
+                "Ви перевищили ліміт запитань до ШІ. Зараз підключиться менеджер і відповість на всі ваші запитання. "
+                "Будь ласка, очікуйте."
+            )
+            return
 
         from bot.openai_client import get_support_response
         response = await get_support_response(
@@ -1197,6 +1240,7 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
         
         if "[SUCCESS_VERIFICATION]" in response:
             bank_label = current_bank_name if current_bank_name else "банк"
+            await state.update_data(support_requests_count=0)
             await message.answer(
                 f"Чудово! Будь ласка, надішліть скріншот, який підтверджує успішну реєстрацію в {bank_label}.",
                 reply_markup=ReplyKeyboardRemove()
@@ -1260,7 +1304,19 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
         if message.caption and is_code_request_text(message.caption):
             async def notify(msg: str, is_error: bool = False, is_retry: bool = False):
                 await message.answer(msg)
+            await state.update_data(support_requests_count=0)
             await trigger_sms_code_request(client_id, bot, state, notify)
+            return
+            
+        state_data = await state.get_data()
+        support_count = state_data.get('support_requests_count', 0) + 1
+        await state.update_data(support_requests_count=support_count)
+        
+        if support_count > 20:
+            await message.answer(
+                "Ви перевищили ліміт запитань до ШІ. Зараз підключиться менеджер і відповість на всі ваші запитання. "
+                "Будь ласка, очікуйте."
+            )
             return
             
         await bot.send_chat_action(chat_id=client_id, action="typing")
@@ -1308,6 +1364,7 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
             is_success = "[SUCCESS_VERIFICATION]" in response
 
         if is_success:
+            await state.update_data(support_requests_count=0)
             card_first4, card_last4 = None, None
             card_match = re.search(r'\[CARD_MASK:\s*(\d{4})\.\.\.(\d{4})\]', response)
             if card_match:
