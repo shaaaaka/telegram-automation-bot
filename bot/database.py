@@ -123,7 +123,8 @@ async def init_db():
             ("waiting_message_id", "INTEGER"),
             ("instruction_message_id", "INTEGER"),
             ("client_phone", "TEXT"),
-            ("bank", "TEXT")
+            ("bank", "TEXT"),
+            ("sent_codes_count", "INTEGER DEFAULT 0")
         ]
         
         for col_name, col_type in new_columns:
@@ -323,12 +324,23 @@ async def delete_line(line_id: int):
 
 # --- Робота з сесіями клієнтів (Sessions) ---
 
+
+async def increment_session_sent_codes_count(client_id: int):
+    """Збільшує лічильник відправлених кодів для сесії клієнта на 1"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("""
+            UPDATE sessions 
+            SET sent_codes_count = COALESCE(sent_codes_count, 0) + 1 
+            WHERE client_id = ?
+        """, (client_id,))
+        await db.commit()
+
 async def create_or_update_session(client_id: int, username: str, client_data: str):
     """Створення нової сесії для клієнта (коли він надсилає свої дані)"""
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("""
-            INSERT INTO sessions (client_id, username, client_data, status, client_message_id, selected_banks, remaining_banks, success_photo_id, card_first4, card_last4, card_photo_id)
-            VALUES (?, ?, ?, 'registered', NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+            INSERT INTO sessions (client_id, username, client_data, status, client_message_id, selected_banks, remaining_banks, success_photo_id, card_first4, card_last4, card_photo_id, sent_codes_count)
+            VALUES (?, ?, ?, 'registered', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0)
             ON CONFLICT(client_id) DO UPDATE SET
                 username = excluded.username,
                 client_data = excluded.client_data,
@@ -341,7 +353,8 @@ async def create_or_update_session(client_id: int, username: str, client_data: s
                 success_photo_id = NULL,
                 card_first4 = NULL,
                 card_last4 = NULL,
-                card_photo_id = NULL
+                card_photo_id = NULL,
+                sent_codes_count = 0
         """, (client_id, username, client_data))
         await db.commit()
 

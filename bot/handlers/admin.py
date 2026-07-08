@@ -853,6 +853,7 @@ async def handle_route_code(callback: CallbackQuery, bot: Bot, state: FSMContext
     bank_name = line_info['bank'] if line_info else "Банк"
 
     # 1. Відправляємо код клієнту
+    await db.increment_session_sent_codes_count(client_id)
     await bot.send_message(
         chat_id=client_id,
         text=f"Ваш SMS-код для банку {bank_name}:\n\n`{code}`",

@@ -162,6 +162,7 @@ async def send_code_to_client(bot: Bot, session: dict, line_info: dict, code: st
 
     from aiogram.types import ReplyKeyboardRemove
     # Відправляємо клієнту
+    await db.increment_session_sent_codes_count(client_id)
     await bot.send_message(
         chat_id=client_id,
         text=f"Ваш SMS-код для банку {bank_name}:\n\n`{code}`",

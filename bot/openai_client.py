@@ -31,7 +31,7 @@ BASE_MANNER_OF_SPEECH = """
 7. НІКОЛИ не став лапки (символи ', ", `) перед/навколо/всередині паролів та пінів. Пиши їх просто чистим текстом (наприклад: Qwerty123, 12345, 1111 - без жодних лапок).
 """
 
-async def compile_system_instruction(current_bank_name: str = None) -> str:
+async def compile_system_instruction(current_bank_name: str = None, sent_codes_count: int = 0) -> str:
     """Динамічне формування системної інструкції з бази даних"""
     from bot import database as db
     
@@ -77,6 +77,9 @@ async def compile_system_instruction(current_bank_name: str = None) -> str:
    - Відповідай строго: "Я покликав менеджера, він зараз підключиться і вирішить це питання. [REFUSED_PHONE]"
 9. Якщо клієнт вагається, перепитує "точно?", "правда?", "безпечно?" або просить підтвердження:
    - Відповідай заспокійливо та дружньо: "Так, все чітко, не переживайте." або "Звісно, все безпечно. Тисячу разів так робили."
+10. Клієнт пише, що код підійшов, пройшов, спрацював, все ок (поточна кількість надісланих кодів: {sent_codes_count}):
+    - Якщо sent_codes_count == 1 (перший код), відповідай максимально нейтрально й коротко, наприклад: "Гуд, якщо щось не зрозуміло то пишіть." (або іншими словами по-простому). Не пиши, що реєстрація завершується або адміністратор все перевіряє, бо можуть знадобитися ще коди!
+    - Якщо sent_codes_count >= 2, також відповідай коротко та нейтрально (наприклад: "Гуд", "Зрозумів, пишіть якщо що").
 """
 
     prompt = f"""Ти — ШІ-автоматизатор чату верифікації, який спілкується з клієнтами максимально просто, коротко і на рівних, як знайомий. Усі відповіді мають бути грамотними, з правильними комами, але без офіційщини чи довгих пояснень.
@@ -140,13 +143,13 @@ async def compile_system_instruction(current_bank_name: str = None) -> str:
 """
     return prompt
 
-async def get_support_response(user_text: str = None, image_bytes: bytes = None, client_data: str = None, current_bank_name: str = None, chat_history: list = None) -> str:
+async def get_support_response(user_text: str = None, image_bytes: bytes = None, client_data: str = None, current_bank_name: str = None, chat_history: list = None, sent_codes_count: int = 0) -> str:
     """Отримання відповіді від моделі OpenRouter (Gemini)"""
     if not client:
         return "Дякуємо за звернення. Адміністратор відповість вам найближчим часом."
 
     # Збираємо системний промпт динамічно
-    system_instruction = await compile_system_instruction(current_bank_name)
+    system_instruction = await compile_system_instruction(current_bank_name, sent_codes_count)
 
     messages = [
         {"role": "system", "content": system_instruction}

