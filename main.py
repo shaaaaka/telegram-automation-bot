@@ -92,6 +92,15 @@ class OutgoingLoggingMiddleware(BaseRequestMiddleware):
             logging.error(f"Error logging outgoing message: {e}")
         return res
 
+class BanMiddleware(BaseMiddleware):
+    async def __call__(self, handler, event, data):
+        user = data.get("event_from_user")
+        if user:
+            from bot.database import is_user_banned
+            if await is_user_banned(user.id):
+                return
+        return await handler(event, data)
+
 class IncomingLoggingMiddleware(BaseMiddleware):
     async def __call__(self, handler, event: Message, data):
         if isinstance(event, Message) and event.chat.type == "private":
@@ -148,6 +157,8 @@ async def main():
     bot = Bot(token=BOT_TOKEN)
     bot.session.middleware(OutgoingLoggingMiddleware(log_bot=log_bot))
     dp = Dispatcher()
+    dp.message.outer_middleware(BanMiddleware())
+    dp.callback_query.outer_middleware(BanMiddleware())
     dp.message.outer_middleware(IncomingLoggingMiddleware())
 
     # Реєстрація роутерів (черговість важлива: спочатку адмін та гівер, потім загальні)

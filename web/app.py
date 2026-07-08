@@ -651,6 +651,76 @@ async def delete_session_endpoint(client_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete session: {str(e)}")
 
+@app.post("/api/users/{client_id}/ban")
+async def ban_user_endpoint(client_id: int):
+    """Блокування користувача"""
+    username = "Невідомий"
+    session = await db.get_session(client_id)
+    if bot:
+        try:
+            chat = await bot.get_chat(client_id)
+            if chat.username:
+                username = chat.username
+            elif chat.first_name:
+                username = chat.first_name
+        except Exception:
+            pass
+    
+    # Додаємо в бан-лист
+    await db.ban_user(client_id, username)
+    
+    # Якщо є активна сесія, примусово закриваємо її
+    if session:
+        # Прибираємо кнопку у клієнта, якщо вона є
+        if session['client_message_id'] and bot:
+            try:
+                await bot.edit_message_reply_markup(
+                    chat_id=client_id,
+                    message_id=session['client_message_id'],
+                    reply_markup=None
+                )
+            except Exception:
+                pass
+        
+        # Повідомляємо клієнта
+        if bot:
+            try:
+                from aiogram.types import ReplyKeyboardRemove
+                await bot.send_message(
+                    chat_id=client_id,
+                    text="Ваш доступ до бота обмежено.",
+                    reply_markup=ReplyKeyboardRemove()
+                )
+            except Exception:
+                pass
+        
+        await db.close_session(client_id)
+    
+    # Сповіщаємо всі веб-панелі
+    await manager.broadcast({
+        "type": "user_banned",
+        "client_id": client_id
+    })
+    
+    return {"status": "banned"}
+
+@app.post("/api/users/{client_id}/unban")
+async def unban_user_endpoint(client_id: int):
+    """Розблокування користувача"""
+    await db.unban_user(client_id)
+    # Сповіщаємо всі веб-панелі
+    await manager.broadcast({
+        "type": "user_unbanned",
+        "client_id": client_id
+    })
+    return {"status": "unbanned"}
+
+@app.get("/api/banned-users")
+async def get_banned_users_endpoint():
+    """Отримання списку заблокованих користувачів"""
+    users = await db.get_banned_users()
+    return users
+
 @app.get("/api/unrouted-codes")
 
 async def get_unrouted_codes():

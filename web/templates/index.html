@@ -33,6 +33,13 @@
                 <span class="tab-text">Чати</span>
             </button>
 
+            <button class="tab-btn" id="tab-btn-banned" onclick="switchTab('banned')">
+                <span class="tab-icon-wrapper">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </span>
+                <span class="tab-text">Бан-лист</span>
+            </button>
+
             <button class="tab-btn tab-btn-settings" id="tab-btn-settings" onclick="switchTab('settings')">
                 <span class="tab-icon-wrapper">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.5 1z"></path></svg>
@@ -209,6 +216,38 @@
                             <!-- Заповнюється динамічно JS -->
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка Бан-лист -->
+        <div id="tab-content-banned" class="tab-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+                        <span class="panel-icon-wrapper">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        </span>
+                        Заблоковані користувачі
+                    </h2>
+                    <span id="banned-users-count" class="active-count-text">Всього: 0</span>
+                </div>
+                <div class="panel-body">
+                    <div style="overflow-x: auto; margin-top: 15px;">
+                        <table class="lines-table" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--text-muted); font-weight: 600;">Client ID</th>
+                                    <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--text-muted); font-weight: 600;">Юзернейм</th>
+                                    <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--text-muted); font-weight: 600;">Забанений о</th>
+                                    <th style="text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.1); color: var(--text-muted); font-weight: 600;">Дія</th>
+                                </tr>
+                            </thead>
+                            <tbody id="banned-users-table-body">
+                                <!-- Заповнюється динамічно JS -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1878,6 +1917,9 @@
                             <button class="btn btn-secondary btn-sm" onclick="terminateSession(${session.client_id})">
                                 Закрити сесію
                             </button>
+                            <button class="btn btn-danger btn-sm" onclick="banUser(${session.client_id})">
+                                Забанити
+                            </button>
                         </div>
                     </div>
                 `;
@@ -2180,6 +2222,98 @@
             }
         }
 
+        async function loadBannedUsers() {
+            try {
+                const res = await fetch('/api/banned-users');
+                if (!res.ok) throw new Error("Status code: " + res.status);
+                const users = await res.json();
+                
+                document.getElementById('banned-users-count').innerText = `Всього: ${users.length}`;
+                const tbody = document.getElementById('banned-users-table-body');
+                tbody.innerHTML = '';
+                
+                if (users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: rgba(255,255,255,0.4); padding: 20px;">Немає заблокованих користувачів</td></tr>';
+                    return;
+                }
+                
+                users.forEach(user => {
+                    const tr = document.createElement('tr');
+                    
+                    let dateStr = user.banned_at;
+                    try {
+                        const date = new Date(user.banned_at);
+                        dateStr = date.toLocaleString('uk-UA');
+                    } catch(e) {}
+                    
+                    tr.innerHTML = `
+                        <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.8);">${user.client_id}</td>
+                        <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.8);">${user.username ? '@' + user.username : 'Невідомий'}</td>
+                        <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.6);">${dateStr}</td>
+                        <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <button class="btn btn-primary btn-sm" onclick="unbanUser(${user.client_id})">
+                                Розбанити
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                showToast("Помилка завантаження заблокованих користувачів", "danger");
+            }
+        }
+
+        async function banUser(clientId) {
+            const confirmed = await showConfirm("Ви впевнені, що хочете ЗАБЛОКУВАТИ цього користувача? Його поточну сесію буде закрито, і він більше не зможе користуватися ботом.", "danger");
+            if (!confirmed) return;
+            try {
+                const res = await fetch(`/api/users/${clientId}/ban`, {
+                    method: 'POST'
+                });
+                if (res.ok) {
+                    showToast("Користувача заблоковано!", "success");
+                    if (selectedChatClientId === clientId) {
+                        selectedChatClientId = null;
+                        try {
+                            localStorage.removeItem('selectedChatClientId');
+                        } catch (e) {}
+                        const windowContainer = document.getElementById('chat-window-container');
+                        if (windowContainer) {
+                            windowContainer.innerHTML = `
+                                <div class="chat-placeholder text-center text-muted">
+                                    <i class="bi bi-chat-dots fs-1 mb-2"></i>
+                                    <p>Оберіть сесію зі списку зліва, щоб відкрити чат підтримки</p>
+                                </div>
+                            `;
+                        }
+                    }
+                    loadSessions();
+                } else {
+                    const data = await res.json();
+                    showToast(data.detail || "Помилка блокування", "danger");
+                }
+            } catch (err) {
+                showToast("Помилка зв'язку з сервером", "danger");
+            }
+        }
+
+        async function unbanUser(clientId) {
+            try {
+                const res = await fetch(`/api/users/${clientId}/unban`, {
+                    method: 'POST'
+                });
+                if (res.ok) {
+                    showToast("Користувача розблоковано!", "success");
+                    loadBannedUsers();
+                } else {
+                    const data = await res.json();
+                    showToast(data.detail || "Помилка розблокування", "danger");
+                }
+            } catch (err) {
+                showToast("Помилка зв'язку з сервером", "danger");
+            }
+        }
+
         // Остаточне закриття сесії
         async function terminateSession(clientId) {
             const confirmed = await showConfirm("Ви впевнені, що хочете остаточно закрити сесію для цього клієнта?", "danger");
@@ -2243,6 +2377,8 @@
                 loadAISettings();
             } else if (tabId === 'chat') {
                 loadChatSessions();
+            } else if (tabId === 'banned') {
+                loadBannedUsers();
             }
         }
         
@@ -3366,6 +3502,11 @@
                         if (chatSidebarTab === 'completed') {
                             loadCompletedSessions();
                         }
+                    } else if (data.type === 'user_banned' || data.type === 'user_unbanned') {
+                        if (currentTab === 'banned') {
+                            loadBannedUsers();
+                        }
+                        pollData();
                     }
                 } catch (e) {
                     console.error("Failed to parse WS event:", e);
