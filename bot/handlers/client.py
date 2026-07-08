@@ -817,6 +817,29 @@ def is_wrong_code_text(text: str, chat_history: list = None) -> bool:
             return True
     return False
 
+def is_acknowledgment_text(text: str) -> bool:
+    t = text.lower().strip().strip('.').strip('!').strip('?')
+    
+    ack_words = {
+        "добре", "ок", "окей", "оки", "хорошо", "ладно", "пон", "поняв", "зрозумів", "дякую", "спасибі", "спасибо",
+        "щас", "ща", "секунду", "сек", "хвилину", "хв", "зачекайте", "почекайте", "зроблю", "сделаю", "зараз зроблю",
+        "щас сделаю", "сейчас", "минуту", "минутку", "чекайте", "ожидайте", "1 сек", "1сек", "одну сек"
+    }
+    
+    if t in ack_words:
+        return True
+        
+    phrases = [
+        "зараз зроблю", "ща зробу", "ща зроблю", "щас зроблю", "щас сделаю", "секунду чекайте",
+        "хвилину зачекайте", "почекайте секунду", "зачекайте секунду", "зараз пройду", "сейчас пройду",
+        "вже роблю", "уже делаю", "робиться", "делается"
+    ]
+    for phrase in phrases:
+        if t == phrase:
+            return True
+            
+    return False
+
 def is_code_success_text(text: str) -> bool:
     t = text.lower().strip()
     keywords = [
@@ -1080,6 +1103,11 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
             await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
             return
         
+        # Якщо це коротке повідомлення-підтвердження/пауза, просто ігноруємо
+        if message.text and is_acknowledgment_text(message.text):
+            logger.info(f"Ігноруємо повідомлення-підтвердження від клієнта {client_id}: {message.text}")
+            return
+
         # Показати статус "typing", щоб користувач знав, що бот обробляє запит
         await bot.send_chat_action(chat_id=client_id, action="typing")
         
