@@ -498,7 +498,8 @@ async def process_ipn(message: Message, state: FSMContext):
         [InlineKeyboardButton(text="🔄 Заповнити заново", callback_data="restart_reg")]
     ])
     
-    await message.answer(confirm_text, reply_markup=keyboard, parse_mode="Markdown")
+    msg = await message.answer(confirm_text, reply_markup=keyboard, parse_mode="Markdown")
+    await register_reg_msg(state, msg.message_id)
     await state.set_state(RegistrationStates.waiting_confirm)
 
 @router.callback_query(F.data == "confirm_reg")
