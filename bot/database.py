@@ -199,6 +199,7 @@ async def init_db():
                 bot_response TEXT NOT NULL,
                 is_active INTEGER DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
         """)
         
         # Таблиця для заблокованих користувачів
