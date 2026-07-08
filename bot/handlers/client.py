@@ -26,13 +26,8 @@ class RegistrationStates(StatesGroup):
 def get_sms_request_keyboard() -> ReplyKeyboardRemove:
     return ReplyKeyboardRemove()
 
-def get_cancel_keyboard() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="❌ Скасувати")]],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-        is_persistent=True
-    )
+def get_cancel_keyboard() -> ReplyKeyboardRemove:
+    return ReplyKeyboardRemove()
 
 @router.message(F.text == "/id")
 async def cmd_get_chat_id(message: Message):
