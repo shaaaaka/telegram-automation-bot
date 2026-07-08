@@ -285,19 +285,22 @@ async def handle_autofill_new(callback: CallbackQuery, state: FSMContext):
 async def process_pib_dob(message: Message, state: FSMContext):
     """Отримання ПІБ та Дати народження (можна окремими повідомленнями)"""
     text = message.text.strip()
+    state_data = await state.get_data()
+    reg_chat_history = state_data.get('reg_chat_history', [])
+    saved_pib = state_data.get('pib')
+    saved_dob = state_data.get('dob')
     
     # 0. Перевіряємо наявність запитань / заперечень через ШІ
     if is_question_or_objection(text):
         await register_reg_msg(state, message.message_id)
         
         # Перевірка на спам
-        state_data = await state.get_data()
         support_count = state_data.get('support_requests_count', 0) + 1
         await state.update_data(support_requests_count=support_count)
         
         if support_count > 5:
             msg = await message.answer(
-                "Перевищено ліміт запитань. Будь ласка, введіть коректні дані для реєстрації (ПІБ та Дату Народження). "
+                "Перевищено ліміт запитань та помилок. Будь ласка, введіть коректні дані для реєстрації (ПІБ та Дату Народження). "
                 "Якщо виникли труднощі — зверніться до адміністратора."
             )
             await register_reg_msg(state, msg.message_id)
@@ -309,14 +312,18 @@ async def process_pib_dob(message: Message, state: FSMContext):
             user_text=message.text,
             client_data="",
             current_bank_name=None,
-            chat_history=[]
+            chat_history=reg_chat_history
         )
         msg = await message.answer(response)
         await register_reg_msg(state, msg.message_id)
+        
+        # Зберігаємо до історії
+        reg_chat_history.append({"role": "user", "content": message.text})
+        reg_chat_history.append({"role": "assistant", "content": response})
+        await state.update_data(reg_chat_history=reg_chat_history)
         return
     
     await register_reg_msg(state, message.message_id)
-    state_data = await state.get_data()
 
     # Шукаємо дату народження
     date_match = re.search(r'\b(\d{1,2}[\.\-\/,]\d{1,2}[\.\-\/,]\d{2,4})\b', text)
@@ -334,6 +341,7 @@ async def process_pib_dob(message: Message, state: FSMContext):
                 "Будь ласка, введіть реальну дату у форматі ДД.ММ.РРРР (наприклад: 15.08.1995):",
                 reply_markup=get_cancel_keyboard()
             )
+            await register_reg_msg(state, err_msg.message_id)
             await state.update_data(pib_prompt_msg_id=err_msg.message_id)
             return
         text_rest = text.replace(dob_raw, '').strip()
@@ -342,17 +350,52 @@ async def process_pib_dob(message: Message, state: FSMContext):
 
     pib = clean_pib(text_rest) if text_rest else ""
 
-    # Отримуємо накопичені дані з стану
-    saved_pib = state_data.get('pib')
-    saved_dob = state_data.get('dob')
+    progress_made = False
 
     # Оновлюємо значення
     if dob:
         saved_dob = dob
         await state.update_data(dob=dob, support_requests_count=0)
-    if len(pib.split()) >= 2 and len(pib) >= 5:
+        progress_made = True
+    if pib and is_valid_pib(pib):
         saved_pib = pib
         await state.update_data(pib=pib, support_requests_count=0)
+        progress_made = True
+
+    if not progress_made:
+        # Введено не ПІБ і не дату
+        support_count = state_data.get('support_requests_count', 0) + 1
+        await state.update_data(support_requests_count=support_count)
+        
+        if support_count > 5:
+            msg = await message.answer(
+                "Перевищено ліміт запитань та помилок. Будь ласка, введіть коректні дані для реєстрації (ПІБ та Дату Народження). "
+                "Якщо виникли труднощі — зверніться до адміністратора."
+            )
+            await register_reg_msg(state, msg.message_id)
+            return
+            
+        # Підказуємо формат
+        if saved_dob:
+            err_msg = await message.answer(
+                "Будь ласка, введіть Ваші справжні ПІБ (Прізвище, Ім'я, По Батькові):\n\n"
+                "Приклад: Шевченко Тарас Григорович",
+                reply_markup=get_cancel_keyboard()
+            )
+        elif saved_pib:
+            err_msg = await message.answer(
+                "Будь ласка, введіть Вашу дату народження:\n\n"
+                "Приклад: 15.08.1995",
+                reply_markup=get_cancel_keyboard()
+            )
+        else:
+            err_msg = await message.answer(
+                "Будь ласка, введіть Ваші справжні ПІБ та Дату Народження.\n\n"
+                "Приклад: Шевченко Тарас Григорович 15.08.1995",
+                reply_markup=get_cancel_keyboard()
+            )
+        await register_reg_msg(state, err_msg.message_id)
+        return
 
     # Перевіряємо збір обох частин
     if saved_pib and saved_dob:
@@ -393,19 +436,20 @@ async def process_pib_dob(message: Message, state: FSMContext):
 async def process_ipn(message: Message, state: FSMContext):
     """Отримання ІПН та перехід до підтвердження даних"""
     ipn = message.text.strip()
+    state_data = await state.get_data()
+    reg_chat_history = state_data.get('reg_chat_history', [])
     
     # 0. Перевіряємо наявність запитань / заперечень через ШІ
     if is_question_or_objection(ipn):
         await register_reg_msg(state, message.message_id)
         
         # Перевірка на спам
-        state_data = await state.get_data()
         support_count = state_data.get('support_requests_count', 0) + 1
         await state.update_data(support_requests_count=support_count)
         
         if support_count > 5:
             msg = await message.answer(
-                "Перевищено ліміт запитань. Будь ласка, напишіть Ваш ІПН (10 цифр). "
+                "Перевищено ліміт запитань та помилок. Будь ласка, напишіть Ваш ІПН (10 цифр). "
                 "Якщо виникли труднощі — зверніться до адміністратора."
             )
             await register_reg_msg(state, msg.message_id)
@@ -417,10 +461,15 @@ async def process_ipn(message: Message, state: FSMContext):
             user_text=message.text,
             client_data="",
             current_bank_name=None,
-            chat_history=[]
+            chat_history=reg_chat_history
         )
         msg = await message.answer(response)
         await register_reg_msg(state, msg.message_id)
+        
+        # Зберігаємо до історії
+        reg_chat_history.append({"role": "user", "content": message.text})
+        reg_chat_history.append({"role": "assistant", "content": response})
+        await state.update_data(reg_chat_history=reg_chat_history)
         return
     
     await register_reg_msg(state, message.message_id)
@@ -891,6 +940,28 @@ def parse_and_validate_date(date_str: str) -> str:
         return dt.strftime("%d.%m.%Y")
     except ValueError:
         return None
+
+def is_valid_pib(pib: str) -> bool:
+    words = pib.strip().split()
+    if len(words) < 2 or len(words) > 4:
+        return False
+        
+    stop_words = {
+        "хз", "хто", "хтось", "нічого", "ні", "та", "ну", "да", "ок", "окей", "оки", "ладно", 
+        "так", "не", "буду", "хочу", "знаю", "робот", "бот", "автоматизатор", "помічник", 
+        "підтримка", "адмін", "адміністратор", "це", "це ваш", "це ваше", "я", "ти", "ми", "ви", "вони"
+    }
+    
+    for w in words:
+        w_clean = w.lower().strip().strip('.,!?')
+        if w_clean in stop_words:
+            return False
+        if len(w_clean) < 2:
+            return False
+        if not re.match(r'^[a-zA-Zа-яА-ЯіІїЇєЄґҐ\'\-]+$', w_clean):
+            return False
+            
+    return True
 
 def is_question_or_objection(text: str) -> bool:
     t = text.lower().strip().strip('?').strip('.').strip('!')
