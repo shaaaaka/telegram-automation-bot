@@ -5,7 +5,7 @@ mimetypes.init()
 mimetypes.add_type("text/css", ".css", True)
 mimetypes.add_type("application/javascript", ".js", True)
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Depends, status, BackgroundTasks
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Depends, status, BackgroundTasks, File, UploadFile, Form
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import io
@@ -284,7 +284,11 @@ async def get_telegram_photo(file_id: str):
         photo_bytes = io.BytesIO()
         await bot.download_file(file_info.file_path, photo_bytes)
         photo_bytes.seek(0)
-        return StreamingResponse(photo_bytes, media_type="image/jpeg")
+        return StreamingResponse(
+            photo_bytes, 
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=31536000, immutable"}
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch photo from Telegram: {e}")
 
@@ -302,7 +306,11 @@ async def get_client_avatar(client_id: int):
             photo_bytes = io.BytesIO()
             await bot.download_file(file_info.file_path, photo_bytes)
             photo_bytes.seek(0)
-            return StreamingResponse(photo_bytes, media_type="image/jpeg")
+            return StreamingResponse(
+                photo_bytes, 
+                media_type="image/jpeg",
+                headers={"Cache-Control": "public, max-age=86400"}
+            )
         else:
             raise HTTPException(status_code=404, detail="No profile photos found")
     except Exception as e:
@@ -843,6 +851,32 @@ async def send_client_message(client_id: int, body: ClientMessage):
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send message: {str(e)}")
+    finally:
+        current_sender.reset(token)
+
+@app.post("/api/sessions/{client_id}/photo")
+async def send_client_photo(client_id: int, file: UploadFile = File(...), caption: Optional[str] = Form(None)):
+    """Надсилання фото клієнту в Telegram від імені бота"""
+    if not bot:
+        raise HTTPException(status_code=500, detail="Telegram bot is not initialized")
+    
+    token = current_sender.set("admin")
+    try:
+        from aiogram.types import BufferedInputFile
+        file_bytes = await file.read()
+        input_file = BufferedInputFile(file_bytes, filename=file.filename)
+        
+        await bot.send_photo(chat_id=client_id, photo=input_file, caption=caption)
+        
+        # Якщо сесія була в статусі waiting_code, а адмін написав клієнту повідомлення,
+        # то автоматично скасовуємо статус очікування коду і повертаємо до number_assigned.
+        session = await db.get_session(client_id)
+        if session and session['status'] == 'waiting_code':
+            await db.set_session_status(client_id, 'number_assigned')
+            
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send photo: {str(e)}")
     finally:
         current_sender.reset(token)
 
