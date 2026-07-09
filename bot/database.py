@@ -124,7 +124,8 @@ async def init_db():
             ("instruction_message_id", "INTEGER"),
             ("client_phone", "TEXT"),
             ("bank", "TEXT"),
-            ("sent_codes_count", "INTEGER DEFAULT 0")
+            ("sent_codes_count", "INTEGER DEFAULT 0"),
+            ("is_paused", "INTEGER DEFAULT 0")
         ]
         
         for col_name, col_type in new_columns:

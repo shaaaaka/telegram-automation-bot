@@ -1324,6 +1324,9 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
     # Перевіряємо, чи є вже активна сесія у будь-котрому робочому статусі
     existing_session = await db.get_session(client_id)
     if existing_session:
+        if existing_session.get('is_paused'):
+            logger.info(f"AI bot is paused for client {client_id}. Ignoring automatic AI support response.")
+            return
         if existing_session['status'] == 'registered':
             await message.answer("Будь ласка, зачекайте, поки адміністратор призначить вам номер телефону для початку верифікації.")
             return
@@ -1444,6 +1447,9 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
     # Перевіряємо, чи є вже активна сесія
     existing_session = await db.get_session(client_id)
     if existing_session:
+        if existing_session.get('is_paused'):
+            logger.info(f"AI bot is paused for client {client_id}. Ignoring automatic AI photo support response.")
+            return
         if existing_session['status'] == 'registered':
             await message.answer("Будь ласка, зачекайте, поки адміністратор призначить вам номер телефону для початку верифікації.")
             return

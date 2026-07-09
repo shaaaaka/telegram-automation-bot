@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=99.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=101.0">
 </head>
 <body>
     <div class="container">
@@ -3479,6 +3479,34 @@
             }
         }
 
+        async function toggleAISetting(clientId) {
+            try {
+                const res = await fetch(`/api/sessions/${clientId}/toggle-ai`, {
+                    method: 'POST'
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    showToast(data.is_paused ? "ШІ-бота призупинено для цього клієнта!" : "ШІ-бота активовано для цього клієнта!", "success");
+                    
+                    const allSessions = [...(lastFetchedSessions || []), ...(cachedCompletedSessions || [])];
+                    const session = allSessions.find(s => s.client_id === clientId);
+                    if (session) {
+                        session.is_paused = data.is_paused ? 1 : 0;
+                    }
+                    
+                    if (selectedChatClientId === clientId) {
+                        selectChatClient(clientId);
+                    }
+                    renderChatSidebar();
+                } else {
+                    const err = await res.json();
+                    showToast("Помилка: " + err.detail, "error");
+                }
+            } catch (err) {
+                showToast("Не вдалося змінити статус ШІ", "error");
+            }
+        }
+
         async function selectChatClient(clientId) {
             selectedChatClientId = clientId;
             try {
@@ -3514,13 +3542,20 @@
                             <span id="avatar-placeholder-${session.client_id}">${displayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К'}</span>
                             <img src="/api/avatar/${session.client_id}" onload="const el = document.getElementById('avatar-placeholder-${session.client_id}'); if(el) el.style.display='none';" onerror="this.remove();">
                         </div>
-                        <div class="chat-window-details">
+                        <div class="chat-window-details" style="display: flex; align-items: center; gap: 10px;">
                             <span class="chat-window-name">${displayName}</span>
+                            ${session.is_paused 
+                                ? `<span class="ai-status-badge paused" onclick="toggleAISetting(${session.client_id})" title="Натисніть, щоб увімкнути авто-відповіді ШІ">🤖 ШІ вимкнено</span>`
+                                : `<span class="ai-status-badge active" onclick="toggleAISetting(${session.client_id})" title="Натисніть, щоб вимкнути авто-відповіді ШІ">🤖 ШІ працює</span>`
+                            }
                         </div>
                     </div>
                     <div class="chat-window-actions">
                         <button class="chat-actions-btn" onclick="toggleChatActionsMenu(event)" title="Опції чату">⋮</button>
                         <div class="chat-actions-dropdown" id="chat-actions-dropdown">
+                            <button class="dropdown-item" onclick="toggleAISetting(${session.client_id})">
+                                ${session.is_paused ? '▶ Увімкнути ШІ' : '⏸ Вимкнути ШІ'}
+                            </button>
                             <button class="dropdown-item" onclick="clearChatHistory(${session.client_id})">Очистити історію</button>
                             <button class="dropdown-item danger" onclick="deleteChatCompletely(${session.client_id})">Видалити чат повністю</button>
                         </div>
@@ -3789,6 +3824,19 @@
         }
 
         function handleIncomingWebSocketMessage(data) {
+            if (data.type === 'ai_toggled') {
+                const allSessions = [...(lastFetchedSessions || []), ...(cachedCompletedSessions || [])];
+                const session = allSessions.find(s => s.client_id === data.client_id);
+                if (session) {
+                    session.is_paused = data.is_paused ? 1 : 0;
+                }
+                if (selectedChatClientId === data.client_id) {
+                    selectChatClient(data.client_id);
+                }
+                renderChatSidebar();
+                return;
+            }
+
             // 1. If currently viewing this chat client
             if (selectedChatClientId === data.client_id) {
                 const bodyContainer = document.getElementById('chat-window-body-container');

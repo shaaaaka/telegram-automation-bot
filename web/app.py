@@ -655,6 +655,34 @@ async def clear_chat_endpoint(client_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to clear chat history: {str(e)}")
 
+@app.post("/api/sessions/{client_id}/toggle-ai")
+async def toggle_session_ai(client_id: int):
+    """Перемикання паузи ШІ-бота для сесії"""
+    try:
+        async with aiosqlite.connect(DB_FILE) as conn:
+            conn.row_factory = aiosqlite.Row
+            async with conn.execute("SELECT is_paused FROM sessions WHERE client_id = ?", (client_id,)) as cursor:
+                row = await cursor.fetchone()
+                if not row:
+                    raise HTTPException(status_code=404, detail="Session not found")
+                
+                new_state = 0 if row['is_paused'] else 1
+                await conn.execute("UPDATE sessions SET is_paused = ? WHERE client_id = ?", (new_state, client_id))
+                await conn.commit()
+                
+                # Broadcast via websocket to synchronize all panels
+                await manager.broadcast({
+                    "type": "ai_toggled",
+                    "client_id": client_id,
+                    "is_paused": bool(new_state)
+                })
+                
+                return {"status": "success", "is_paused": bool(new_state)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to toggle AI: {str(e)}")
+
 @app.delete("/api/sessions/{client_id}")
 async def delete_session_endpoint(client_id: int):
     """Повне видалення сесії та чату клієнта"""
