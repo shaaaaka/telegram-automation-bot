@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=109.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=111.0">
 </head>
 <body>
     <div class="container">
@@ -2091,14 +2091,12 @@
                                 <span class="client-name-formatted">${displayName}</span>
                                 ${usernameHTML}
                             </div>
-                            <div class="header-center">
+                            <div class="header-right" onclick="event.stopPropagation()">
                                 <!-- SLA Таймер -->
                                 <span class="sla-timer" data-client-id="${session.client_id}" data-status="${session.status}">⏳ Запуск...</span>
                                 <span class="session-status status-${session.status}">${statusText}</span>
-                            </div>
-                            <div class="header-right" onclick="event.stopPropagation()">
                                 <button class="btn-chat-modal-circle" onclick="event.stopPropagation(); openChatModal(${session.client_id}, event)" title="Відкрити чат">💬</button>
-                                <svg class="chevron-icon" width="20" height="20" viewBox="0 0 24 24" onclick="toggleExpand(${session.client_id}); event.stopPropagation();" style="margin-left: 12px; cursor: pointer;"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                                <svg class="chevron-icon" width="20" height="20" viewBox="0 0 24 24" onclick="toggleExpand(${session.client_id}); event.stopPropagation();" style="margin-left: 4px; cursor: pointer;"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
                             </div>
                         </div>
                         
