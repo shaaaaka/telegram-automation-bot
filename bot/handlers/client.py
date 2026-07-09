@@ -23,6 +23,7 @@ class RegistrationStates(StatesGroup):
     waiting_wrong_code_confirm = State()
     waiting_card_screenshot = State()
     waiting_own_number_confirm = State()
+    waiting_amobank_instruction_confirm = State()
 
 async def register_reg_msg(state: FSMContext, msg_id: int):
     data = await state.get_data()
@@ -1441,6 +1442,8 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
         chat_history = chat_history[-10:] # Зберігаємо останні 10 повідомлень
         await state.update_data(chat_history=chat_history)
 
+        if "[OFFER_AMOBANK_INSTRUCTIONS]" in response:
+            await state.set_state(RegistrationStates.waiting_amobank_instruction_confirm)
         clean_text = re.sub(r'\[[^\]]+\]', '', response).strip()
         await message.answer(clean_text, reply_markup=get_sms_request_keyboard())
         return
@@ -1580,6 +1583,8 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
                 await state.set_state(RegistrationStates.waiting_password)
             return
         else:
+            if "[OFFER_AMOBANK_INSTRUCTIONS]" in response:
+                await state.set_state(RegistrationStates.waiting_amobank_instruction_confirm)
             clean_text = re.sub(r'\[[^\]]+\]', '', response).strip()
             await message.answer(clean_text)
             return
@@ -1787,6 +1792,41 @@ async def process_own_number_confirm(message: Message, state: FSMContext, bot: B
     else:
         await message.answer("Добре. Тоді, будь ласка, спробуйте ще раз ввести в додатку номер, який я вам надіслав. Коли додаток попросить код підтвердження — напишіть про це сюди.")
         await state.clear()
+
+
+@router.message(RegistrationStates.waiting_amobank_instruction_confirm, F.chat.type == "private")
+async def process_amobank_instruction_confirm(message: Message, state: FSMContext, bot: Bot):
+    t = (message.text or "").lower().strip()
+    affirmative_words = ["так", "давай", "надсилай", "кидай", "ок", "окей", "да", "скинь", "скидуй", "звісно", "ага", "угу", "хочу"]
+    
+    is_yes = any(word in t for word in affirmative_words)
+    
+    if is_yes:
+        await state.clear()
+        await message.answer("Ось детальний шаблон заповнення анкети для AmoBank:")
+        
+        from aiogram.types import InputMediaPhoto, FSInputFile
+        import os
+        
+        images_dir = os.path.join(os.path.dirname(__file__), "..", "resources", "images")
+        media = []
+        for i in range(1, 5):
+            img_path = os.path.join(images_dir, f"amobank_step{i}.png")
+            if os.path.exists(img_path):
+                media.append(InputMediaPhoto(media=FSInputFile(img_path)))
+        
+        if media:
+            try:
+                await bot.send_media_group(chat_id=message.chat.id, media=media)
+            except Exception as e:
+                logger.error(f"Error sending amobank screenshots: {e}")
+                await message.answer("Не вдалося надіслати зображення через технічну помилку.")
+        else:
+            await message.answer("Зображення шаблону не знайдено.")
+    else:
+        # Clear state and process the message normally via handle_client_data_manual
+        await state.clear()
+        await handle_client_data_manual(message, state, bot)
 
 
 
