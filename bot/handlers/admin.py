@@ -158,7 +158,7 @@ async def cmd_list_lines(message: Message, state: FSMContext = None):
     
     async with aiosqlite.connect(DB_FILE) as db_conn:
         db_conn.row_factory = aiosqlite.Row
-        async with db_conn.execute("SELECT * FROM lines ORDER BY id") as cursor:
+        async with db_conn.execute("SELECT * FROM lines ORDER BY line_id, bank") as cursor:
             lines = await cursor.fetchall()
 
     if not lines:

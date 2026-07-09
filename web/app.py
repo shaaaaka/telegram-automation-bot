@@ -151,7 +151,7 @@ async def get_lines():
     """Отримання списку всіх телефонних ліній та їхніх статусів"""
     async with aiosqlite.connect(DB_FILE) as conn:
         conn.row_factory = aiosqlite.Row
-        async with conn.execute("SELECT * FROM lines ORDER BY id") as cursor:
+        async with conn.execute("SELECT * FROM lines ORDER BY line_id, bank") as cursor:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
