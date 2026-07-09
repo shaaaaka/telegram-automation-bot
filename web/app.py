@@ -314,30 +314,9 @@ async def save_client_banks(client_id: int, body: BanksSelection):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    # Розраховуємо новий список залишкових банків (щоб не скидати пройдений статус інших банків)
-    old_selected_str = session['selected_banks']
-    old_selected = old_selected_str.split(",") if old_selected_str else []
-    
-    old_remaining_str = session['remaining_banks']
-    old_remaining = old_remaining_str.split(",") if old_remaining_str else []
-    
     new_selected = body.selected_banks
+    new_remaining = list(new_selected)
     
-    # Автоматично зберігаємо вже завершені/пройдені банки в списку обраних.
-    # Завершені банки - це ті, які були в old_selected, але відсутні в old_remaining.
-    completed_banks = [bank for bank in old_selected if bank not in old_remaining]
-    for bank in completed_banks:
-        if bank not in new_selected:
-            new_selected.append(bank)
-            
-    new_remaining = []
-    
-    for bank in new_selected:
-        if bank in old_remaining:
-            new_remaining.append(bank)
-        elif bank not in old_selected:
-            new_remaining.append(bank)
-            
     selected_str = ",".join(new_selected)
     remaining_str = ",".join(new_remaining)
     
