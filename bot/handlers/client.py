@@ -69,6 +69,8 @@ async def handle_cancel_registration(message: Message, state: FSMContext):
         pass
 
     await state.clear()
+    if session and session['status'] == 'registering':
+        await db.set_session_status(client_id, 'completed')
     await message.answer(
         "Введення даних скасовано. Напишіть /start, щоб почати спочатку.",
         reply_markup=ReplyKeyboardRemove()
@@ -174,6 +176,8 @@ async def cmd_start(message: Message, state: FSMContext):
         return
 
     await state.clear()
+    username_db = message.from_user.username or "Немає юзернейму"
+    await db.create_registering_session(client_id, username_db)
     await register_reg_msg(state, message.message_id)
     
     # Перевіряємо можливість автозаповнення з попередньої завершеної сесії

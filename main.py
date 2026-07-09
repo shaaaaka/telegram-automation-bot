@@ -12,7 +12,7 @@ from bot.config import BOT_TOKEN, LOG_BOT_TOKEN
 from bot.database import init_db
 from bot.handlers import client, admin, giver
 from bot.scheduler import auto_reminder_loop
-from web.app import app as web_app, set_bot
+from web.app import app as web_app, set_bot, set_dp
 
 # Ініціалізація додаткового бота для логів, якщо вказаний токен
 log_bot = None
@@ -166,8 +166,9 @@ async def main():
     dp.include_router(giver.router)
     dp.include_router(client.router)
 
-    # Передаємо об'єкт бота у FastAPI додаток
+    # Передаємо об'єкт бота та диспетчера у FastAPI додаток
     set_bot(bot)
+    set_dp(dp)
 
     # Налаштування конфігурації Uvicorn
     import os

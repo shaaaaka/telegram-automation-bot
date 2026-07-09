@@ -366,6 +366,16 @@ h1 {
     box-shadow: 0 0 35px rgba(139, 92, 246, 0.08);
 }
 
+.session-card.registering {
+    border-color: rgba(156, 163, 175, 0.2);
+    background: rgba(156, 163, 175, 0.02);
+}
+.session-card.registering:hover {
+    border-color: rgba(156, 163, 175, 0.35);
+    background: rgba(156, 163, 175, 0.04);
+    box-shadow: 0 0 35px rgba(156, 163, 175, 0.06);
+}
+
 .session-card.finish-line {
     background: linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%) !important;
     border: 1px solid rgba(139, 92, 246, 0.35) !important;
@@ -478,6 +488,12 @@ h1 {
     color: var(--accent-warning); 
     border: 1px solid rgba(245, 158, 11, 0.15); 
     animation: statusPulse 1.8s infinite; 
+}
+
+.status-registering {
+    background: rgba(156, 163, 175, 0.1);
+    color: #9ca3af;
+    border: 1px solid rgba(156, 163, 175, 0.15);
 }
 
 @keyframes statusPulse {

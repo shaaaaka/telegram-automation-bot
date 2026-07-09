@@ -1891,6 +1891,7 @@
 
                     // Badge статусу
                     let statusText = 'Новий';
+                    if (session.status === 'registering') statusText = 'В анкеті';
                     if (session.status === 'number_assigned') statusText = 'Номер видано';
                     if (session.status === 'waiting_code') statusText = 'Очікує код';
 
@@ -1983,7 +1984,13 @@
                     const selected = selectedBanksStr ? selectedBanksStr.split(',').filter(Boolean) : [];
                     const remaining = remainingList;
 
-                    if (selected.length === 0) {
+                    if (session.status === 'registering') {
+                        assignmentHTML = `
+                            <div class="assignment-box bank-select-prompt info-box" style="background: rgba(156, 163, 175, 0.05); border-color: rgba(156, 163, 175, 0.2); color: #9ca3af;">
+                                <span>📝 Клієнт заповнює реєстраційні дані в боті...</span>
+                            </div>
+                        `;
+                    } else if (selected.length === 0) {
                         assignmentHTML = `
                             <div class="assignment-box bank-select-prompt">
                                 <span>⚠️ Будь ласка, оберіть один або кілька банків вище для початку роботи.</span>
@@ -2122,7 +2129,7 @@
                                         Забанити
                                     </button>
                                     <button class="btn btn-secondary btn-sm" onclick="terminateSession(${session.client_id})">
-                                        Закрити сесію
+                                        ${session.status === 'registering' ? 'Скасувати реєстрацію' : 'Закрити сесію'}
                                     </button>
                                 </div>
                                 <div class="action-footer-right">

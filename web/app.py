@@ -116,9 +116,16 @@ bot: Optional[Bot] = None
 # Глобальний список нерозподілених кодів (Сценарій 3)
 unrouted_codes = []
 
+bot = None
+dp = None
+
 def set_bot(bot_instance: Bot):
     global bot
     bot = bot_instance
+
+def set_dp(dp_instance):
+    global dp
+    dp = dp_instance
 
 class BanksSelection(BaseModel):
     selected_banks: List[str]
@@ -576,13 +583,39 @@ async def complete_bank(client_id: int, result: str = "success"):
 
 @app.post("/api/sessions/{client_id}/terminate")
 async def terminate_session(client_id: int):
-    """Остаточне закриття сесії клієнта вручну"""
+    """Остаточне закриття сесії клієнта вручну (або скасування реєстрації)"""
     if not bot:
         raise HTTPException(status_code=500, detail="Telegram bot is not initialized")
 
     session = await db.get_session(client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    # Якщо сесія у статусі заповнення анкети
+    if session['status'] == 'registering':
+        # Скидаємо FSM стан бота
+        if dp:
+            try:
+                from aiogram.fsm.storage.base import StorageKey
+                key = StorageKey(bot_id=bot.id, chat_id=client_id, user_id=client_id)
+                await dp.storage.set_state(key, None)
+                await dp.storage.set_data(key, {})
+            except Exception as e:
+                logging.error(f"Помилка при скиданні FSM стану для {client_id}: {e}")
+
+        # Повідомляємо клієнта
+        try:
+            await bot.send_message(
+                chat_id=client_id,
+                text="Введення даних скасовано адміністратором. Напишіть /start, щоб почати спочатку.",
+                reply_markup=ReplyKeyboardRemove()
+            )
+        except Exception:
+            pass
+
+        # Закриваємо сесію
+        await db.close_session(client_id)
+        return {"status": "terminated"}
 
     # Прибираємо кнопку у клієнта, якщо вона є
     if session['client_message_id']:
