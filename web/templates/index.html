@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=85.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=88.0">
 </head>
 <body>
     <div class="container">
@@ -986,6 +986,10 @@
                     return;
                 }
                 
+                const allSessions = [...(lastFetchedSessions || []), ...(cachedCompletedSessions || [])];
+                const session = allSessions.find(s => s.client_id === clientId);
+                const displayName = session ? extractDisplayName(session.client_data, session.username) : 'Клієнт';
+
                 let html = '';
                 let lastDateStr = null;
                 logs.forEach(msg => {
@@ -1019,11 +1023,51 @@
                         msgContent += `<div class="message-text">${escapedText}</div>`;
                     }
                     
-                    const checkmark = msg.sender !== 'client' ? '<span class="message-status">✓</span>' : '';
+                    const checkmark = msg.sender !== 'client' ? '<span class="msg-checkmark">✓</span>' : '';
+                    
+                    let headerHtml = '';
+                    let avatarLetter = 'К';
+                    if (msg.sender === 'client') {
+                        avatarLetter = displayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К';
+                        headerHtml = `
+                            <div class="chat-msg-header">
+                                <span class="status-dot">●</span>
+                                <strong>${displayName}</strong>
+                                <span>•</span>
+                                <span>Telegram</span>
+                                <span>•</span>
+                                <span>${time}</span>
+                            </div>
+                        `;
+                    } else if (msg.sender === 'bot') {
+                        avatarLetter = '🤖';
+                        headerHtml = `
+                            <div class="chat-msg-header">
+                                <span>${time}${checkmark}</span>
+                                <span>•</span>
+                                <span class="badge-ai">⚡ AI-агент</span>
+                            </div>
+                        `;
+                    } else {
+                        avatarLetter = '👤';
+                        headerHtml = `
+                            <div class="chat-msg-header">
+                                <span>${time}${checkmark}</span>
+                                <span>•</span>
+                                <span class="badge-operator">👤 Оператор</span>
+                            </div>
+                        `;
+                    }
+
                     html += `
-                        <div class="chat-message ${msg.sender}">
-                            ${msgContent}
-                            <span class="message-time">${time} ${checkmark}</span>
+                        <div class="chat-msg-container ${msg.sender}">
+                            <div class="chat-msg-avatar">${avatarLetter}</div>
+                            <div class="chat-msg-content-wrapper">
+                                ${headerHtml}
+                                <div class="chat-message ${msg.sender}" style="margin: 0 !important; max-width: 100% !important;">
+                                    ${msgContent}
+                                </div>
+                            </div>
                         </div>
                     `;
                 });
@@ -3520,8 +3564,12 @@
         }
 
         function renderSingleChatMessage(container, log) {
-            const row = document.createElement('div');
-            row.className = `chat-msg-row msg-${log.sender}`;
+            const allSessions = [...(lastFetchedSessions || []), ...(cachedCompletedSessions || [])];
+            const session = allSessions.find(s => s.client_id === selectedChatClientId);
+            const displayName = session ? extractDisplayName(session.client_data, session.username) : 'Клієнт';
+
+            const containerDiv = document.createElement('div');
+            containerDiv.className = `chat-msg-container ${log.sender}`;
             
             let contentHtml = '';
             if (log.photo_id) {
@@ -3533,27 +3581,59 @@
                 contentHtml += `<div class="chat-msg-text">${escapedText.replace(/\n/g, '<br>')}</div>`;
             }
             
-            // Formatting time
             let timeStr = '';
             if (log.created_at) {
                 try {
-                    // Expecting SQLite format: "2026-06-18 22:54:37"
                     timeStr = log.created_at.split(' ')[1]?.substring(0, 5) || '';
                 } catch (e) {}
             }
             
-            // Single checkmark for sent messages
             const checkmarks = log.sender !== 'client' ? ' <span class="msg-checkmark">✓</span>' : '';
             
-            row.innerHTML = `
-                <div class="chat-msg-bubble">
-                    ${contentHtml}
-                    <div class="chat-msg-meta">
-                        <span>${log.sender === 'bot' ? '🤖 Бот • ' : ''}${timeStr}${checkmarks}</span>
+            let headerHtml = '';
+            let avatarLetter = 'К';
+            if (log.sender === 'client') {
+                avatarLetter = displayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К';
+                headerHtml = `
+                    <div class="chat-msg-header">
+                        <span class="status-dot">●</span>
+                        <strong>${displayName}</strong>
+                        <span>•</span>
+                        <span>Telegram</span>
+                        <span>•</span>
+                        <span>${timeStr}</span>
+                    </div>
+                `;
+            } else if (log.sender === 'bot') {
+                avatarLetter = '🤖';
+                headerHtml = `
+                    <div class="chat-msg-header">
+                        <span>${timeStr}${checkmarks}</span>
+                        <span>•</span>
+                        <span class="badge-ai">⚡ AI-агент</span>
+                    </div>
+                `;
+            } else {
+                avatarLetter = '👤';
+                headerHtml = `
+                    <div class="chat-msg-header">
+                        <span>${timeStr}${checkmarks}</span>
+                        <span>•</span>
+                        <span class="badge-operator">👤 Оператор</span>
+                    </div>
+                `;
+            }
+            
+            containerDiv.innerHTML = `
+                <div class="chat-msg-avatar">${avatarLetter}</div>
+                <div class="chat-msg-content-wrapper">
+                    ${headerHtml}
+                    <div class="chat-msg-bubble" style="max-width: 100% !important;">
+                        ${contentHtml}
                     </div>
                 </div>
             `;
-            container.appendChild(row);
+            container.appendChild(containerDiv);
         }
 
         function scrollToBottom(containerId) {
