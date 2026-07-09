@@ -1061,7 +1061,7 @@ async def mark_bank_as_failed(client_id: int, bot: Bot):
         )
         await bot.send_message(
             chat_id=client_id,
-            text="Роботу завершили, дякуємо за співпрацю.",
+            text="На жаль, верифікація саме по цьому банку закінчена. Роботу завершили, дякуємо за співпрацю.",
             reply_markup=kbd
         )
         await db.close_session(client_id)
@@ -1078,7 +1078,7 @@ async def mark_bank_as_failed(client_id: int, bot: Bot):
         # Ще є банки
         await bot.send_message(
             chat_id=client_id,
-            text=f"Цей банк скасовано. Будь ласка, зачекайте, поки адміністратор призначить вам наступний банк."
+            text="На жаль, верифікація саме по цьому банку закінчена."
         )
 
 def is_code_request_text(text: str) -> bool:
@@ -1316,7 +1316,7 @@ async def simulate_typing(bot: Bot, chat_id: int, duration: float):
             await asyncio.sleep(sleep_time)
 
 
-@router.message(F.chat.type == "private", F.text & ~F.text.startswith('/'))
+@router.message(StateFilter(None), F.chat.type == "private", F.text & ~F.text.startswith('/'))
 async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bot):
     """Обробник повідомлень поза станами введення даних (захист від флуду + ШІ підтримка)"""
     client_id = message.from_user.id
@@ -1436,7 +1436,7 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
     # Якщо користувач не у стані анкетування, пропонуємо йому почати з команди /start
     await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
 
-@router.message(F.chat.type == "private", F.photo)
+@router.message(StateFilter(None), F.chat.type == "private", F.photo)
 async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
     """Обробник скріншотів/зображень від користувача (ШІ розпізнавання помилок)"""
     client_id = message.from_user.id
