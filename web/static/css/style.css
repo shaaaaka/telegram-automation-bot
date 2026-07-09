@@ -1324,7 +1324,7 @@ textarea:focus {
 .toast-container {
     position: fixed;
     top: 92px;
-    left: 24px;
+    right: 24px;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -1359,7 +1359,7 @@ textarea:focus {
 }
 
 @keyframes toastSlideIn {
-    from { transform: translateX(-120%); opacity: 0; }
+    from { transform: translateX(120%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
 }
 
