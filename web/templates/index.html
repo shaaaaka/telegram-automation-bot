@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=124.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=125.0">
 </head>
 <body>
     <div class="container">
@@ -1954,8 +1954,8 @@
                         let statusIcon = '';
                         let onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
                         
-                        // Якщо є історія для цього банку і він не є активним у списку проходження, показуємо її статус
-                        if (hasHistory && !isRemaining) {
+                        // Якщо є історія для цього банку і він обраний, але не є активним у списку проходження, показуємо її статус
+                        if (hasHistory && isSelected && !isRemaining) {
                             const status = bankStatuses[bank] || 'released';
                             if (status === 'success') {
                                 chipClasses += ' success-done';
