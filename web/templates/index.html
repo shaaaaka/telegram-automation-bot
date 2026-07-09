@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=126.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=127.0">
 </head>
 <body>
     <div class="container">
@@ -1955,37 +1955,26 @@
                         const hasHistory = bankStatuses[bank] !== undefined;
                         
                         let chipClasses = `bank-chip ${bankClass}`;
-                        if (isSelected) {
-                            chipClasses += ' selected';
-                        }
-                        
                         let statusIcon = '';
-                        let onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
+                        let onclickAttr = '';
                         
-                        // Якщо є історія для цього банку і він обраний, але не є активним у списку проходження, показуємо її статус
-                        if (hasHistory && isSelected && !isRemaining) {
-                            const status = bankStatuses[bank] || 'released';
-                            if (status === 'success') {
-                                chipClasses += ' success-done';
-                                statusIcon = '<span class="chip-status-icon">✓</span>';
-                                onclickAttr = '';
-                            } else if (status === 'failure' || status === 'banned') {
-                                chipClasses += ' failure-done';
-                                statusIcon = '<span class="chip-status-icon">✗</span>';
-                                onclickAttr = '';
-                            } else {
-                                chipClasses += ' released-done';
-                                statusIcon = '<span class="chip-status-icon">↻</span>';
-                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
-                            }
-                        } else if (isCompleted) {
-                            chipClasses += ' success-done';
-                            statusIcon = '<span class="chip-status-icon">✓</span>';
-                            onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
-                        } else if (isSelected) {
+                        if (isRemaining) {
                             chipClasses += ' selected';
                             onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
                         } else {
+                            if (hasHistory) {
+                                const status = bankStatuses[bank] || 'released';
+                                if (status === 'success') {
+                                    chipClasses += ' success-done';
+                                    statusIcon = '<span class="chip-status-icon">✓</span>';
+                                } else if (status === 'failure' || status === 'banned') {
+                                    chipClasses += ' failure-done';
+                                    statusIcon = '<span class="chip-status-icon">✗</span>';
+                                } else {
+                                    chipClasses += ' released-done';
+                                    statusIcon = '<span class="chip-status-icon">↻</span>';
+                                }
+                            }
                             onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
                         }
                         
