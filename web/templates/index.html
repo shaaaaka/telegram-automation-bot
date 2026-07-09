@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=61.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=81.0">
 </head>
 <body>
     <div class="container">
@@ -690,6 +690,7 @@
         let tempSelectedLines = {};  // client_id -> lineId (string)
         let tempMessageInputs = {};  // client_id -> string (text typed in textarea)
         let expandedSessions = new Set(); // Сет збереження розкритих карток клієнтів (по client_id)
+        let openActionTrays = new Set();  // Сет збереження розкритих треїв дій (по client_id)
         try {
             const storedExpanded = JSON.parse(localStorage.getItem('expandedSessions') || '[]');
             expandedSessions = new Set(storedExpanded);
@@ -843,6 +844,23 @@
 
 
 
+
+        // Перемикання трею дій (Зареєстрував / Відмова)
+        function toggleActionTray(clientId, event) {
+            if (event) event.stopPropagation();
+            
+            const isOpen = openActionTrays.has(clientId);
+            if (isOpen) {
+                openActionTrays.delete(clientId);
+            } else {
+                openActionTrays.add(clientId);
+            }
+            
+            const container = document.querySelector(`.session-card[data-id="${clientId}"] .action-tray-container`);
+            if (container) {
+                container.classList.toggle('open');
+            }
+        }
 
         // Розкриття/Згортання картки сесії клієнта
         function toggleExpand(clientId) {
@@ -1638,6 +1656,89 @@
             }
         }
 
+        // Швидке копіювання значення в буфер обміну з мікро-нотифікацією
+        function copyTextToClipboard(text, event) {
+            if (event) event.stopPropagation();
+            navigator.clipboard.writeText(text).then(() => {
+                const tooltip = document.createElement('div');
+                tooltip.innerText = 'Скопійовано!';
+                tooltip.style.position = 'fixed';
+                tooltip.style.left = `${event.clientX + 10}px`;
+                tooltip.style.top = `${event.clientY - 10}px`;
+                tooltip.style.background = '#10b981';
+                tooltip.style.color = 'white';
+                tooltip.style.padding = '4px 8px';
+                tooltip.style.borderRadius = '4px';
+                tooltip.style.fontSize = '0.75rem';
+                tooltip.style.zIndex = '10000';
+                tooltip.style.pointerEvents = 'none';
+                tooltip.style.fontFamily = 'sans-serif';
+                tooltip.style.fontWeight = 'bold';
+                tooltip.style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
+                document.body.appendChild(tooltip);
+                
+                setTimeout(() => {
+                    tooltip.style.transition = 'opacity 0.2s ease';
+                    tooltip.style.opacity = '0';
+                    setTimeout(() => tooltip.remove(), 200);
+                }, 800);
+            }).catch(err => {
+                console.error("Could not copy text: ", err);
+            });
+        }
+
+        // Рендер реєстраційних даних з можливістю копіювання
+        function renderClientDataHTML(session) {
+            const rawData = session.client_data;
+            if (!rawData) return '<div class="no-data">Немає даних</div>';
+            const lines = rawData.split('\n');
+            let html = '<div class="client-data-text-block">';
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+                const colonIdx = trimmed.indexOf(':');
+                if (colonIdx !== -1) {
+                    const key = trimmed.substring(0, colonIdx).trim();
+                    const val = trimmed.substring(colonIdx + 1).trim();
+                    html += `
+                        <div class="client-data-line">
+                            <span class="client-data-key">${key}:</span>
+                            <span class="client-data-val" onclick="copyTextToClipboard('${val}', event)" title="Клікніть, щоб скопіювати">${val}</span>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="client-data-raw-line">${trimmed}</div>
+                    `;
+                }
+            });
+            html += '</div>';
+            return html;
+        }
+
+        // Рендер випадаючого трею кнопок дій
+        function renderActionTrayHTML(session) {
+            const isTrayOpen = openActionTrays.has(session.client_id);
+            const disabledAttr = !session.line_id ? 'disabled' : '';
+            return `
+                <div class="action-tray-container ${isTrayOpen ? 'open' : ''}">
+                    <button class="btn btn-secondary btn-sm action-tray-toggle" onclick="toggleActionTray(${session.client_id}, event)" ${disabledAttr}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                    <div class="action-tray-content">
+                        <button class="btn btn-success btn-sm" onclick="completeSessionBank(${session.client_id}, 'success')" ${disabledAttr}>
+                            Зареєстрував
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="completeSessionBank(${session.client_id}, 'failure')" ${disabledAttr}>
+                            Відмова
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
         // Відображення карток клієнтів (сесій)
         function renderSessions(sessions) {
             // Збереження фокусу та положення курсору перед перемальовуванням
@@ -1655,280 +1756,308 @@
             
             const container = document.getElementById('sessions-container');
             if (!container) return;
-            container.innerHTML = '';
+
+            // Збережемо посилання на існуючі картки за їх client_id
+            const existingCards = {};
+            Array.from(container.children).forEach(child => {
+                if (child.classList.contains('session-card')) {
+                    const id = child.getAttribute('data-id');
+                    if (id) existingCards[id] = child;
+                }
+            });
+
+            // Множина активних client_id, які мають бути відрендерені
+            const activeClientIds = new Set();
 
             if (filtered.length === 0) {
                 container.innerHTML = `<div class="empty-state">Немає клієнтів за обраними фільтрами</div>`;
             } else {
+                // Видаляємо блок empty-state, якщо він був
+                const emptyState = container.querySelector('.empty-state');
+                if (emptyState) emptyState.remove();
+
                 filtered.forEach(session => {
-                const isExpanded = expandedSessions.has(session.client_id);
-                const isFinishLine = session.line_id && session.success_photo_id;
-                const card = document.createElement('div');
-                card.className = `session-card ${session.status} ${isExpanded ? 'expanded' : ''} ${isFinishLine ? 'finish-line' : ''}`;
-                card.setAttribute('data-id', session.client_id);
+                    activeClientIds.add(session.client_id);
+                    const isExpanded = expandedSessions.has(session.client_id);
+                    const isFinishLine = session.line_id && session.success_photo_id;
 
-                // ПІБ клієнта
-                const displayName = extractDisplayName(session.client_data, session.username) + (isFinishLine ? ' 💳' : '');
+                    // Отримуємо або створюємо картку
+                    let card = existingCards[session.client_id];
+                    let isNewCard = !card;
+                    if (isNewCard) {
+                        card = document.createElement('div');
+                        card.setAttribute('data-id', session.client_id);
+                    }
 
-                // Badge статусу
-                let statusText = 'Зареєстрований';
-                if (session.status === 'number_assigned') statusText = 'Номер призначено';
-                if (session.status === 'waiting_code') statusText = 'Очікує SMS-код';
+                    // Оновлюємо клас
+                    const targetClassName = `session-card ${session.status} ${isExpanded ? 'expanded' : ''} ${isFinishLine ? 'finish-line' : ''}`;
+                    if (card.className !== targetClassName) {
+                        card.className = targetClassName;
+                    }
 
-                // Лінія для прев'ю
-                let activeLineText = '';
-                if (session.line_id) {
-                    const activeLine = allLines.find(l => l.id === session.line_id);
-                    const bankName = activeLine ? activeLine.bank : 'Банк';
-                    activeLineText = activeLine ? `${bankName} (Line ${activeLine.line_id})` : `Line ${session.line_id}`;
-                }
+                    // ПІБ клієнта
+                    const displayName = extractDisplayName(session.client_data, session.username) + (isFinishLine ? ' 💳' : '');
 
-                // Рендер чекбоксів банків
-                let bankChipsHTML = '';
-                let selectedList;
-                if (tempSelectedBanks[session.client_id] !== undefined) {
-                    selectedList = tempSelectedBanks[session.client_id];
-                } else {
-                    selectedList = session.selected_banks ? session.selected_banks.split(',') : [];
-                }
-                
-                const remainingBanksStr = session.remaining_banks;
-                const remainingList = remainingBanksStr ? remainingBanksStr.split(',').filter(Boolean) : [];
-                const bankStatuses = session.bank_statuses || {};
-                
-                // Додаємо банки з історії до списку для відображення
-                const historyBanks = Object.keys(bankStatuses);
-                
-                const customOrder = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"];
-                const allPossibleBanks = Array.from(new Set([...customOrder, ...availableBanks, ...selectedList, ...historyBanks]))
-                    .filter(b => b && b.toLowerCase() !== 'ecobank' && b.toLowerCase() !== 'pumb')
-                    .sort((a, b) => {
-                        const idxA = customOrder.findIndex(x => x.toLowerCase() === a.toLowerCase());
-                        const idxB = customOrder.findIndex(x => x.toLowerCase() === b.toLowerCase());
-                        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-                        if (idxA !== -1) return -1;
-                        if (idxB !== -1) return 1;
-                        return a.localeCompare(b);
+                    // Badge статусу
+                    let statusText = 'Зареєстрований';
+                    if (session.status === 'number_assigned') statusText = 'Номер призначено';
+                    if (session.status === 'waiting_code') statusText = 'Очікує SMS-код';
+
+                    // Рендер чекбоксів банків
+                    let bankChipsHTML = '';
+                    let selectedList;
+                    if (tempSelectedBanks[session.client_id] !== undefined) {
+                        selectedList = tempSelectedBanks[session.client_id];
+                    } else {
+                        selectedList = session.selected_banks ? session.selected_banks.split(',') : [];
+                    }
+                    
+                    const remainingBanksStr = session.remaining_banks;
+                    const remainingList = remainingBanksStr ? remainingBanksStr.split(',').filter(Boolean) : [];
+                    const bankStatuses = session.bank_statuses || {};
+                    
+                    // Додаємо банки з історії до списку для відображення
+                    const historyBanks = Object.keys(bankStatuses);
+                    
+                    const customOrder = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"];
+                    const allPossibleBanks = Array.from(new Set([...customOrder, ...availableBanks, ...selectedList, ...historyBanks]))
+                        .filter(b => b && b.toLowerCase() !== 'ecobank' && b.toLowerCase() !== 'pumb')
+                        .sort((a, b) => {
+                            const idxA = customOrder.findIndex(x => x.toLowerCase() === a.toLowerCase());
+                            const idxB = customOrder.findIndex(x => x.toLowerCase() === b.toLowerCase());
+                            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                            if (idxA !== -1) return -1;
+                            if (idxB !== -1) return 1;
+                            return a.localeCompare(b);
+                        });
+
+                    allPossibleBanks.forEach(bank => {
+                        const isSelected = selectedList.includes(bank);
+                        const isRemaining = remainingList.includes(bank);
+                        const isCompleted = isSelected && !isRemaining;
+                        const bankClass = getBankClass(bank);
+                        const hasHistory = bankStatuses[bank] !== undefined;
+                        
+                        let chipClasses = `bank-chip ${bankClass}`;
+                        if (isSelected) {
+                            chipClasses += ' selected';
+                        }
+                        
+                        let statusIcon = '';
+                        let onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
+                        
+                        // Якщо є історія для цього банку і він не є активним у списку проходження, показуємо її статус
+                        if (hasHistory && !isRemaining) {
+                            const status = bankStatuses[bank] || 'released';
+                            if (status === 'success') {
+                                chipClasses += ' success-done';
+                                statusIcon = '<span class="chip-status-icon">✓</span>';
+                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
+                            } else if (status === 'failure') {
+                                chipClasses += ' failure-done';
+                                statusIcon = '<span class="chip-status-icon">✗</span>';
+                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
+                            } else {
+                                chipClasses += ' released-done';
+                                statusIcon = '<span class="chip-status-icon">↻</span>';
+                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
+                            }
+                        } else if (isCompleted) {
+                            chipClasses += ' success-done';
+                            statusIcon = '<span class="chip-status-icon">✓</span>';
+                            onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
+                        } else if (isSelected) {
+                            chipClasses += ' selected';
+                            onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
+                        } else {
+                            onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
+                        }
+                        
+                        if (isRemaining && hasHistory) {
+                            onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
+                        }
+                        
+                        bankChipsHTML += `
+                            <div class="${chipClasses}" ${onclickAttr}>
+                                <input type="checkbox" data-bank="${bank}" ${isSelected ? 'checked' : ''} style="display: none;">
+                                ${statusIcon}
+                                <span>${bank}</span>
+                            </div>
+                        `;
                     });
 
-                allPossibleBanks.forEach(bank => {
-                    const isSelected = selectedList.includes(bank);
-                    const isRemaining = remainingList.includes(bank);
-                    const isCompleted = isSelected && !isRemaining;
-                    const bankClass = getBankClass(bank);
-                    const hasHistory = bankStatuses[bank] !== undefined;
-                    
-                    let chipClasses = `bank-chip ${bankClass}`;
-                    if (isSelected) {
-                        chipClasses += ' selected';
-                    }
-                    
-                    let statusIcon = '';
-                    let onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
-                    
-                    // Якщо є історія для цього банку і він не є активним у списку проходження, показуємо її статус
-                    if (hasHistory && !isRemaining) {
-                        const status = bankStatuses[bank] || 'released';
-                        if (status === 'success') {
-                            chipClasses += ' success-done';
-                            statusIcon = '<span class="status-icon-done">✓</span> ';
-                            if (!isSelected) {
-                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
-                            } else {
-                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
-                            }
-                        } else if (status === 'banned' || status === 'failure') {
-                            chipClasses += ' failure-done';
-                            statusIcon = '<span class="status-icon-fail">✗</span> ';
-                            if (!isSelected) {
-                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
-                            } else {
-                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
-                            }
-                        } else {
-                            chipClasses += ' released-done';
-                            statusIcon = '<span class="status-icon-released">↺</span> ';
-                            if (!isSelected) {
-                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
-                            } else if (!isRemaining) {
-                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
-                            } else {
-                                onclickAttr = '';
-                            }
-                        }
-                    } else if (isCompleted) {
-                        chipClasses += ' released-done';
-                        statusIcon = '<span class="status-icon-released">↺</span> ';
-                        onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
-                    }
+                    // Призначення лінії
+                    let assignmentHTML = '';
+                    const selectedBanksStr = session.selected_banks;
+                    const selected = selectedBanksStr ? selectedBanksStr.split(',').filter(Boolean) : [];
+                    const remaining = remainingList;
 
-                    bankChipsHTML += `
-                        <div class="${chipClasses}" ${onclickAttr}>
-                            <input type="checkbox" data-bank="${bank}" ${isSelected ? 'checked' : ''} style="display: none;">
-                            ${statusIcon}${bank}
-                        </div>
-                    `;
-                });
-
-                // Призначення лінії
-                let assignmentHTML = '';
-                const selectedBanksStr = session.selected_banks;
-                const selected = selectedBanksStr ? selectedBanksStr.split(',').filter(Boolean) : [];
-                const remaining = remainingList;
-
-                if (selected.length === 0) {
-                    assignmentHTML = `
-                        <div class="assignment-box bank-select-prompt">
-                            <span>⚠️ Будь ласка, оберіть один або кілька банків вище для початку роботи.</span>
-                        </div>
-                    `;
-                } else if (remaining.length > 0) {
-                    if (session.line_id) {
-                        const activeLine = allLines.find(l => l.id === session.line_id);
-                        const phoneNum = activeLine ? `+${activeLine.phone_number}` : 'Невідомий';
-                        const bankName = activeLine ? activeLine.bank : 'Банк';
+                    if (selected.length === 0) {
                         assignmentHTML = `
-                            <div class="assignment-box">
-                                <div class="section-label">Призначено лінію</div>
-                                <div class="active-line-display">
-                                    <span>Line ${session.line_id} (${bankName})</span>
-                                    <span class="phone-number-copy" onclick="copyToClipboard('${phoneNum}')">${phoneNum}</span>
-                                </div>
+                            <div class="assignment-box bank-select-prompt">
+                                <span>⚠️ Будь ласка, оберіть один або кілька банків вище для початку роботи.</span>
                             </div>
                         `;
-                    } else {
-                        const freeLines = allLines.filter(l => l.status === 'available' && remaining.includes(l.bank));
-                        const currentTempLineId = tempSelectedLines[session.client_id] || "";
-
-                        let selectOptions = freeLines.map(l => {
-                            const isSelected = String(l.id) === String(currentTempLineId);
-                            return `<option value="${l.id}" ${isSelected ? 'selected' : ''}>Line ${l.line_id} (${l.bank})</option>`;
-                        }).join('');
-                        
-                        let customOptionsHTML = '';
-                        let currentTriggerText = 'Оберіть лінію';
-                        
-                        if (freeLines.length === 0) {
-                            currentTriggerText = `Немає вільних ліній`;
-                            customOptionsHTML = `<div class="custom-select-option disabled">Немає вільних ліній</div>`;
-                            selectOptions = `<option value="">Немає вільних ліній</option>`;
-                        } else {
-                            if (currentTempLineId !== "") {
-                                const selectedLine = freeLines.find(l => String(l.id) === String(currentTempLineId));
-                                if (selectedLine) {
-                                    currentTriggerText = `Line ${selectedLine.line_id} (${selectedLine.bank})`;
-                                }
-                            }
-                            
-                            selectOptions = `<option value="" ${currentTempLineId === "" ? 'selected' : ''}>Оберіть лінію</option>` + selectOptions;
-                            
-                            customOptionsHTML += `
-                                <div class="custom-select-option ${currentTempLineId === "" ? 'selected' : ''}" data-value="">
-                                    Оберіть лінію
+                    } else if (remaining.length > 0) {
+                        if (session.line_id) {
+                            const activeLine = allLines.find(l => l.id === session.line_id);
+                            const phoneNum = activeLine ? `+${activeLine.phone_number}` : 'Невідомий';
+                            const bankName = activeLine ? activeLine.bank : 'Банк';
+                            assignmentHTML = `
+                                <div class="assignment-box active-line-capsule-container">
+                                    <div class="section-label">Призначено лінію</div>
+                                    <div class="active-line-capsule">
+                                        <span class="capsule-line">Line ${activeLine ? activeLine.line_id : session.line_id} (${bankName})</span>
+                                        <span class="capsule-divider">•</span>
+                                        <span class="capsule-phone" onclick="copyToClipboard('${phoneNum}')" title="Клікніть, щоб скопіювати">${phoneNum}</span>
+                                    </div>
                                 </div>
                             `;
-                            
-                            freeLines.forEach(l => {
+                        } else {
+                            const freeLines = allLines.filter(l => l.status === 'available' && remaining.includes(l.bank));
+                            const currentTempLineId = tempSelectedLines[session.client_id] || "";
+
+                            let selectOptions = freeLines.map(l => {
                                 const isSelected = String(l.id) === String(currentTempLineId);
+                                return `<option value="${l.id}" ${isSelected ? 'selected' : ''}>Line ${l.line_id} (${l.bank})</option>`;
+                            }).join('');
+                            
+                            let customOptionsHTML = '';
+                            let currentTriggerText = 'Оберіть лінію';
+                            
+                            if (freeLines.length === 0) {
+                                currentTriggerText = `Немає вільних ліній`;
+                                customOptionsHTML = `<div class="custom-select-option disabled">Немає вільних ліній</div>`;
+                                selectOptions = `<option value="">Немає вільних ліній</option>`;
+                            } else {
+                                if (currentTempLineId !== "") {
+                                    const selectedLine = freeLines.find(l => String(l.id) === String(currentTempLineId));
+                                    if (selectedLine) {
+                                        currentTriggerText = `Line ${selectedLine.line_id} (${selectedLine.bank})`;
+                                    }
+                                }
+                                
+                                selectOptions = `<option value="" ${currentTempLineId === "" ? 'selected' : ''}>Оберіть лінію</option>` + selectOptions;
+                                
                                 customOptionsHTML += `
-                                    <div class="custom-select-option ${isSelected ? 'selected' : ''}" data-value="${l.id}">
-                                        <span>Line ${l.line_id} (${l.bank})</span>
+                                    <div class="custom-select-option ${currentTempLineId === "" ? 'selected' : ''}" data-value="">
+                                        Оберіть лінію
                                     </div>
                                 `;
-                            });
-                        }
+                                
+                                freeLines.forEach(l => {
+                                    const isSelected = String(l.id) === String(currentTempLineId);
+                                    customOptionsHTML += `
+                                        <div class="custom-select-option ${isSelected ? 'selected' : ''}" data-value="${l.id}">
+                                            <span>Line ${l.line_id} (${l.bank})</span>
+                                        </div>
+                                    `;
+                                });
+                            }
 
-                        assignmentHTML = `
-                            <div class="assignment-box">
-                                <div class="section-label">Призначити наступну лінію</div>
-                                <div class="assign-controls">
-                                    <!-- Прихований нативний селект для бекенд-сумісності -->
-                                    <select id="line-select-${session.client_id}" onchange="onLineSelectChange(this, ${session.client_id})" style="display: none;">
-                                        ${selectOptions}
-                                    </select>
-                                    
-                                    <!-- Кастомний преміальний випадаючий список -->
-                                    <div class="custom-select-wrapper" id="custom-select-wrapper-${session.client_id}">
-                                        <div class="custom-select-trigger ${freeLines.length === 0 ? 'disabled' : ''}" onclick="toggleCustomDropdown(${session.client_id}, event)">
-                                            <span id="custom-select-trigger-text-${session.client_id}">${currentTriggerText}</span>
-                                            <svg class="custom-select-arrow" width="16" height="16" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                            assignmentHTML = `
+                                <div class="assignment-box">
+                                    <div class="section-label">Призначити наступну лінію</div>
+                                    <div class="assign-controls">
+                                        <!-- Прихований нативний селект для бекенд-сумісності -->
+                                        <select id="line-select-${session.client_id}" onchange="onLineSelectChange(this, ${session.client_id})" style="display: none;">
+                                            ${selectOptions}
+                                        </select>
+                                        
+                                        <!-- Кастомний преміальний випадаючий список -->
+                                        <div class="custom-select-wrapper" id="custom-select-wrapper-${session.client_id}">
+                                            <div class="custom-select-trigger ${freeLines.length === 0 ? 'disabled' : ''}" onclick="toggleCustomDropdown(${session.client_id}, event)">
+                                                <span id="custom-select-trigger-text-${session.client_id}">${currentTriggerText}</span>
+                                                <svg class="custom-select-arrow" width="16" height="16" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                                            </div>
+                                            <div class="custom-select-options" id="custom-select-options-${session.client_id}">
+                                                ${customOptionsHTML}
+                                            </div>
                                         </div>
-                                        <div class="custom-select-options" id="custom-select-options-${session.client_id}">
-                                            ${customOptionsHTML}
-                                        </div>
+                                        
+                                        <button class="btn btn-primary btn-sm" onclick="assignLine(${session.client_id})" ${freeLines.length === 0 ? 'disabled' : ''}>Призначити</button>
                                     </div>
-                                    
-                                    <button class="btn btn-primary btn-sm" onclick="assignLine(${session.client_id})" ${freeLines.length === 0 ? 'disabled' : ''}>Призначити</button>
                                 </div>
+                            `;
+                        }
+                    } else {
+                        assignmentHTML = `
+                            <div class="assignment-box banks-completed-message">
+                                <span>Усі обрані банки успішно завершено! Очікує закриття сесії.</span>
                             </div>
                         `;
                     }
-                } else {
-                    assignmentHTML = `
-                        <div class="assignment-box banks-completed-message">
-                            <span>Усі обрані банки успішно завершено! Очікує закриття сесії.</span>
-                        </div>
-                    `;
-                }
 
-                card.innerHTML = `
-                    <!-- Заголовок -->
-                    <div class="card-header-bar" onclick="toggleExpand(${session.client_id})">
-                        <div class="header-left">
-                            <span class="client-name-formatted">${displayName}</span>
-                            <span class="client-username-sub">@${session.username}</span>
-                        </div>
-                        <div class="header-center">
-                            <!-- SLA Таймер -->
-                            <span class="sla-timer" data-client-id="${session.client_id}" data-status="${session.status}">⏳ Запуск...</span>
-                            <span class="session-status status-${session.status}">${statusText}</span>
-                            ${activeLineText ? `<span class="active-line-badge">${activeLineText}</span>` : ''}
-                        </div>
-                        <div class="header-right" onclick="event.stopPropagation()">
-                            <button class="btn-chat-modal" onclick="event.stopPropagation(); openChatModal(${session.client_id}, event)">💬 Чат</button>
-                            <svg class="chevron-icon" width="20" height="20" viewBox="0 0 24 24" onclick="toggleExpand(${session.client_id}); event.stopPropagation();" style="margin-left: 12px; cursor: pointer;"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
-                        </div>
-                    </div>
-                    
-                    <!-- Меню управління -->
-                    <div class="card-body-details">
-                        <div class="section-label">Реєстраційні дані</div>
-                        <div class="client-data">${session.client_data}</div>
-                        
-                        <div class="banks-selection">
-                            <div class="section-label">Обрані банки</div>
-                            <div class="banks-checkboxes" id="banks-checkboxes-${session.client_id}">
-                                ${bankChipsHTML}
+                    // Формуємо вміст картки
+                    const newHTML = `
+                        <!-- Заголовок -->
+                        <div class="card-header-bar" onclick="toggleExpand(${session.client_id})">
+                            <div class="header-left">
+                                <span class="client-name-formatted">${displayName}</span>
+                                <span class="client-username-sub">@${session.username}</span>
+                            </div>
+                            <div class="header-center">
+                                <!-- SLA Таймер -->
+                                <span class="sla-timer" data-client-id="${session.client_id}" data-status="${session.status}">⏳ Запуск...</span>
+                                <span class="session-status status-${session.status}">${statusText}</span>
+                            </div>
+                            <div class="header-right" onclick="event.stopPropagation()">
+                                <button class="btn-chat-modal" onclick="event.stopPropagation(); openChatModal(${session.client_id}, event)">💬 Чат</button>
+                                <svg class="chevron-icon" width="20" height="20" viewBox="0 0 24 24" onclick="toggleExpand(${session.client_id}); event.stopPropagation();" style="margin-left: 12px; cursor: pointer;"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
                             </div>
                         </div>
- 
-                        ${assignmentHTML}
- 
-                        <div class="action-footer">
-                            <button class="btn btn-success btn-sm" onclick="completeSessionBank(${session.client_id}, 'success')" ${!session.line_id ? 'disabled' : ''}>
-                                Зареєстрував
-                            </button>
-                            <button class="btn btn-danger btn-sm" onclick="completeSessionBank(${session.client_id}, 'failure')" ${!session.line_id ? 'disabled' : ''}>
-                                Відмова
-                            </button>
-                            <button class="btn btn-primary btn-sm" onclick="completeSessionBank(${session.client_id}, 'release')" ${!session.line_id ? 'disabled' : ''}>
-                                Завершити реєстрацію банку
-                            </button>
-                            <button class="btn btn-secondary btn-sm" onclick="terminateSession(${session.client_id})">
-                                Закрити сесію
-                            </button>
-                            <button class="btn btn-danger btn-sm" onclick="banUser(${session.client_id})">
-                                Забанити
-                            </button>
+                        
+                        <!-- Меню управління -->
+                        <div class="card-body-details">
+                            <div class="section-label">Реєстраційні дані</div>
+                            <div class="client-data">
+                                ${renderClientDataHTML(session)}
+                            </div>
+                            
+                            <div class="banks-selection">
+                                <div class="section-label">Обрані банки</div>
+                                <div class="banks-checkboxes" id="banks-checkboxes-${session.client_id}">
+                                    ${bankChipsHTML}
+                                </div>
+                            </div>
+     
+                            ${assignmentHTML}
+     
+                            <div class="action-footer">
+                                <div class="action-footer-left">
+                                    <button class="btn btn-outline-danger btn-sm" onclick="banUser(${session.client_id})">
+                                        Забанити
+                                    </button>
+                                    <button class="btn btn-secondary btn-sm" onclick="terminateSession(${session.client_id})">
+                                        Закрити сесію
+                                    </button>
+                                </div>
+                                <div class="action-footer-right">
+                                    ${renderActionTrayHTML(session)}
+                                    <button class="btn btn-primary btn-sm" onclick="completeSessionBank(${session.client_id}, 'release')" ${!session.line_id ? 'disabled' : ''}>
+                                        Завершити реєстрацію банку
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
 
-                container.appendChild(card);
-            });
-        }
+                    // Оновлюємо вміст тільки якщо він дійсно змінився (запобігає спалахам)
+                    if (card.innerHTML.trim() !== newHTML.trim()) {
+                        card.innerHTML = newHTML;
+                    }
 
+                    // Переприєднуємо картку для збереження сортування
+                    container.appendChild(card);
+                });
 
+                // Видаляємо картки клієнтів, які завершили сесію
+                Object.keys(existingCards).forEach(id => {
+                    if (!activeClientIds.has(parseInt(id))) {
+                        existingCards[id].remove();
+                    }
+                });
+            }
 
             // Відновлення фокусу та курсору
             if (activeId) {
@@ -1943,10 +2072,10 @@
                 }
             }
 
-
             // Миттєво оновлюємо значення таймерів
             updateTimers();
         }
+
 
         // Візуальне тоглення чіпсів та миттєве автозбереження
         async function toggleBankChip(element, clientId, bank, action = '') {

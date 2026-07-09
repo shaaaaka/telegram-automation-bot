@@ -520,7 +520,7 @@ h1 {
     border-radius: 10px;
     font-family: monospace;
     font-size: 0.9rem;
-    white-space: pre-wrap;
+    white-space: normal;
     color: #cbd5e1;
     margin-bottom: 22px;
     border-left: 3px solid var(--accent-primary);
@@ -872,11 +872,187 @@ textarea:focus {
 
 .action-footer {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
     gap: 12px;
     margin-top: 18px;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     padding-top: 18px;
+}
+
+.action-footer-left,
+.action-footer-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Уніфікований неоновий аутлайновий стиль для кнопок у футері */
+.action-footer .btn {
+    height: 32px;
+    padding: 0 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: none; /* Відміна можливих зсувів */
+    border: 1px solid transparent;
+    background: transparent;
+    box-shadow: none;
+}
+
+/* 1. Завершити реєстрацію банку (Фіолетова) */
+.action-footer .btn-primary {
+    background: rgba(139, 92, 246, 0.08) !important;
+    border: 1px solid rgba(139, 92, 246, 0.25) !important;
+    color: #a78bfa !important;
+}
+.action-footer .btn-primary:hover:not(:disabled) {
+    background: rgba(139, 92, 246, 0.15) !important;
+    border-color: rgba(139, 92, 246, 0.7) !important;
+    color: #c084fc !important;
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.35) !important;
+}
+
+/* 2. Зареєстрував (Зелена) */
+.action-footer .btn-success {
+    background: rgba(16, 185, 129, 0.08) !important;
+    border: 1px solid rgba(16, 185, 129, 0.25) !important;
+    color: #34d399 !important;
+}
+.action-footer .btn-success:hover:not(:disabled) {
+    background: rgba(16, 185, 129, 0.15) !important;
+    border-color: rgba(16, 185, 129, 0.7) !important;
+    color: #6ee7b7 !important;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.35) !important;
+}
+
+/* 3. Відмова (Червона) */
+.action-footer .btn-danger {
+    background: rgba(239, 68, 68, 0.08) !important;
+    border: 1px solid rgba(239, 68, 68, 0.25) !important;
+    color: #f87171 !important;
+}
+.action-footer .btn-danger:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.15) !important;
+    border-color: rgba(239, 68, 68, 0.7) !important;
+    color: #fca5a5 !important;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.35) !important;
+}
+
+/* 4. Забанити (Темно-червона) */
+.action-footer .btn-outline-danger {
+    background: rgba(220, 38, 38, 0.05) !important;
+    border: 1px solid rgba(220, 38, 38, 0.25) !important;
+    color: #fca5a5 !important;
+}
+.action-footer .btn-outline-danger:hover:not(:disabled) {
+    background: rgba(220, 38, 38, 0.12) !important;
+    border-color: rgba(220, 38, 38, 0.7) !important;
+    color: #fecaca !important;
+    box-shadow: 0 0 10px rgba(220, 38, 38, 0.35) !important;
+}
+
+/* 5. Закрити сесію (Світло-сіра) */
+.action-footer .btn-secondary {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #d1d5db !important;
+}
+.action-footer .btn-secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Контейнер трею дій (візуальний блок/капсула) */
+.action-tray-container {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1.5px solid rgba(255, 255, 255, 0.1); /* Трішки товстіша та яскравіша обводка */
+    border-radius: 8px; /* Співпадає з кнопкою btn-sm */
+    height: 32px; /* Фіксована висота, як у btn-sm */
+    box-sizing: border-box;
+    padding: 0;
+    gap: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); /* Тінь для об'єму */
+}
+.action-tray-container.open {
+    background: rgba(5, 7, 12, 0.45); /* Трішки темніший фон для ефекту глибини */
+    border-color: rgba(139, 92, 246, 0.3); /* Фіолетова обводка у відкритому стані */
+    gap: 6px;
+    padding-right: 4px; /* Невеликий відступ справа у відкритому стані */
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.2); /* М'яке та легке фіолетове світіння */
+}
+
+/* Кнопка-перемикач (трикрапка) */
+.action-tray-toggle {
+    min-width: 32px !important;
+    height: 100% !important; /* Заповнює контейнер по висоті */
+    padding: 0 !important;
+    font-weight: 800;
+    font-size: 1.05rem;
+    border-radius: 7px !important; /* Менший радіус для вкладеності */
+    background: rgba(139, 92, 246, 0.08) !important; /* Напівпрозорий фіолетовий фон у закритому стані */
+    border: 1px solid rgba(139, 92, 246, 0.25) !important;
+    color: #a78bfa !important;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.action-tray-toggle:hover {
+    color: white !important;
+    background: rgba(139, 92, 246, 0.2) !important;
+    border-color: rgba(139, 92, 246, 0.4) !important;
+}
+.action-tray-container.open .action-tray-toggle {
+    background: rgba(139, 92, 246, 0.15) !important; /* Напівпрозорий фіолетовий фон при відкритті */
+    border: 1px solid rgba(139, 92, 246, 0.5) !important; /* Чіткіша фіолетова рамка */
+    color: #c084fc !important;
+    transform: rotate(180deg); /* Поворот стрілочки на 180 градусів */
+    border-radius: 6px !important;
+    box-shadow: none; /* Прибираємо подвійну тінь */
+}
+
+/* Вміст трею з анімацією горизонтального розкриття */
+.action-tray-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                opacity 0.2s ease, 
+                visibility 0.3s;
+    visibility: hidden;
+    height: 100%;
+}
+.action-tray-container.open .action-tray-content {
+    max-width: 300px;
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Вкладені кнопки (робимо їх трішки компактнішими для гармонії всередині капсули) */
+.action-tray-content button {
+    height: 24px !important;
+    padding: 0 10px !important;
+    font-size: 0.75rem !important;
+    border-radius: 6px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Sidebar lines database container */
@@ -3334,4 +3510,136 @@ body.sidebar-hidden .tab-content {
 .panel:hover .panel-icon-wrapper svg {
     stroke: #f43f5e !important;
     transform: scale(1.04) translate3d(0, 0, 0);
+}
+
+/* ==========================================================================
+   Уніфікація фільтрів та кнопок додавання (Translucent Glowing Outline)
+   ========================================================================= */
+
+/* Стилі для кнопок фільтрів ліній (lines-filter) */
+.lines-filter .btn {
+    height: 32px;
+    padding: 0 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
+    background: transparent;
+    box-shadow: none;
+}
+
+/* Неактивний фільтр (сірий контур) */
+.lines-filter .btn-secondary {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: #94a3b8 !important;
+}
+.lines-filter .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+    color: white !important;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Активний фільтр (фіолетовий контур) */
+.lines-filter .btn-primary {
+    background: rgba(139, 92, 246, 0.12) !important;
+    border: 1px solid rgba(139, 92, 246, 0.4) !important;
+    color: #c084fc !important;
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.2) !important;
+}
+.lines-filter .btn-primary:hover {
+    background: rgba(139, 92, 246, 0.2) !important;
+    border-color: rgba(139, 92, 246, 0.7) !important;
+    color: white !important;
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.35) !important;
+}
+
+/* Кнопки форм ("Додати") */
+.add-line-form button[type="submit"],
+.add-line-form .btn-primary {
+    height: 100% !important; /* Розтягуємо кнопку на повну висоту гріда для ідеального вирівнювання */
+    padding: 0 18px !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    background: rgba(139, 92, 246, 0.08) !important;
+    border: 1px solid rgba(139, 92, 246, 0.25) !important;
+    color: #a78bfa !important;
+    box-shadow: none !important;
+}
+.add-line-form button[type="submit"]:hover,
+.add-line-form .btn-primary:hover {
+    background: rgba(139, 92, 246, 0.15) !important;
+    border-color: rgba(139, 92, 246, 0.7) !important;
+    color: #c084fc !important;
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.35) !important;
+}
+
+/* Вимикаємо "підлітання" (трансформацію зсуву по вертикалі) для кнопок у футері, фільтрах, формах та плашках банків */
+.action-footer .btn:hover,
+.lines-filter .btn:hover,
+.add-line-form button[type="submit"]:hover,
+.add-line-form .btn-primary:hover,
+.action-tray-toggle:hover,
+.bank-chip:hover,
+.bank-chip.released-done:hover {
+    transform: none !important;
+}
+
+/* Контейнер для капсули призначеної лінії */
+.active-line-capsule-container {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin-bottom: 20px !important;
+}
+
+.active-line-capsule {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(139, 92, 246, 0.05);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    border-radius: 10px; /* Співпадає з кутами плашки вибору банку (10px) */
+    padding: 5px 12px;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #cbd5e1;
+    width: fit-content;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.active-line-capsule .capsule-line {
+    color: #a78bfa;
+    font-weight: 600;
+}
+
+.active-line-capsule .capsule-divider {
+    color: rgba(255, 255, 255, 0.15);
+}
+
+.active-line-capsule .capsule-phone {
+    font-family: monospace;
+    color: #c084fc;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.active-line-capsule .capsule-phone:hover {
+    color: #ffffff;
+    background: rgba(139, 92, 246, 0.25);
 }

@@ -1543,7 +1543,7 @@ async def trigger_sms_code_request(client_id: int, bot: Bot, state: FSMContext, 
             "Хвилинку, очікую поки він мені надійде",
             "Хвилинку, зараз очікую поки прийде",
             "Секунду, чекаю поки прийде код",
-            "Зараз чекаю поки надійде код"
+            "Зараз, чекаю поки надійде код"
         ]
         msg_text = random.choice(first_phrases)
     else:
@@ -1557,7 +1557,6 @@ async def trigger_sms_code_request(client_id: int, bot: Bot, state: FSMContext, 
             "чекаю",
             "хвилинку",
             "секунду, чекаю",
-            "щас прийде",
             "щас, сек"
         ]
         msg_text = random.choice(subsequent_phrases)

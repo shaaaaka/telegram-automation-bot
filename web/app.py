@@ -348,11 +348,14 @@ async def readd_session_bank(client_id: int, bank: str):
     
     if bank not in remaining:
         remaining.append(bank)
+    if bank not in selected:
+        selected.append(bank)
         
     # Зберігаємо оновлений список
     new_remaining_str = ",".join(remaining)
-    await db.update_session_banks(client_id, session['selected_banks'], new_remaining_str)
-    return {"status": "success", "remaining_banks": new_remaining_str}
+    new_selected_str = ",".join(selected)
+    await db.update_session_banks(client_id, new_selected_str, new_remaining_str)
+    return {"status": "success", "remaining_banks": new_remaining_str, "selected_banks": new_selected_str}
 
 @app.post("/api/sessions/{client_id}/assign")
 async def assign_line(client_id: int, body: LineAssignment):
