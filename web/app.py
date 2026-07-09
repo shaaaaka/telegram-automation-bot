@@ -223,12 +223,11 @@ async def get_sessions():
                 """, (client_id,)) as v_cursor:
                     v_rows = await v_cursor.fetchall()
                     bank_statuses = {}
-                    # Тимчасово закоментовано для зручності тестування:
-                    # for v_row in v_rows:
-                    #     status = v_row['status']
-                    #     if status == 'failure':
-                    #         status = 'banned'
-                    #     bank_statuses[v_row['bank']] = status
+                    for v_row in v_rows:
+                        status = v_row['status']
+                        if status == 'failure':
+                            status = 'banned'
+                        bank_statuses[v_row['bank']] = status
                     session_dict['bank_statuses'] = bank_statuses
                 
                 sessions_list.append(session_dict)

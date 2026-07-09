@@ -1860,7 +1860,7 @@
                             } else {
                                 chipClasses += ' released-done';
                                 statusIcon = '<span class="chip-status-icon">↻</span>';
-                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
+                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
                             }
                         } else if (isCompleted) {
                             chipClasses += ' success-done';
