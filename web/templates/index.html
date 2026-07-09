@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=127.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=128.0">
 </head>
 <body>
     <div class="container">
@@ -1967,15 +1967,19 @@
                                 if (status === 'success') {
                                     chipClasses += ' success-done';
                                     statusIcon = '<span class="chip-status-icon">✓</span>';
+                                    onclickAttr = '';
                                 } else if (status === 'failure' || status === 'banned') {
                                     chipClasses += ' failure-done';
                                     statusIcon = '<span class="chip-status-icon">✗</span>';
+                                    onclickAttr = '';
                                 } else {
                                     chipClasses += ' released-done';
                                     statusIcon = '<span class="chip-status-icon">↻</span>';
+                                    onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
                                 }
+                            } else {
+                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
                             }
-                            onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
                         }
                         
                         
