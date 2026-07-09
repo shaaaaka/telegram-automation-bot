@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=113.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=115.0">
 </head>
 <body>
     <div class="container">
@@ -994,7 +994,7 @@
                 let html = '';
                 let lastDateStr = null;
                 logs.forEach(msg => {
-                    const msgDate = new Date(msg.created_at);
+                    const msgDate = parseUtcToLocal(msg.created_at) || new Date(msg.created_at);
                     const dateStr = msgDate.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' });
                     
                     if (dateStr !== lastDateStr) {
@@ -3381,18 +3381,29 @@
             });
         }
 
-        function formatChatTime(dateStr) {
-            if (!dateStr) return '';
+        function parseUtcToLocal(dateStr) {
+            if (!dateStr) return null;
             try {
-                // dateStr comes from sqlite timestamp (e.g. "2026-06-18 22:54:37")
-                const t = dateStr.split(' ')[1] || '';
-                if (t) {
-                    return t.substring(0, 5); // HH:MM
+                let isoStr = dateStr;
+                if (!dateStr.includes('T')) {
+                    isoStr = dateStr.replace(' ', 'T');
                 }
-                return dateStr;
+                if (!isoStr.endsWith('Z')) {
+                    isoStr += 'Z';
+                }
+                const date = new Date(isoStr);
+                return isNaN(date.getTime()) ? null : date;
             } catch (e) {
-                return '';
+                return null;
             }
+        }
+
+        function formatChatTime(dateStr) {
+            const localDate = parseUtcToLocal(dateStr);
+            if (!localDate) return dateStr || '';
+            const hours = String(localDate.getHours()).padStart(2, '0');
+            const minutes = String(localDate.getMinutes()).padStart(2, '0');
+            return `${hours}:${minutes}`;
         }
 
         function getSessionStatusTextLocal(status) {
@@ -3682,9 +3693,16 @@
             
             let timeStr = '';
             if (log.created_at) {
-                try {
-                    timeStr = log.created_at.split(' ')[1]?.substring(0, 5) || '';
-                } catch (e) {}
+                const localDate = parseUtcToLocal(log.created_at);
+                if (localDate) {
+                    const hours = String(localDate.getHours()).padStart(2, '0');
+                    const minutes = String(localDate.getMinutes()).padStart(2, '0');
+                    timeStr = `${hours}:${minutes}`;
+                } else {
+                    try {
+                        timeStr = log.created_at.split(' ')[1]?.substring(0, 5) || '';
+                    } catch (e) {}
+                }
             }
             
             const checkmarks = '';
