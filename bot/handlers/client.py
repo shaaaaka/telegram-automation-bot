@@ -22,6 +22,7 @@ class RegistrationStates(StatesGroup):
     waiting_card_number = State()
     waiting_wrong_code_confirm = State()
     waiting_card_screenshot = State()
+    waiting_own_number_confirm = State()
 
 async def register_reg_msg(state: FSMContext, msg_id: int):
     data = await state.get_data()
@@ -992,6 +993,94 @@ def is_code_success_text(text: str) -> bool:
             return True
     return False
 
+def is_claim_registration_text(text: str) -> bool:
+    t = text.lower().strip()
+    keywords = [
+        "зареєстрував", "зареєструвала", "зареєструвався", "зареєструвалась",
+        "все зробив", "все зробила", "все пройшов", "все пройшла",
+        "я пройшов", "я пройшла", "я зробив", "я зробила", "я відкрив", "я відкрила",
+        "зарегистрировал", "зарегистрировался", "все сделал", "все сделала",
+        "все прошел", "все прошла", "я прошел", "я прошла", "я сделал", "я сделала",
+        "я открыл", "я открыла"
+    ]
+    for kw in keywords:
+        if kw in t:
+            return True
+    return False
+
+async def mark_bank_as_failed(client_id: int, bot: Bot):
+    session = await db.get_session(client_id)
+    if not session or not session['line_id']:
+        return
+        
+    line_id = session['line_id']
+    line_info = await db.get_line(line_id)
+    bank_name = line_info['bank'] if line_info else "Банк"
+    
+    # 1. Прибираємо кнопку запиту коду в Telegram
+    if session['client_message_id']:
+        try:
+            await bot.edit_message_reply_markup(
+                chat_id=client_id,
+                message_id=session['client_message_id'],
+                reply_markup=None
+            )
+        except Exception:
+            pass
+
+    # 2. Звільняємо лінію як banned
+    await db.set_line_status(line_id, 'banned')
+    await db.log_verification_end(client_id, bank_name, 'banned')
+
+    # Оновлюємо статус сесії на 'registered' та скидаємо line_id
+    import aiosqlite
+    from bot.database import DB_FILE
+    async with aiosqlite.connect(DB_FILE) as db_conn:
+        await db_conn.execute("UPDATE sessions SET line_id = NULL, client_message_id = NULL, status = 'registered' WHERE client_id = ?", (client_id,))
+        await db_conn.commit()
+
+    # 3. Видаляємо пройдений/відкинутий банк з решти
+    remaining_banks_str = session['remaining_banks']
+    remaining = remaining_banks_str.split(",") if remaining_banks_str else []
+    if bank_name in remaining:
+        remaining.remove(bank_name)
+    
+    new_remaining_str = ",".join(remaining)
+    await db.update_session_banks(client_id, session['selected_banks'], new_remaining_str)
+
+    if not remaining:
+        # Всі банки пройдені! Завершуємо роботу
+        kbd = ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text="🔄 Розпочати знову")],
+                [KeyboardButton(text="📋 Мої дані")]
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=False,
+            is_persistent=True
+        )
+        await bot.send_message(
+            chat_id=client_id,
+            text="Роботу завершили, дякуємо за співпрацю.",
+            reply_markup=kbd
+        )
+        await db.close_session(client_id)
+        
+        try:
+            username = session.get('username')
+            await bot.send_message(
+                chat_id=ADMIN_ID,
+                text=f"Верифікацію для клієнта @{username or client_id} завершено (останній банк скасовано через реєстрацію на свій номер)."
+            )
+        except Exception:
+            pass
+    else:
+        # Ще є банки
+        await bot.send_message(
+            chat_id=client_id,
+            text=f"Цей банк скасовано. Будь ласка, зачекайте, поки адміністратор призначить вам наступний банк."
+        )
+
 def is_code_request_text(text: str) -> bool:
     if is_code_success_text(text):
         return False
@@ -1281,6 +1370,14 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
                 await message.answer(msg)
             await state.update_data(support_requests_count=0)
             await trigger_sms_code_request(client_id, bot, state, notify)
+            return
+
+        # Перевірка: якщо клієнт пише, що зареєстрував, але жодного коду ще не надіслано
+        if is_claim_registration_text(message.text or "") and sent_codes_count == 0:
+            await message.answer(
+                "Ви не могли зробити реєстрацію по нашому номеру якщо ви не надіслали жодного коду, ви зробили реєстрацію за своїм номером?"
+            )
+            await state.set_state(RegistrationStates.waiting_own_number_confirm)
             return
 
         state_data = await state.get_data()
@@ -1655,6 +1752,26 @@ async def process_wrong_code_confirm_text(message: Message, state: FSMContext):
         await message.answer(
             "Будь ласка, оберіть відповідь на кнопках нижче або напишіть 'так' чи 'ні':"
         )
+
+@router.message(RegistrationStates.waiting_own_number_confirm, F.chat.type == "private")
+async def process_own_number_confirm(message: Message, state: FSMContext, bot: Bot):
+    t = (message.text or "").lower().strip()
+    affirmative_words = [
+        "так", "ага", "угу", "да", "дп", "конечно", "звісно", "саме так", 
+        "своїм", "на свій", "на свой", "свой", "свій", "да, на свой", "так, на свій"
+    ]
+    is_affirmative = False
+    for word in affirmative_words:
+        if word in t:
+            is_affirmative = True
+            break
+            
+    if is_affirmative:
+        await mark_bank_as_failed(message.from_user.id, bot)
+        await state.clear()
+    else:
+        await message.answer("Добре. Тоді, будь ласка, спробуйте ще раз ввести в додатку номер, який я вам надіслав. Коли додаток попросить код підтвердження — напишіть про це сюди.")
+        await state.clear()
 
 
 
