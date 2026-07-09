@@ -3620,17 +3620,32 @@ body.sidebar-hidden .tab-content {
 /* Premium Chat Message Layout with metadata headers */
 .chat-msg-container {
     display: flex;
-    gap: 12px;
+    flex-direction: column;
     margin-bottom: 18px;
     width: 100%;
 }
 .chat-msg-container.client {
-    flex-direction: row;
-    justify-content: flex-start;
+    align-items: flex-start;
 }
 .chat-msg-container.bot,
 .chat-msg-container.operator,
 .chat-msg-container.admin {
+    align-items: flex-end;
+}
+
+.chat-msg-body-row {
+    display: flex;
+    align-items: flex-end; /* Align avatar with the bottom edge of the bubble */
+    gap: 12px;
+    width: 100%;
+}
+.chat-msg-container.client .chat-msg-body-row {
+    flex-direction: row;
+    justify-content: flex-start;
+}
+.chat-msg-container.bot .chat-msg-body-row,
+.chat-msg-container.operator .chat-msg-body-row,
+.chat-msg-container.admin .chat-msg-body-row {
     flex-direction: row-reverse;
     justify-content: flex-start;
 }
@@ -3660,18 +3675,13 @@ body.sidebar-hidden .tab-content {
     background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
 }
 
-.chat-msg-content-wrapper {
-    display: flex;
-    flex-direction: column;
-    max-width: 70%;
+.chat-msg-container.client .chat-msg-header {
+    margin-left: 48px; /* Offset to align with client message bubble */
 }
-.chat-msg-container.client .chat-msg-content-wrapper {
-    align-items: flex-start;
-}
-.chat-msg-container.bot .chat-msg-content-wrapper,
-.chat-msg-container.operator .chat-msg-content-wrapper,
-.chat-msg-container.admin .chat-msg-content-wrapper {
-    align-items: flex-end;
+.chat-msg-container.bot .chat-msg-header,
+.chat-msg-container.operator .chat-msg-header,
+.chat-msg-container.admin .chat-msg-header {
+    margin-right: 48px; /* Offset to align with bot/operator message bubble */
 }
 
 .chat-msg-header {

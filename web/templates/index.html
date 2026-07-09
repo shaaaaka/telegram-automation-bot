@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=92.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=95.0">
 </head>
 <body>
     <div class="container">
@@ -1058,10 +1058,10 @@
 
                     html += `
                         <div class="chat-msg-container ${msg.sender}">
-                            <div class="chat-msg-avatar">${avatarLetter}</div>
-                            <div class="chat-msg-content-wrapper">
-                                ${headerHtml}
-                                <div class="chat-message ${msg.sender}" style="margin: 0 !important; max-width: 100% !important;">
+                            ${headerHtml}
+                            <div class="chat-msg-body-row">
+                                <div class="chat-msg-avatar">${avatarLetter}</div>
+                                <div class="chat-message ${msg.sender}" style="margin: 0 !important; max-width: 75% !important;">
                                     ${msgContent}
                                 </div>
                             </div>
@@ -3619,10 +3619,10 @@
             }
             
             containerDiv.innerHTML = `
-                <div class="chat-msg-avatar">${avatarLetter}</div>
-                <div class="chat-msg-content-wrapper">
-                    ${headerHtml}
-                    <div class="chat-msg-bubble" style="max-width: 100% !important;">
+                ${headerHtml}
+                <div class="chat-msg-body-row">
+                    <div class="chat-msg-avatar">${avatarLetter}</div>
+                    <div class="chat-msg-bubble" style="max-width: 75% !important;">
                         ${contentHtml}
                     </div>
                 </div>
