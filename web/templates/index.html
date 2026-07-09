@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=95.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=99.0">
 </head>
 <body>
     <div class="container">
@@ -3342,13 +3342,25 @@
                 const avatarChar = displayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К';
                 const unreadCount = chatUnreadCounts[session.client_id] || 0;
                 
-                // Construct bank list display
-                let bankListHtml = '';
-                if (session.bank_statuses) {
-                    const banks = Object.keys(session.bank_statuses);
-                    if (banks.length > 0) {
-                        bankListHtml = `<span style="font-size:0.75rem;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,0.06);margin-left:4px;color:rgba(255,255,255,0.5);">${banks.join(', ')}</span>`;
+                let previewText = '';
+                if (session.last_message) {
+                    let senderLabel = '';
+                    if (session.last_message.sender === 'client') {
+                        senderLabel = 'Клієнт';
+                    } else if (session.last_message.sender === 'bot') {
+                        senderLabel = 'Бот';
+                    } else {
+                        senderLabel = 'Оператор';
                     }
+                    
+                    let msgPreview = session.last_message.text || '';
+                    if (session.last_message.photo) {
+                        msgPreview = '📷 Фотографія';
+                    }
+                    msgPreview = msgPreview.replace(/<\/?[^>]+(>|$)/g, "");
+                    previewText = `${senderLabel}: ${msgPreview}`;
+                } else {
+                    previewText = session.status === 'completed' ? 'Архівна сесія' : 'Немає повідомлень';
                 }
                 
                 item.innerHTML = `
@@ -3361,8 +3373,9 @@
                             <span class="chat-item-name">${displayName}</span>
                             <span class="chat-item-time">${formatChatTime(session.created_at)}</span>
                         </div>
-                        <div class="chat-item-bottom" style="display: flex; justify-content: flex-end; min-height: 12px;">
-                            ${unreadCount > 0 ? `<span class="chat-item-badge">${unreadCount}</span>` : ''}
+                        <div class="chat-item-bottom" style="display: flex; justify-content: space-between; align-items: center; min-height: 18px; margin-top: 4px;">
+                            <span class="chat-item-preview" style="max-width: 80%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.78rem; color: rgba(255, 255, 255, 0.4);">${previewText}</span>
+                            ${unreadCount > 0 ? `<span class="chat-item-badge" style="margin-left: auto;">${unreadCount}</span>` : ''}
                         </div>
                     </div>
                 `;

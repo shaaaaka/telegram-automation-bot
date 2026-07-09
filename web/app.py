@@ -230,6 +230,22 @@ async def get_sessions():
                         bank_statuses[v_row['bank']] = status
                     session_dict['bank_statuses'] = bank_statuses
                 
+                # Запит на отримання останнього повідомлення чату
+                async with conn.execute("""
+                    SELECT message_text, photo_id, sender FROM chat_logs 
+                    WHERE client_id = ? 
+                    ORDER BY id DESC LIMIT 1
+                """, (client_id,)) as msg_cursor:
+                    msg_row = await msg_cursor.fetchone()
+                    if msg_row:
+                        session_dict['last_message'] = {
+                            'text': msg_row['message_text'],
+                            'photo': bool(msg_row['photo_id']),
+                            'sender': msg_row['sender']
+                        }
+                    else:
+                        session_dict['last_message'] = None
+                
                 sessions_list.append(session_dict)
             return sessions_list
 
@@ -826,6 +842,22 @@ async def get_completed_sessions():
                     #         status = 'banned'
                     #     bank_statuses[v_row['bank']] = status
                     session_dict['bank_statuses'] = bank_statuses
+                
+                # Запит на отримання останнього повідомлення чату
+                async with conn.execute("""
+                    SELECT message_text, photo_id, sender FROM chat_logs 
+                    WHERE client_id = ? 
+                    ORDER BY id DESC LIMIT 1
+                """, (client_id,)) as msg_cursor:
+                    msg_row = await msg_cursor.fetchone()
+                    if msg_row:
+                        session_dict['last_message'] = {
+                            'text': msg_row['message_text'],
+                            'photo': bool(msg_row['photo_id']),
+                            'sender': msg_row['sender']
+                        }
+                    else:
+                        session_dict['last_message'] = None
                 
                 sessions_list.append(session_dict)
             return sessions_list
