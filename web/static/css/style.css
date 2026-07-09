@@ -467,10 +467,15 @@ h1 {
     font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
-    padding: 4px 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 26px;
+    padding: 0 12px;
     border-radius: 8px;
     letter-spacing: 0.06em;
     white-space: nowrap;
+    line-height: 1;
 }
 
 .status-registered { 
@@ -3854,8 +3859,8 @@ body.sidebar-hidden .tab-content {
 
 /* Chat Rectangle Button */
 .btn-chat-modal-circle {
-    width: 32px;
-    height: 26px;
+    width: 36px;
+    height: 30px;
     border-radius: 8px;
     background: rgba(139, 92, 246, 0.08);
     border: 1px solid rgba(139, 92, 246, 0.25);
@@ -3863,7 +3868,7 @@ body.sidebar-hidden .tab-content {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.9rem;
+    font-size: 1.1rem;
     cursor: pointer;
     transition: all 0.2s ease;
 }
