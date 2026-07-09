@@ -3795,3 +3795,25 @@ body.sidebar-hidden .tab-content {
     border-color: rgba(239, 68, 68, 0.7);
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
 }
+
+/* Chat Circle Button */
+.btn-chat-modal-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(139, 92, 246, 0.08);
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    color: #a78bfa;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-chat-modal-circle:hover {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.6);
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.2);
+}

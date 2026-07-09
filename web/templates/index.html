@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=107.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=109.0">
 </head>
 <body>
     <div class="container">
@@ -1213,12 +1213,7 @@
                 const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
                 const seconds = String(elapsed % 60).padStart(2, '0');
                 
-                let prefix = 'Чекає';
-                if (status === 'waiting_code') prefix = 'Код';
-                else if (status === 'registered') prefix = 'Чекає лінію';
-                else if (status === 'number_assigned') prefix = 'В роботі';
-                
-                el.innerText = `⏳ ${prefix}: ${minutes}:${seconds}`;
+                el.innerText = `⏳ ${minutes}:${seconds}`;
                 
                 // Якщо клієнт очікує код або призначення лінії більше 2 хвилин (120с)
                 if (elapsed > 120 && (status === 'waiting_code' || status === 'registered')) {
@@ -1895,9 +1890,9 @@
                     const displayName = extractDisplayName(session.client_data, session.username) + (isFinishLine ? ' 💳' : '');
 
                     // Badge статусу
-                    let statusText = 'Зареєстрований';
-                    if (session.status === 'number_assigned') statusText = 'Номер призначено';
-                    if (session.status === 'waiting_code') statusText = 'Очікує SMS-код';
+                    let statusText = 'Новий';
+                    if (session.status === 'number_assigned') statusText = 'Номер видано';
+                    if (session.status === 'waiting_code') statusText = 'Очікує код';
 
                     // Рендер чекбоксів банків
                     let bankChipsHTML = '';
@@ -2084,13 +2079,17 @@
                         `;
                     }
 
+                    const usernameHTML = (session.username && session.username !== "Немає юзернейму")
+                        ? `<span class="client-username-sub">@${session.username}</span>`
+                        : '';
+
                     // Формуємо вміст картки
                     const newHTML = `
                         <!-- Заголовок -->
                         <div class="card-header-bar" onclick="toggleExpand(${session.client_id})">
                             <div class="header-left">
                                 <span class="client-name-formatted">${displayName}</span>
-                                <span class="client-username-sub">@${session.username}</span>
+                                ${usernameHTML}
                             </div>
                             <div class="header-center">
                                 <!-- SLA Таймер -->
@@ -2098,7 +2097,7 @@
                                 <span class="session-status status-${session.status}">${statusText}</span>
                             </div>
                             <div class="header-right" onclick="event.stopPropagation()">
-                                <button class="btn-chat-modal" onclick="event.stopPropagation(); openChatModal(${session.client_id}, event)">💬 Чат</button>
+                                <button class="btn-chat-modal-circle" onclick="event.stopPropagation(); openChatModal(${session.client_id}, event)" title="Відкрити чат">💬</button>
                                 <svg class="chevron-icon" width="20" height="20" viewBox="0 0 24 24" onclick="toggleExpand(${session.client_id}); event.stopPropagation();" style="margin-left: 12px; cursor: pointer;"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
                             </div>
                         </div>
