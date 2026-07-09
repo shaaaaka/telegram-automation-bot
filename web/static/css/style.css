@@ -1335,7 +1335,7 @@ textarea:focus {
 
 .toast-container.inside-panel {
     position: absolute;
-    top: 32px;
+    top: 24px;
     right: 32px;
     left: auto;
     transform: none;
