@@ -3146,34 +3146,25 @@ input[type=number] {
     position: relative;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
 }
-.msg-client .chat-msg-bubble {
+.chat-msg-container.client .chat-msg-bubble {
     border-radius: 18px 18px 18px 4px;
-}
-.msg-admin .chat-msg-bubble,
-.msg-bot .chat-msg-bubble {
-    border-radius: 18px 18px 4px 18px;
-}
-
-.msg-client .chat-msg-bubble {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.06);
     color: #e2e8f0;
-    border-bottom-left-radius: 4px;
 }
-
-.msg-admin .chat-msg-bubble {
+.chat-msg-container.admin .chat-msg-bubble,
+.chat-msg-container.operator .chat-msg-bubble {
+    border-radius: 18px 18px 4px 18px;
     background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.15));
     border: 1px solid rgba(139, 92, 246, 0.22);
     color: #ffffff;
-    border-bottom-right-radius: 4px;
     box-shadow: 0 4px 15px rgba(139, 92, 246, 0.1);
 }
-
-.msg-bot .chat-msg-bubble {
+.chat-msg-container.bot .chat-msg-bubble {
+    border-radius: 18px 18px 4px 18px;
     background: rgba(14, 165, 233, 0.05);
     border: 1px solid rgba(14, 165, 233, 0.2);
     color: #f1f5f9;
-    border-bottom-right-radius: 4px;
     box-shadow: 0 4px 15px rgba(14, 165, 233, 0.08);
 }
 
@@ -3700,25 +3691,23 @@ body.sidebar-hidden .tab-content {
 }
 
 .chat-msg-header .badge-ai {
-    background: rgba(59, 130, 246, 0.15);
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    color: #60a5fa;
-    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    padding: 3px 12px;
     border-radius: 20px;
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .chat-msg-header .badge-operator {
-    background: rgba(139, 92, 246, 0.15);
-    border: 1px solid rgba(139, 92, 246, 0.3);
-    color: #a78bfa;
-    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    padding: 3px 12px;
     border-radius: 20px;
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-weight: 600;
+    font-weight: 500;
 }
