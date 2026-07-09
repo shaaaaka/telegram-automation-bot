@@ -524,35 +524,17 @@ async def complete_bank(client_id: int, result: str = "success"):
 
     # 4. Перевіряємо чи це був останній банк
     if not remaining:
-        # Завершуємо роботу повністю
+        # Не закриваємо сесію автоматично, просто інформуємо клієнта і залишаємо сесію активною
         try:
-            from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-            kbd = ReplyKeyboardMarkup(
-                keyboard=[
-                    [KeyboardButton(text="🔄 Розпочати знову")],
-                    [KeyboardButton(text="📋 Мої дані")]
-                ],
-                resize_keyboard=True,
-                one_time_keyboard=False,
-                is_persistent=True
-            )
             await bot.send_message(
                 chat_id=client_id,
-                text="Роботу завершили, дякуємо за співпрацю.",
+                text=f"Верифікацію для банку {bank_name} завершено. Всі обрані банки пройдено, очікуйте на рішення адміністратора.",
                 parse_mode="Markdown",
-                reply_markup=kbd
+                reply_markup=ReplyKeyboardRemove()
             )
         except Exception:
             pass
-        await db.close_session(client_id)
-        
-        # Повідомляємо адміна в Telegram
-        try:
-            await bot.send_message(chat_id=ADMIN_ID, text=f"Верифікацію для клієнта @{session['username']} успішно завершено по всіх банках через веб-панель!")
-        except Exception:
-            pass
-        
-        return {"status": "completed_all"}
+        return {"status": "completed_bank", "remaining_banks": ""}
     else:
         # Очікування наступного банку або заміна номера після відмови
         if result == "failure":
