@@ -5,7 +5,7 @@ mimetypes.init()
 mimetypes.add_type("text/css", ".css", True)
 mimetypes.add_type("application/javascript", ".js", True)
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Depends, status
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Depends, status, BackgroundTasks
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import io
@@ -358,50 +358,17 @@ async def readd_session_bank(client_id: int, bank: str):
     await db.update_session_banks(client_id, new_selected_str, new_remaining_str)
     return {"status": "success", "remaining_banks": new_remaining_str, "selected_banks": new_selected_str}
 
-@app.post("/api/sessions/{client_id}/assign")
-async def assign_line(client_id: int, body: LineAssignment):
-    """Призначення телефонної лінії для клієнта через веб-інтерфейс"""
-    if not bot:
-        raise HTTPException(status_code=500, detail="Telegram bot is not initialized")
-
-    session = await db.get_session(client_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    line_info = await db.get_line(body.line_id)
-    if not line_info or line_info['status'] != 'available':
-        raise HTTPException(status_code=400, detail="Line is busy or does not exist")
-
-    # 1. Записуємо призначення у БД та логуємо у статистику
-    await db.assign_line_to_session(client_id, body.line_id)
-    await db.log_verification_start(client_id, session['username'], line_info['bank'], line_info['phone_number'])
-
-    # Видаляємо повідомлення про очікування номера у клієнта
-    if session.get('waiting_message_id'):
+async def run_assignment_in_background(client_id: int, line_id: int, session_username: str, phone_number: str, bank_name: str, waiting_message_id: Optional[int]):
+    """Фонове завдання для надсилання інструкцій та номера в Telegram, щоб не блокувати відповідь сайту"""
+    # 1. Видаляємо повідомлення про очікування номера у клієнта
+    if waiting_message_id:
         try:
-            await bot.delete_message(chat_id=client_id, message_id=session['waiting_message_id'])
+            await bot.delete_message(chat_id=client_id, message_id=waiting_message_id)
         except Exception as e:
             print(f"Помилка видалення повідомлення очікування у клієнта: {e}")
 
     # 2. Відправляємо клієнту номер та кнопку в Telegram
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Запросити SMS-код", callback_data="request_code")]
-    ])
-    
-    bank_name = line_info['bank']
     template = await db.get_bank_template_db(bank_name)
-    
-    client_assign_format = await db.get_setting("client_number_assigned_format", "Банк: *{bank_name}*\nНомер телефону:\n\n`+{phone_number}`\n\nКоли надішлете SMS і вам знадобиться код, тисніть кнопку нижче.")
-    try:
-        message_text = client_assign_format.format(bank_name=bank_name, phone_number=line_info['phone_number'])
-    except Exception:
-        message_text = (
-            f"Банк: *{bank_name}*\n"
-            f"Номер телефону:\n\n"
-            f"`+{line_info['phone_number']}`\n\n"
-            f"Коли надішлете SMS і вам знадобиться код, тисніть кнопку нижче."
-        )
-    
     try:
         # Спочатку надсилаємо шаблон (інструкцію/фото завантаження додатку), якщо він є
         if template:
@@ -437,7 +404,7 @@ async def assign_line(client_id: int, body: LineAssignment):
         # Потім надсилаємо картку з номером телефону
         client_msg = await bot.send_message(
             chat_id=client_id,
-            text=f"`+{line_info['phone_number']}`",
+            text=f"`+{phone_number}`",
             reply_markup=ReplyKeyboardRemove(),
             parse_mode="Markdown"
         )
@@ -445,11 +412,12 @@ async def assign_line(client_id: int, body: LineAssignment):
         await db.update_session_message_id(client_id, client_msg.message_id)
     except Exception as e:
         # У разі помилки відкочуємо призначення
-        await db.set_line_status(body.line_id, 'available')
+        print(f"Помилка фонового надсилання повідомлення клієнту: {e}")
+        await db.set_line_status(line_id, 'available')
         async with aiosqlite.connect(DB_FILE) as db_conn:
             await db_conn.execute("UPDATE sessions SET line_id = NULL, status = 'registered' WHERE client_id = ?", (client_id,))
             await db_conn.commit()
-        raise HTTPException(status_code=500, detail=f"Failed to send Telegram message to client: {str(e)}")
+        return
 
     # 3. Надсилаємо адміну в Telegram сповіщення з кнопкою завершення
     complete_markup = InlineKeyboardMarkup(inline_keyboard=[
@@ -465,14 +433,43 @@ async def assign_line(client_id: int, body: LineAssignment):
         await bot.send_message(
             chat_id=ADMIN_ID,
             text=(
-                f"Лінію {body.line_id} ({line_info['bank']}) призначено клієнту @{session['username']} через веб-панель!\n\n"
+                f"Лінію {line_id} ({bank_name}) призначено клієнту @{session_username} через веб-панель!\n\n"
                 f"Натисніть відповідну кнопку нижче, залежно від результату верифікації."
             ),
             reply_markup=complete_markup,
             parse_mode="Markdown"
         )
     except Exception:
-        pass # Якщо адміну не надіслалось, веб-адмінка все одно працює
+        pass
+
+@app.post("/api/sessions/{client_id}/assign")
+async def assign_line(client_id: int, body: LineAssignment, background_tasks: BackgroundTasks):
+    """Призначення телефонної лінії для клієнта через веб-інтерфейс"""
+    if not bot:
+        raise HTTPException(status_code=500, detail="Telegram bot is not initialized")
+
+    session = await db.get_session(client_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    line_info = await db.get_line(body.line_id)
+    if not line_info or line_info['status'] != 'available':
+        raise HTTPException(status_code=400, detail="Line is busy or does not exist")
+
+    # 1. Записуємо призначення у БД та логуємо у статистику
+    await db.assign_line_to_session(client_id, body.line_id)
+    await db.log_verification_start(client_id, session['username'], line_info['bank'], line_info['phone_number'])
+
+    # 2. Додаємо завдання відправки повідомлень у фоновий потік, щоб не блокувати сайт
+    background_tasks.add_task(
+        run_assignment_in_background,
+        client_id=client_id,
+        line_id=body.line_id,
+        session_username=session['username'],
+        phone_number=line_info['phone_number'],
+        bank_name=line_info['bank'],
+        waiting_message_id=session.get('waiting_message_id')
+    )
 
     return {"status": "success", "line_id": body.line_id}
 
