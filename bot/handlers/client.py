@@ -204,7 +204,7 @@ async def cmd_start(message: Message, state: FSMContext):
             ])
             msg = await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
             await register_reg_msg(state, msg.message_id)
-            await state.update_data(welcome_msg_ids=[msg.message_id])
+            await state.update_data(welcome_msg_ids=[msg.message_id], old_pib=pib, old_dob=dob, old_ipn=ipn)
             await state.set_state(RegistrationStates.waiting_pib_dob)
             return
 
@@ -221,23 +221,14 @@ async def cmd_start(message: Message, state: FSMContext):
 @router.callback_query(F.data == "autofill_use")
 async def handle_autofill_use(callback: CallbackQuery, state: FSMContext):
     """Обробник вибору використання попередніх даних"""
-    client_id = callback.from_user.id
-    existing_session = await db.get_session(client_id)
-    if not existing_session or not existing_session['client_data']:
-        await callback.answer("Дані не знайдено.", show_alert=True)
-        return
-        
-    ipn_match = re.search(r'ІПН:\s*(\d+)', existing_session['client_data'])
-    pib_match = re.search(r'ПІБ:\s*(.+)', existing_session['client_data'])
-    dob_match = re.search(r'Дата:\s*(.+)', existing_session['client_data'])
+    state_data = await state.get_data()
+    pib = state_data.get('old_pib')
+    dob = state_data.get('old_dob')
+    ipn = state_data.get('old_ipn')
     
-    if not (ipn_match and pib_match and dob_match):
+    if not (pib and dob and ipn):
         await callback.answer("Не вдалося розпарсити старі дані.", show_alert=True)
         return
-        
-    ipn = ipn_match.group(1)
-    pib = pib_match.group(1)
-    dob = dob_match.group(1)
     
     # Зберігаємо дані в стан FSM
     await state.update_data(pib=pib, dob=dob, ipn=ipn)
