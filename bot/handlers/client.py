@@ -1920,7 +1920,7 @@ async def process_lviv_success_confirm(message: Message, state: FSMContext, bot:
         )
         
         await message.answer(
-            "Напишіть, будь ласка, Ваш номер телефону, який використовувався для реєстрації?",
+            "Будь ласка, напишіть Ваш номер телефону?",
             reply_markup=ReplyKeyboardRemove()
         )
         await state.set_state(RegistrationStates.waiting_phone)
