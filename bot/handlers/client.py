@@ -1444,8 +1444,27 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
 
         if "[OFFER_AMOBANK_INSTRUCTIONS]" in response:
             await state.set_state(RegistrationStates.waiting_amobank_instruction_confirm)
-        clean_text = re.sub(r'\[[^\]]+\]', '', response).strip()
-        await message.answer(clean_text, reply_markup=get_sms_request_keyboard())
+
+        parts = [p.strip() for p in response.split("[SPLIT]") if p.strip()]
+        clean_parts = []
+        for part in parts:
+            clean_part = re.sub(r'\[[^\]]+\]', '', part).strip()
+            if clean_part:
+                clean_parts.append(clean_part)
+
+        for i, part in enumerate(clean_parts):
+            try:
+                await bot.send_chat_action(chat_id=client_id, action="typing")
+            except Exception:
+                pass
+            import random
+            char_count = len(part)
+            delay = min(4.0, max(1.5, char_count / 15.0)) + random.uniform(-0.3, 0.5)
+            await asyncio.sleep(delay)
+            
+            is_last = (i == len(clean_parts) - 1)
+            reply_markup = get_sms_request_keyboard() if is_last else None
+            await message.answer(part, reply_markup=reply_markup)
         return
 
     # Якщо користувач не у стані анкетування, пропонуємо йому почати з команди /start
@@ -1585,8 +1604,25 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
         else:
             if "[OFFER_AMOBANK_INSTRUCTIONS]" in response:
                 await state.set_state(RegistrationStates.waiting_amobank_instruction_confirm)
-            clean_text = re.sub(r'\[[^\]]+\]', '', response).strip()
-            await message.answer(clean_text)
+
+            parts = [p.strip() for p in response.split("[SPLIT]") if p.strip()]
+            clean_parts = []
+            for part in parts:
+                clean_part = re.sub(r'\[[^\]]+\]', '', part).strip()
+                if clean_part:
+                    clean_parts.append(clean_part)
+
+            for part in clean_parts:
+                try:
+                    await bot.send_chat_action(chat_id=client_id, action="typing")
+                except Exception:
+                    pass
+                import random
+                char_count = len(part)
+                delay = min(4.0, max(1.5, char_count / 15.0)) + random.uniform(-0.3, 0.5)
+                await asyncio.sleep(delay)
+                
+                await message.answer(part)
             return
         
     await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
