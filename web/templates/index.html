@@ -989,6 +989,7 @@
                 const allSessions = [...(lastFetchedSessions || []), ...(cachedCompletedSessions || [])];
                 const session = allSessions.find(s => s.client_id === clientId);
                 const displayName = session ? extractDisplayName(session.client_data, session.username) : 'Клієнт';
+                const firstName = session ? extractFirstName(session.client_data, session.username) : 'Клієнт';
 
                 let html = '';
                 let lastDateStr = null;
@@ -1031,7 +1032,7 @@
                         avatarLetter = displayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К';
                         headerHtml = `
                             <div class="chat-msg-header">
-                                <strong>${displayName}</strong>
+                                <strong>${firstName}</strong>
                                 <span>•</span>
                                 <span>${time}</span>
                             </div>
@@ -1091,6 +1092,59 @@
             }
         }
 
+
+        // Виділення імені клієнта зі збережених даних
+        function extractFirstName(clientData, username) {
+            if (!clientData) return username ? `@${username}` : "Клієнт";
+            
+            const lines = clientData.split('\n').map(l => l.trim()).filter(Boolean);
+            let namePart = "";
+            for (let line of lines) {
+                if (line.toUpperCase().startsWith("ПІБ:")) {
+                    namePart = line.substring(4).trim();
+                    break;
+                }
+            }
+            if (!namePart && lines.length > 0) {
+                for (let line of lines) {
+                    if (/^\+?\d+$/.test(line.replace(/\s+/g, ''))) continue;
+                    if (/^\d{2}\.\d{2}\.\d{4}$/.test(line)) continue;
+                    if (line.toUpperCase().startsWith("ІПН:") || line.toUpperCase().startsWith("ДРОП")) continue;
+                    namePart = line;
+                    break;
+                }
+            }
+            
+            if (!namePart) return username ? `@${username}` : "Клієнт";
+            
+            const words = namePart.split(/\s+/).filter(w => w.length > 0);
+            if (words.length === 0) return username ? `@${username}` : "Клієнт";
+            
+            const commonNames = new Set([
+                'олександр', 'олександра', 'андрій', 'сергій', 'іван', 'дмитро', 'дмитрій', 'владислав', 
+                'ярослав', 'святослав', 'богдан', 'роман', 'михайло', 'назар', 'захар', 'максим', 
+                'артем', 'володимир', 'віталій', 'євген', 'євгеній', 'олег', 'тарас', 'василь', 
+                'юрій', 'ігор', 'денис', 'антон', 'олексій', 'валерій', 'руслан', 'микита', 
+                'павло', 'данило', 'кирило', 'марія', 'анна', 'анастасія', 'олена', 'ольга', 
+                'наталія', 'наталя', 'тетяна', 'світлана', 'ірина', 'юлія', 'катерина', 
+                'людмила', 'галина', 'надія', 'любов', 'лариса', 'вікторія', 'єлизавета', 
+                'дарія', "дар'я", 'дарина', 'софія', 'соломія', 'христина', 'оксана'
+            ]);
+            
+            for (let word of words) {
+                const cleanWord = word.replace(/[^а-яА-ЯёЁіІїЇєЄґҐa-zA-Z]/g, '').toLowerCase();
+                if (commonNames.has(cleanWord)) {
+                    return cleanWord.charAt(0).toUpperCase() + cleanWord.slice(1);
+                }
+            }
+            
+            const firstWord = words[0].replace(/[^а-яА-ЯёЁіІїЇєЄґҐa-zA-Z]/g, '');
+            if (firstWord) {
+                return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
+            }
+            
+            return username ? `@${username}` : "Клієнт";
+        }
 
         // Парсинг та форматування ПІБ зі збережених даних клієнта
         function extractDisplayName(clientData, username) {
@@ -3307,8 +3361,7 @@
                             <span class="chat-item-name">${displayName}</span>
                             <span class="chat-item-time">${formatChatTime(session.created_at)}</span>
                         </div>
-                        <div class="chat-item-bottom">
-                            <span class="chat-item-preview">${session.status === 'completed' ? 'Архівна сесія' : getSessionStatusTextLocal(session.status)} ${bankListHtml}</span>
+                        <div class="chat-item-bottom" style="display: flex; justify-content: flex-end; min-height: 12px;">
                             ${unreadCount > 0 ? `<span class="chat-item-badge">${unreadCount}</span>` : ''}
                         </div>
                     </div>
@@ -3564,6 +3617,7 @@
             const allSessions = [...(lastFetchedSessions || []), ...(cachedCompletedSessions || [])];
             const session = allSessions.find(s => s.client_id === selectedChatClientId);
             const displayName = session ? extractDisplayName(session.client_data, session.username) : 'Клієнт';
+            const firstName = session ? extractFirstName(session.client_data, session.username) : 'Клієнт';
 
             const containerDiv = document.createElement('div');
             containerDiv.className = `chat-msg-container ${log.sender}`;
@@ -3593,7 +3647,7 @@
                 avatarLetter = displayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К';
                 headerHtml = `
                     <div class="chat-msg-header">
-                        <strong>${displayName}</strong>
+                        <strong>${firstName}</strong>
                         <span>•</span>
                         <span>${timeStr}</span>
                     </div>
