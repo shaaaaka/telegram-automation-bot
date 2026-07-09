@@ -24,6 +24,7 @@ class RegistrationStates(StatesGroup):
     waiting_card_screenshot = State()
     waiting_own_number_confirm = State()
     waiting_amobank_instruction_confirm = State()
+    waiting_lviv_success_confirm = State()
 
 async def register_reg_msg(state: FSMContext, msg_id: int):
     data = await state.get_data()
@@ -1444,6 +1445,8 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
 
         if "[OFFER_AMOBANK_INSTRUCTIONS]" in response:
             await state.set_state(RegistrationStates.waiting_amobank_instruction_confirm)
+        if "[OFFER_LVIV_SUCCESS_SCREEN]" in response:
+            await state.set_state(RegistrationStates.waiting_lviv_success_confirm)
 
         parts = [p.strip() for p in response.split("[SPLIT]") if p.strip()]
         clean_parts = []
@@ -1465,6 +1468,16 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
             is_last = (i == len(clean_parts) - 1)
             reply_markup = get_sms_request_keyboard() if is_last else None
             await message.answer(part, reply_markup=reply_markup)
+
+        if "[OFFER_LVIV_SUCCESS_SCREEN]" in response:
+            import os
+            from aiogram.types import FSInputFile
+            img_path = os.path.join(os.path.dirname(__file__), "..", "resources", "images", "lvivbank_success.png")
+            if os.path.exists(img_path):
+                try:
+                    await bot.send_photo(chat_id=client_id, photo=FSInputFile(img_path))
+                except Exception as e:
+                    logger.error(f"Error sending lviv success template photo: {e}")
         return
 
     # Якщо користувач не у стані анкетування, пропонуємо йому почати з команди /start
@@ -1604,6 +1617,8 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
         else:
             if "[OFFER_AMOBANK_INSTRUCTIONS]" in response:
                 await state.set_state(RegistrationStates.waiting_amobank_instruction_confirm)
+            if "[OFFER_LVIV_SUCCESS_SCREEN]" in response:
+                await state.set_state(RegistrationStates.waiting_lviv_success_confirm)
 
             parts = [p.strip() for p in response.split("[SPLIT]") if p.strip()]
             clean_parts = []
@@ -1623,6 +1638,16 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
                 await asyncio.sleep(delay)
                 
                 await message.answer(part)
+
+            if "[OFFER_LVIV_SUCCESS_SCREEN]" in response:
+                import os
+                from aiogram.types import FSInputFile
+                img_path = os.path.join(os.path.dirname(__file__), "..", "resources", "images", "lvivbank_success.png")
+                if os.path.exists(img_path):
+                    try:
+                        await bot.send_photo(chat_id=client_id, photo=FSInputFile(img_path))
+                    except Exception as e:
+                        logger.error(f"Error sending lviv success template photo: {e}")
             return
         
     await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
@@ -1861,6 +1886,46 @@ async def process_amobank_instruction_confirm(message: Message, state: FSMContex
             await message.answer("Зображення шаблону не знайдено.")
     else:
         # Clear state and process the message normally via handle_client_data_manual
+        await state.clear()
+        await handle_client_data_manual(message, state, bot)
+
+
+@router.message(RegistrationStates.waiting_lviv_success_confirm, F.chat.type == "private")
+async def process_lviv_success_confirm(message: Message, state: FSMContext, bot: Bot):
+    t = (message.text or "").lower().strip()
+    affirmative_words = ["так", "давай", "ок", "окей", "да", "звісно", "ага", "угу", "хочу"]
+    is_yes = any(word in t for word in affirmative_words)
+    
+    if is_yes:
+        await state.clear()
+        
+        import os
+        from aiogram.types import FSInputFile
+        
+        img_path = os.path.join(os.path.dirname(__file__), "..", "resources", "images", "lvivbank_success.png")
+        success_photo_id = None
+        if os.path.exists(img_path):
+            try:
+                msg = await message.answer_photo(
+                    photo=FSInputFile(img_path),
+                    caption="Чудово! Тоді я підкріплю цей шаблонний скріншот успіху для вашої анкети."
+                )
+                success_photo_id = msg.photo[-1].file_id
+            except Exception as e:
+                logger.error(f"Error sending lviv success template photo during confirmation: {e}")
+                
+        await db.update_session_verification_data(
+            message.from_user.id,
+            success_photo_id=success_photo_id
+        )
+        
+        await message.answer(
+            "Напишіть, будь ласка, Ваш номер телефону, який використовувався для реєстрації?",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        await state.set_state(RegistrationStates.waiting_phone)
+    else:
+        # Clear state and process normal AI fallback
         await state.clear()
         await handle_client_data_manual(message, state, bot)
 
