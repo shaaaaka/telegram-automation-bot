@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=129.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=130.0">
 </head>
 <body>
     <div class="container">
@@ -503,23 +503,6 @@
             </div>
         </div>
     </div><!-- Custom Premium Modal Dialog -->
-    <div id="custom-modal" class="modal-overlay">
-        <div class="modal-card">
-            <div class="modal-header">
-                <span class="modal-icon">⚠️</span>
-                <h3 class="modal-title">Підтвердження дії</h3>
-            </div>
-            <div class="modal-body" id="custom-modal-message">
-                Ви впевнені, що хочете виконати цю дію?
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary btn-sm" id="custom-modal-cancel-btn">Скасувати</button>
-                <button class="btn btn-danger btn-sm" id="custom-modal-confirm-btn">Підтвердити</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Custom Premium Modal Dialog -->
     <div id="custom-modal" class="modal-overlay">
         <div class="modal-card">
             <div class="modal-header">
@@ -1682,8 +1665,8 @@
 
         // Видалення окремої лінії
         async function handleDeleteLine(lineId, lineNo, bank) {
-            const label = lineNo ? `№ ${lineNo} (${bank})` : `ID ${lineId}`;
-            const confirmed = await showConfirm(`Ви впевнені, що хочете видалити лінію ${label}?`, 'danger');
+            const label = lineNo ? `Line ${lineNo}` : `ID ${lineId}`;
+            const confirmed = await showConfirm(`Ви впевнені, що хочете видалити ${label}?`, 'danger');
             if (!confirmed) return;
             try {
                 const res = await fetch(`/api/lines/${lineId}`, {
