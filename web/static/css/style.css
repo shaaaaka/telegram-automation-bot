@@ -567,7 +567,6 @@ h1 {
     background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.12);
     color: #ffffff;
-    transform: translateY(-1px);
 }
 
 /* Custom glow states for selected banks */
@@ -660,7 +659,6 @@ h1 {
     background: rgba(139, 92, 246, 0.1) !important;
     border-color: rgba(139, 92, 246, 0.45) !important;
     color: #c7d2fe !important;
-    transform: translateY(-1px);
     box-shadow: 0 0 12px rgba(139, 92, 246, 0.15) !important;
 }
 
@@ -808,11 +806,9 @@ textarea:focus {
 }
 
 .btn:hover {
-    transform: translateY(-1px);
 }
 
 .btn:active {
-    transform: translateY(0);
 }
 
 .btn:disabled {
@@ -1115,7 +1111,6 @@ textarea:focus {
 }
 .lines-table tbody tr:hover {
     background: rgba(255, 255, 255, 0.045);
-    transform: translateY(-1px);
 }
 
 .lines-table td {
@@ -1861,7 +1856,6 @@ input[type=number] {
     transition: all var(--transition-speed);
 }
 .stats-card:hover {
-    transform: translateY(-2px);
     border-color: rgba(255, 255, 255, 0.1);
     background: rgba(20, 26, 42, 0.55);
 }
@@ -2632,12 +2626,10 @@ input[type=number] {
 }
 
 .btn-send-message:hover {
-    transform: translateY(-2px) scale(1.02);
     box-shadow: 0 6px 16px rgba(139, 92, 246, 0.45), 0 0 10px rgba(139, 92, 246, 0.2);
 }
 
 .btn-send-message:active {
-    transform: translateY(0) scale(0.97);
 }
 
 /* Date Dividers */
@@ -2776,11 +2768,9 @@ input[type=number] {
     border-color: rgba(139, 92, 246, 0.6) !important;
     color: #ffffff !important;
     box-shadow: 0 0 12px rgba(139, 92, 246, 0.35) !important;
-    transform: translateY(-1px);
 }
 
 .btn-chat-modal:active {
-    transform: translateY(0);
 }
 
 /* Back button hidden by default */
