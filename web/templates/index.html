@@ -2085,7 +2085,6 @@
                         method: 'POST'
                     });
                     if (res.ok) {
-                        showToast(`Банк ${bank} знову додано до списку проходження!`, "success");
                         pollData();
                     } else {
                         showToast("Помилка при спробі додати банк назад", "error");
