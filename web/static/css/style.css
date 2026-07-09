@@ -470,7 +470,7 @@ h1 {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 26px;
+    height: 30px;
     padding: 0 12px;
     border-radius: 8px;
     letter-spacing: 0.06em;
@@ -524,14 +524,17 @@ h1 {
     color: var(--accent-warning);
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    height: 30px;
     border: 1px solid rgba(245, 158, 11, 0.2);
     background: rgba(245, 158, 11, 0.06);
-    padding: 4px 10px;
+    padding: 0 10px;
     border-radius: 8px;
     font-family: monospace;
     font-weight: 600;
     white-space: nowrap;
     transition: all 0.3s;
+    line-height: 1;
 }
 
 .client-data {
