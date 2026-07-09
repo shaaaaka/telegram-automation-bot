@@ -558,11 +558,21 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
     if not unique_banks_db:
         warning_text = "\n\n⚠️ *Попередження:* немає доступних ліній/номерів у базі! Додайте номери через сайт або в чат."
         
+    # Отримуємо історію верифікацій клієнта
+    history = await db.get_client_verification_history(client_id)
+    passed_banks = {h['bank'] for h in history if h['status'] == 'success'}
+    banned_banks = {h['bank'] for h in history if h['status'] in ('banned', 'failure')}
+
     # Створюємо кнопки вибору банків
     keyboard_buttons = []
     row = []
     for bank in all_banks:
-        button_text = f"[ ] {bank}"
+        suffix = ""
+        if bank in passed_banks:
+            suffix = " (✅ Пройдено)"
+        elif bank in banned_banks:
+            suffix = " (❌ Бан)"
+        button_text = f"[ ] {bank}{suffix}"
         callback_data = f"toggle_{client_id}_{bank}"
         row.append(InlineKeyboardButton(text=button_text, callback_data=callback_data))
         if len(row) == 2:

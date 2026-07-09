@@ -618,11 +618,21 @@ async def handle_toggle_bank(callback: CallbackQuery, bot: Bot, state: FSMContex
     custom_order = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"]
     all_banks = list(dict.fromkeys(custom_order + unique_banks_db))
     
+    # Отримуємо історію верифікацій клієнта
+    history = await db.get_client_verification_history(client_id)
+    passed_banks = {h['bank'] for h in history if h['status'] == 'success'}
+    banned_banks = {h['bank'] for h in history if h['status'] in ('banned', 'failure')}
+
     keyboard_buttons = []
     row = []
     for b in all_banks:
+        suffix = ""
+        if b in passed_banks:
+            suffix = " (✅ Пройдено)"
+        elif b in banned_banks:
+            suffix = " (❌ Бан)"
         checkbox = "[x]" if b in selected else "[ ]"
-        button_text = f"{checkbox} {b}"
+        button_text = f"{checkbox} {b}{suffix}"
         callback_data = f"toggle_{client_id}_{b}"
         row.append(InlineKeyboardButton(text=button_text, callback_data=callback_data))
         if len(row) == 2:

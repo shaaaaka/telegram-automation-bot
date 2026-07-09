@@ -1905,7 +1905,7 @@
                     
                     const remainingBanksStr = session.remaining_banks;
                     const remainingList = remainingBanksStr ? remainingBanksStr.split(',').filter(Boolean) : [];
-                    const bankStatuses = {}; // session.bank_statuses || {};
+                    const bankStatuses = session.bank_statuses || {};
                     
                     // Додаємо банки з історії до списку для відображення
                     const historyBanks = Object.keys(bankStatuses);
