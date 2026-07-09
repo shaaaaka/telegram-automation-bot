@@ -1852,15 +1852,15 @@
                             if (status === 'success') {
                                 chipClasses += ' success-done';
                                 statusIcon = '<span class="chip-status-icon">✓</span>';
-                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
+                                onclickAttr = '';
                             } else if (status === 'failure' || status === 'banned') {
                                 chipClasses += ' failure-done';
                                 statusIcon = '<span class="chip-status-icon">✗</span>';
-                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
+                                onclickAttr = '';
                             } else {
                                 chipClasses += ' released-done';
                                 statusIcon = '<span class="chip-status-icon">↻</span>';
-                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
+                                onclickAttr = '';
                             }
                         } else if (isCompleted) {
                             chipClasses += ' success-done';
