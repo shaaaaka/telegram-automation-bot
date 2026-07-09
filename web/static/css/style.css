@@ -3758,3 +3758,40 @@ body.sidebar-hidden .tab-content {
     background: rgba(239, 68, 68, 0.2);
     border-color: rgba(239, 68, 68, 0.5);
 }
+
+/* Bottom Toggle AI Button */
+.btn-toggle-ai-bottom {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.05rem;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+}
+
+.btn-toggle-ai-bottom.active {
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.btn-toggle-ai-bottom.active:hover {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.7);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+}
+
+.btn-toggle-ai-bottom.paused {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    filter: grayscale(0.2);
+}
+
+.btn-toggle-ai-bottom.paused:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.7);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
+}
