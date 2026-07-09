@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=118.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=119.0">
 </head>
 <body>
     <div class="container">
@@ -588,6 +588,22 @@
                 container.className = 'toast-container';
                 document.body.appendChild(container);
             }
+
+            // Динамічно переносимо контейнер залежно від вкладки
+            const panelLines = document.querySelector('.panel-lines');
+            const activeTab = document.querySelector('.tab-content.active');
+            if (panelLines && activeTab && activeTab.id === 'tab-content-control') {
+                if (container.parentElement !== panelLines) {
+                    panelLines.appendChild(container);
+                }
+                container.classList.add('inside-panel');
+            } else {
+                if (container.parentElement !== document.body) {
+                    document.body.appendChild(container);
+                }
+                container.classList.remove('inside-panel');
+            }
+
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
             toast.innerText = message;

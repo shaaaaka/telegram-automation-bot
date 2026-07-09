@@ -1323,29 +1323,44 @@ textarea:focus {
 
 .toast-container {
     position: fixed;
-    top: 110px;
-    right: 24px;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     flex-direction: column;
     gap: 12px;
     z-index: 9999;
+    align-items: center;
+}
+
+.toast-container.inside-panel {
+    position: absolute;
+    top: 32px;
+    right: 32px;
+    left: auto;
+    transform: none;
+    align-items: flex-end;
 }
 
 .toast {
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-left: 5px solid var(--accent-primary);
     color: #ffffff;
-    padding: 10px 20px;
-    border-radius: 8px;
+    padding: 16px 30px;
+    border-radius: 12px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-    font-size: 0.9rem;
+    font-size: 1.1rem;
     font-weight: 600;
     backdrop-filter: blur(12px);
     animation: toastSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), toastFadeOut 0.3s ease 2.7s forwards;
-    min-width: 280px;
+    min-width: 360px;
     display: flex;
     align-items: center;
     gap: 12px;
+}
+
+.toast-container.inside-panel .toast {
+    animation: toastSlideInRight 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), toastFadeOut 0.3s ease 2.7s forwards;
 }
 
 .toast.success {
@@ -1359,6 +1374,11 @@ textarea:focus {
 }
 
 @keyframes toastSlideIn {
+    from { transform: translateY(-50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes toastSlideInRight {
     from { transform: translateX(120%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
 }
@@ -1382,6 +1402,7 @@ textarea:focus {
 
 .panel-lines {
     height: fit-content !important;
+    position: relative !important;
 }
 
 .divider-top {
