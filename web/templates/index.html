@@ -1952,7 +1952,7 @@
                             } else {
                                 chipClasses += ' released-done';
                                 statusIcon = '<span class="chip-status-icon">↻</span>';
-                                onclickAttr = '';
+                                onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
                             }
                         } else if (isCompleted) {
                             chipClasses += ' success-done';
@@ -2437,6 +2437,8 @@
                 if (res.ok) {
                     if (result === 'success') {
                         showToast("Поточний банк успішно завершено!", "success");
+                    } else if (result === 'release') {
+                        showToast("Номер успішно звільнено, банк відправлено в повернення.", "info");
                     } else {
                         showToast("Позначено як відмова банку.", "warning");
                     }
