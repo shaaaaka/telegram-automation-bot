@@ -322,8 +322,21 @@ async def save_client_banks(client_id: int, body: BanksSelection):
         raise HTTPException(status_code=404, detail="Session not found")
     
     new_selected = body.selected_banks
-    new_remaining = list(new_selected)
     
+    current_remaining_str = session.get('remaining_banks', '')
+    current_remaining = current_remaining_str.split(",") if current_remaining_str else []
+    
+    current_selected_str = session.get('selected_banks', '')
+    current_selected = current_selected_str.split(",") if current_selected_str else []
+    
+    new_remaining = []
+    for bank in new_selected:
+        if bank in current_remaining:
+            new_remaining.append(bank)
+        elif bank not in current_selected:
+            # Це новий банк, якого раніше не було в списку обраних взагалі
+            new_remaining.append(bank)
+            
     selected_str = ",".join(new_selected)
     remaining_str = ",".join(new_remaining)
     
