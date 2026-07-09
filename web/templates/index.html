@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=125.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=126.0">
 </head>
 <body>
     <div class="container">
@@ -602,6 +602,14 @@
                     document.body.appendChild(container);
                 }
                 container.classList.remove('inside-panel');
+            }
+
+            // Перевіряємо, чи вже є активне сповіщення з таким самим текстом
+            const existingToasts = container.querySelectorAll('.toast');
+            for (let t of existingToasts) {
+                if (t.innerText.trim() === message.trim()) {
+                    return; // Вже показується таке ж повідомлення, ігноруємо дублікат
+                }
             }
 
             const toast = document.createElement('div');
@@ -2213,14 +2221,6 @@
             const container = document.getElementById(`banks-checkboxes-${clientId}`);
             if (!container) return;
             
-            const checkedInputsBefore = container.querySelectorAll('input[type="checkbox"]:checked');
-            
-            // Забороняємо вимикати останній обраний банк
-            if (checkbox.checked && checkedInputsBefore.length <= 1) {
-                showToast("Клієнт повинен проходити принаймні один банк!", "error");
-                return;
-            }
-
             checkbox.checked = !checkbox.checked;
             if (checkbox.checked) {
                 element.classList.add('selected');
