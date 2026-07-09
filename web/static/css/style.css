@@ -1580,6 +1580,7 @@ input[type=number] {
 .modal-icon {
     font-size: 2.2rem;
     animation: pulseWarning 1.5s infinite;
+    text-shadow: 0 0 20px rgba(255, 171, 0, 0.6);
 }
 
 @keyframes pulseWarning {
@@ -1611,6 +1612,20 @@ input[type=number] {
 
 .modal-footer button {
     min-width: 110px;
+}
+
+.modal-footer .btn-danger {
+    background: rgba(239, 68, 68, 0.08) !important;
+    border: 1px solid rgba(239, 68, 68, 0.25) !important;
+    color: #f87171 !important;
+    box-shadow: none !important;
+}
+
+.modal-footer .btn-danger:hover {
+    background: rgba(239, 68, 68, 0.15) !important;
+    border-color: rgba(239, 68, 68, 0.7) !important;
+    color: #fca5a5 !important;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.35) !important;
 }
 
 /* Custom Premium Dropdown Select */
