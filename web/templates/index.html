@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=128.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=129.0">
 </head>
 <body>
     <div class="container">
@@ -1577,7 +1577,7 @@
                     <td>${line.bank}</td>
                     <td><div class="status-wrapper"><span class="line-status-dot ${statusClass}"></span><span>${statusText}</span></div></td>
                     <td>
-                        <button type="button" class="btn-delete-line" onclick="handleDeleteLine(${line.id})" title="Видалити лінію">
+                        <button type="button" class="btn-delete-line" onclick="handleDeleteLine(${line.id}, ${line.line_id}, '${line.bank}')" title="Видалити лінію">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -1681,8 +1681,9 @@
         }
 
         // Видалення окремої лінії
-        async function handleDeleteLine(lineId) {
-            const confirmed = await showConfirm(`Ви впевнені, що хочете видалити лінію ID ${lineId}?`, 'danger');
+        async function handleDeleteLine(lineId, lineNo, bank) {
+            const label = lineNo ? `№ ${lineNo} (${bank})` : `ID ${lineId}`;
+            const confirmed = await showConfirm(`Ви впевнені, що хочете видалити лінію ${label}?`, 'danger');
             if (!confirmed) return;
             try {
                 const res = await fetch(`/api/lines/${lineId}`, {
