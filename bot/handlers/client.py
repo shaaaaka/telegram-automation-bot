@@ -1475,7 +1475,9 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
             img_path = os.path.join(os.path.dirname(__file__), "..", "resources", "images", "lvivbank_success.png")
             if os.path.exists(img_path):
                 try:
-                    await bot.send_photo(chat_id=client_id, photo=FSInputFile(img_path))
+                    msg = await bot.send_photo(chat_id=client_id, photo=FSInputFile(img_path))
+                    file_id = msg.photo[-1].file_id
+                    await state.update_data(lviv_template_photo_id=file_id)
                 except Exception as e:
                     logger.error(f"Error sending lviv success template photo: {e}")
         return
@@ -1645,7 +1647,9 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
                 img_path = os.path.join(os.path.dirname(__file__), "..", "resources", "images", "lvivbank_success.png")
                 if os.path.exists(img_path):
                     try:
-                        await bot.send_photo(chat_id=client_id, photo=FSInputFile(img_path))
+                        msg = await bot.send_photo(chat_id=client_id, photo=FSInputFile(img_path))
+                        file_id = msg.photo[-1].file_id
+                        await state.update_data(lviv_template_photo_id=file_id)
                     except Exception as e:
                         logger.error(f"Error sending lviv success template photo: {e}")
             return
@@ -1897,23 +1901,14 @@ async def process_lviv_success_confirm(message: Message, state: FSMContext, bot:
     is_yes = any(word in t for word in affirmative_words)
     
     if is_yes:
-        await state.clear()
+        # Retrieve template photo file_id we saved earlier
+        data = await state.get_data()
+        success_photo_id = data.get("lviv_template_photo_id")
         
-        import os
-        from aiogram.types import FSInputFile
+        # Save it into FSM data under success_photo_id so continue_after_phone can access it
+        await state.update_data(success_photo_id=success_photo_id)
         
-        img_path = os.path.join(os.path.dirname(__file__), "..", "resources", "images", "lvivbank_success.png")
-        success_photo_id = None
-        if os.path.exists(img_path):
-            try:
-                msg = await message.answer_photo(
-                    photo=FSInputFile(img_path),
-                    caption="Чудово! Тоді я підкріплю цей шаблонний скріншот успіху для вашої анкети."
-                )
-                success_photo_id = msg.photo[-1].file_id
-            except Exception as e:
-                logger.error(f"Error sending lviv success template photo during confirmation: {e}")
-                
+        # Update in database as well
         await db.update_session_verification_data(
             message.from_user.id,
             success_photo_id=success_photo_id
@@ -1925,7 +1920,6 @@ async def process_lviv_success_confirm(message: Message, state: FSMContext, bot:
         )
         await state.set_state(RegistrationStates.waiting_phone)
     else:
-        # Clear state and process normal AI fallback
         await state.clear()
         await handle_client_data_manual(message, state, bot)
 
