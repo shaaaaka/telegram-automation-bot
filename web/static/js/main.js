@@ -40,6 +40,8 @@ let lastUnroutedCodes = [];     // Unrouted codes cache
 // Audio Context (Web Audio API)
 let audioCtx = null;
 let soundEnabled = true;
+let soundVolume = parseFloat(localStorage.getItem('notification_volume')) || 0.5;
+let soundProfile = localStorage.getItem('notification_sound_profile') || 'classic';
 
 // Toast Notification System
 function showToast(message, type = 'info') {
@@ -203,17 +205,22 @@ function initAudio() {
 
 function toggleSound() {
     soundEnabled = !soundEnabled;
-    const btn = document.getElementById('sound-toggle-btn');
-    if (btn) {
-        if (soundEnabled) {
-            btn.innerHTML = '🔊 <span class="hide-mobile">Звук увімкнено</span>';
-            btn.classList.remove('sound-disabled');
-            initAudio();
-        } else {
-            btn.innerHTML = '🔇 <span class="hide-mobile">Звук вимкнено</span>';
-            btn.classList.add('sound-disabled');
+    const btns = [
+        document.getElementById('sound-toggle-btn'),
+        document.getElementById('settings-sound-toggle-btn')
+    ];
+    btns.forEach(btn => {
+        if (btn) {
+            if (soundEnabled) {
+                btn.innerHTML = '🔊 <span class="hide-mobile">Звук увімкнено</span>';
+                btn.classList.remove('sound-disabled');
+                initAudio();
+            } else {
+                btn.innerHTML = '🔇 <span class="hide-mobile">Звук вимкнено</span>';
+                btn.classList.add('sound-disabled');
+            }
         }
-    }
+    });
 }
 
 function playSound(type) {
@@ -223,43 +230,64 @@ function playSound(type) {
 
     try {
         const now = audioCtx.currentTime;
+        let oscType = 'sine';
+        let fMultiplier = 1.0;
+        let durationScale = 1.0;
+        
+        if (soundProfile === 'retro') {
+            oscType = 'square';
+            fMultiplier = 0.85;
+            durationScale = 0.8;
+        } else if (soundProfile === 'digital') {
+            oscType = 'triangle';
+            fMultiplier = 1.25;
+            durationScale = 0.9;
+        } else if (soundProfile === 'soft') {
+            oscType = 'sine';
+            fMultiplier = 0.75;
+            durationScale = 1.35;
+        }
+        
+        function playToneWithProfile(freq, duration, delay) {
+            try {
+                if (!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = oscType;
+                osc.frequency.setValueAtTime(freq * fMultiplier, now + delay);
+                
+                const vol = parseFloat(soundVolume);
+                const maxGain = vol * 0.25;
+                
+                gain.gain.setValueAtTime(maxGain, now + delay);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + delay + duration * durationScale);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start(now + delay);
+                osc.stop(now + delay + duration * durationScale);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
         if (type === 'new_client') {
-            playTone(523.25, 0.08, now);
-            playTone(659.25, 0.08, now + 0.08);
-            playTone(783.99, 0.12, now + 0.16);
+            playToneWithProfile(523.25, 0.08, 0);
+            playToneWithProfile(659.25, 0.08, 0.08);
+            playToneWithProfile(783.99, 0.12, 0.16);
         } else if (type === 'waiting_code') {
-            playTone(880, 0.06, now);
-            playTone(880, 0.06, now + 0.1);
+            playToneWithProfile(880, 0.06, 0);
+            playToneWithProfile(880, 0.06, 0.1);
         } else if (type === 'unrouted_code') {
-            playTone(440, 0.12, now);
-            playTone(554.37, 0.18, now + 0.08);
+            playToneWithProfile(440, 0.12, 0);
+            playToneWithProfile(554.37, 0.18, 0.08);
         } else if (type === 'new_message') {
-            playTone(587.33, 0.15, now);
+            playToneWithProfile(587.33, 0.15, 0);
         }
     } catch (e) {
         console.error("Sound playback error:", e);
-    }
-}
-
-function playTone(freq, duration, time) {
-    try {
-        if (!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, time);
-        
-        gain.gain.setValueAtTime(0.12, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
-        
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        
-        osc.start(time);
-        osc.stop(time + duration);
-    } catch (e) {
-        console.error("Tone generation error:", e);
     }
 }
 
@@ -561,6 +589,48 @@ document.addEventListener('DOMContentLoaded', () => {
         connectChatWebSocket();
     }
 });
+
+function updateVolume(val) {
+    soundVolume = parseFloat(val) / 100;
+    localStorage.setItem('notification_volume', soundVolume);
+    const valueEl = document.getElementById('settings-volume-value');
+    if (valueEl) valueEl.textContent = val + '%';
+}
+
+function updateSoundProfile(profile) {
+    soundProfile = profile;
+    localStorage.setItem('notification_sound_profile', profile);
+    playTestTone();
+}
+
+function playTestTone() {
+    playSound('new_message');
+}
+
+function syncSoundControlsUI() {
+    const slider = document.getElementById('settings-volume-slider');
+    if (slider) {
+        slider.value = Math.round(soundVolume * 100);
+    }
+    const valueEl = document.getElementById('settings-volume-value');
+    if (valueEl) {
+        valueEl.textContent = Math.round(soundVolume * 100) + '%';
+    }
+    const select = document.getElementById('settings-sound-profile');
+    if (select) {
+        select.value = soundProfile;
+    }
+    const toggleBtn = document.getElementById('settings-sound-toggle-btn');
+    if (toggleBtn) {
+        if (soundEnabled) {
+            toggleBtn.innerHTML = '🔊 <span>Звук увімкнено</span>';
+            toggleBtn.classList.remove('sound-disabled');
+        } else {
+            toggleBtn.innerHTML = '🔇 <span>Звук вимкнено</span>';
+            toggleBtn.classList.add('sound-disabled');
+        }
+    }
+}
 
 function togglePanelCollapse(headerElement, event) {
     // If the click is inside a switch-container, button, or input, don't toggle collapse

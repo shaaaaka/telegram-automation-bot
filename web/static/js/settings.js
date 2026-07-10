@@ -64,6 +64,9 @@ async function loadSettings() {
         document.getElementById('settings-archive-group-id').value = data.settings.archive_group_id || '';
         
         toggleReminderInputs();
+        if (typeof syncSoundControlsUI === 'function') {
+            syncSoundControlsUI();
+        }
 
         const tableBody = document.getElementById('settings-templates-table-body');
         if (!tableBody) return;
