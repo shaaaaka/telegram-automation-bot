@@ -336,6 +336,22 @@
                     to { opacity: 1; transform: translateY(0); }
                 }
 
+                #settings-sound-toggle-btn {
+                    background: rgba(255, 255, 255, 0.04) !important;
+                    border: 1px solid rgba(16, 185, 129, 0.25) !important;
+                    color: var(--accent-success) !important;
+                    font-size: 0.9rem !important;
+                    padding: 8px 18px !important;
+                    cursor: pointer;
+                    border-radius: 8px;
+                    font-weight: 600;
+                    transition: all 0.3s ease;
+                }
+                #settings-sound-toggle-btn.sound-disabled {
+                    border-color: rgba(239, 68, 68, 0.25) !important;
+                    color: var(--accent-danger) !important;
+                }
+
                 @media (max-width: 768px) {
                     .settings-container {
                         flex-direction: column;
@@ -557,10 +573,10 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=4.3"></script>
-    <script src="/static/js/control.js?v=5.0"></script>
-    <script src="/static/js/chat.js?v=4.3"></script>
-    <script src="/static/js/stats.js?v=3.9"></script>
-    <script src="/static/js/settings.js?v=3.9"></script>
+    <script src="/static/js/main.js?v=6.1"></script>
+    <script src="/static/js/control.js?v=6.1"></script>
+    <script src="/static/js/chat.js?v=6.1"></script>
+    <script src="/static/js/stats.js?v=6.1"></script>
+    <script src="/static/js/settings.js?v=6.1"></script>
 </body>
 </html>
