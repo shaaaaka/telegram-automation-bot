@@ -555,8 +555,9 @@ async def set_session_status(client_id: int, status: str):
 async def send_archive_report(client_id: int, bot):
     """Генерує текстовий звіт про сесію та надсилає його в архівну групу"""
     try:
-        from bot.config import ARCHIVE_GROUP_ID, LOG_BOT_TOKEN
-        if not ARCHIVE_GROUP_ID:
+        from bot.config import get_archive_group_id, LOG_BOT_TOKEN
+        archive_group_id = get_archive_group_id()
+        if not archive_group_id:
             return
             
         import re
@@ -629,7 +630,7 @@ async def send_archive_report(client_id: int, bot):
         try:
             # Надсилаємо картку-звіт
             await send_bot.send_message(
-                chat_id=ARCHIVE_GROUP_ID,
+                chat_id=archive_group_id,
                 text=report_text,
                 parse_mode="HTML"
             )

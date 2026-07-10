@@ -5,7 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, FSInputFile
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
-from bot.config import ADMIN_ID, get_template_photo, get_bank_template_with_key
+from bot.config import get_template_photo, get_bank_template_with_key
 import bot.database as db
 
 router = Router()
@@ -32,7 +32,8 @@ def get_admin_keyboard() -> ReplyKeyboardMarkup:
 
 # Фільтр для перевірки, що повідомлення або запит від Адміна
 def is_admin(message_or_query) -> bool:
-    return message_or_query.from_user.id == ADMIN_ID
+    from bot.config import get_admin_id
+    return message_or_query.from_user.id == get_admin_id()
 
 async def clear_previous_admin_messages(chat_id: int, state: FSMContext, bot: Bot, key: str = "last_admin_messages"):
     """Видаляє попередні повідомлення адмін-меню для збереження чистоти чату"""
@@ -147,7 +148,7 @@ async def send_or_edit_bank_selection(
         )
         await register_admin_message(msg, state, "last_add_line_messages")
 
-@router.message(Command("lines"), F.from_user.id == ADMIN_ID)
+@router.message(Command("lines"), is_admin)
 async def cmd_list_lines(message: Message, state: FSMContext = None):
     """Показати список усіх ліній"""
     if not is_admin(message):
@@ -179,7 +180,7 @@ async def cmd_list_lines(message: Message, state: FSMContext = None):
             pass
         await register_admin_message(msg, state, "last_lines_messages")
 
-@router.message(Command("sessions"), F.from_user.id == ADMIN_ID)
+@router.message(Command("sessions"), is_admin)
 async def cmd_list_sessions(message: Message, state: FSMContext = None):
     """Показати список активних сесій"""
     if not is_admin(message):
@@ -267,7 +268,7 @@ async def cmd_list_sessions(message: Message, state: FSMContext = None):
         for card in cards_to_register:
             await register_admin_message(card, state, "last_sessions_messages")
 
-@router.message(Command("clear_lines"), F.from_user.id == ADMIN_ID)
+@router.message(Command("clear_lines"), is_admin)
 async def cmd_clear_lines(message: Message, state: FSMContext = None):
     """Повне очищення бази даних ліній"""
     if not is_admin(message):
@@ -287,15 +288,15 @@ async def cmd_clear_lines(message: Message, state: FSMContext = None):
 
 # --- Обробники текстових кнопок меню адміна ---
 
-@router.message(F.text == "🔌 Активні сесії", F.from_user.id == ADMIN_ID)
+@router.message(F.text == "🔌 Активні сесії", is_admin)
 async def btn_active_sessions(message: Message, state: FSMContext):
     await cmd_list_sessions(message, state)
 
-@router.message(F.text == "📞 Статус ліній", F.from_user.id == ADMIN_ID)
+@router.message(F.text == "📞 Статус ліній", is_admin)
 async def btn_list_lines(message: Message, state: FSMContext):
     await cmd_list_lines(message, state)
 
-@router.message(F.text == "🗑️ Очистити лінії", F.from_user.id == ADMIN_ID)
+@router.message(F.text == "🗑️ Очистити лінії", is_admin)
 async def btn_clear_lines(message: Message, state: FSMContext):
     await cmd_clear_lines(message, state)
 
@@ -309,7 +310,7 @@ def is_direct_line_format(message: Message) -> bool:
     f3 = bool(re.match(r'^\+?(\d{10,15})$', text))
     return f1 or f2 or f3
 
-@router.message(F.text, F.from_user.id == ADMIN_ID, is_direct_line_format)
+@router.message(F.text, is_admin, is_direct_line_format)
 async def handle_direct_line_paste(message: Message, state: FSMContext):
     if not is_admin(message):
         return
@@ -366,7 +367,7 @@ async def handle_direct_line_paste(message: Message, state: FSMContext):
         await send_or_edit_bank_selection(message.bot, message.chat.id, state, line_id, phone)
         await state.set_state(AddLineStates.waiting_bank)
 
-@router.message(F.text == "➕ Додати лінію", F.from_user.id == ADMIN_ID)
+@router.message(F.text == "➕ Додати лінію", is_admin)
 async def btn_add_line_start(message: Message, state: FSMContext):
     if not is_admin(message):
         return
@@ -383,7 +384,7 @@ async def btn_add_line_start(message: Message, state: FSMContext):
     await state.set_state(AddLineStates.waiting_id)
     await register_admin_message(msg, state, "last_add_line_messages")
 
-@router.message(AddLineStates.waiting_id, F.from_user.id == ADMIN_ID)
+@router.message(AddLineStates.waiting_id, is_admin)
 async def add_line_id(message: Message, state: FSMContext):
     if message.text == "/cancel":
         msg = await message.answer("Додавання лінії скасовано.")
@@ -419,7 +420,7 @@ async def add_line_id(message: Message, state: FSMContext):
     await register_admin_message(msg, state, "last_add_line_messages")
     await state.set_state(AddLineStates.waiting_phone)
 
-@router.message(AddLineStates.waiting_phone, F.from_user.id == ADMIN_ID)
+@router.message(AddLineStates.waiting_phone, is_admin)
 async def add_line_phone(message: Message, state: FSMContext):
     if message.text == "/cancel":
         msg = await message.answer("Додавання лінії скасовано.")
@@ -527,7 +528,7 @@ async def add_line_cancel_callback(callback: CallbackQuery, state: FSMContext):
     except Exception:
         pass
 
-@router.message(AddLineStates.waiting_bank, F.from_user.id == ADMIN_ID)
+@router.message(AddLineStates.waiting_bank, is_admin)
 async def add_line_bank_text(message: Message, state: FSMContext):
     if message.text == "/cancel":
         msg = await message.answer("Додавання лінії скасовано.")
@@ -1478,7 +1479,7 @@ async def show_next_assignment_menu(message: Message, client_id: int, edit: bool
         if state:
             await register_admin_message(msg, state, "last_sessions_messages")
 
-@router.message(Command("setphoto"), F.from_user.id == ADMIN_ID)
+@router.message(Command("setphoto"), is_admin)
 async def cmd_set_photo_help(message: Message):
     await message.answer(
         "Інструкція для налаштування фото:\n\n"
@@ -1490,7 +1491,7 @@ async def cmd_set_photo_help(message: Message):
         "Бот автоматично збереже це фото та надсилатиме його користувачам."
     )
 
-@router.message(F.chat.type == "private", F.from_user.id == ADMIN_ID, F.photo, F.caption.startswith("/setphoto"))
+@router.message(F.chat.type == "private", is_admin, F.photo, F.caption.startswith("/setphoto"))
 async def cmd_set_photo(message: Message, bot: Bot):
     """Обробник для завантаження фото інструкцій/шаблонів адміном"""
     caption = message.caption or ""

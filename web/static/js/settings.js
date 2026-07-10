@@ -57,6 +57,12 @@ async function loadSettings() {
         document.getElementById('settings-giver-format').value = data.settings.giver_request_format || 'Запрос {line_id} {bank_name}';
         document.getElementById('settings-giver-retry-format').value = data.settings.giver_request_retry_format || 'Запрос {line_id} {bank_name} (ПОВТОРНО)';
         document.getElementById('settings-client-assign-format').value = data.settings.client_number_assigned_format || 'Банк: *{bank_name}*\nНомер телефону:\n\n`+{phone_number}`\n\nКоли надішлете SMS і вам знадобиться код, тисніть кнопку нижче.';
+        
+        document.getElementById('settings-admin-id').value = data.settings.admin_id || '';
+        document.getElementById('settings-anketa-chat-id').value = data.settings.anketa_chat_id || '';
+        document.getElementById('settings-giver-chat-id').value = data.settings.giver_chat_id || '';
+        document.getElementById('settings-archive-group-id').value = data.settings.archive_group_id || '';
+        
         toggleReminderInputs();
 
         const tableBody = document.getElementById('settings-templates-table-body');
@@ -130,13 +136,17 @@ async function toggleReminderInputs(isManual = false) {
 }
 
 async function saveGeneralSettings(event) {
-    event.preventDefault();
+    if (event) event.preventDefault();
     const enabled = document.getElementById('settings-reminders-enabled').checked ? '1' : '0';
     const delay = document.getElementById('settings-reminder-delay').value;
     const text = document.getElementById('settings-reminder-text').value;
     const giverFormat = document.getElementById('settings-giver-format').value;
     const giverRetryFormat = document.getElementById('settings-giver-retry-format').value;
     const clientAssignFormat = document.getElementById('settings-client-assign-format').value;
+    const adminId = document.getElementById('settings-admin-id').value.trim();
+    const anketaChatId = document.getElementById('settings-anketa-chat-id').value.trim();
+    const giverChatId = document.getElementById('settings-giver-chat-id').value.trim();
+    const archiveGroupId = document.getElementById('settings-archive-group-id').value.trim();
 
     try {
         const res = await fetch('/api/settings', {
@@ -148,7 +158,11 @@ async function saveGeneralSettings(event) {
                 reminders_enabled: enabled,
                 giver_request_format: giverFormat,
                 giver_request_retry_format: giverRetryFormat,
-                client_number_assigned_format: clientAssignFormat
+                client_number_assigned_format: clientAssignFormat,
+                admin_id: adminId,
+                anketa_chat_id: anketaChatId,
+                giver_chat_id: giverChatId,
+                archive_group_id: archiveGroupId
             })
         });
         if (res.ok) {
@@ -626,4 +640,31 @@ if (templateTextEl) {
             }
         }
     });
+}
+
+function switchSettingsSubtab(subtabId) {
+    // 1. Update subtab button classes
+    document.querySelectorAll('.settings-subtab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    // Find active button
+    const activeBtn = document.querySelector(`.settings-subtab-btn[onclick="switchSettingsSubtab('${subtabId}')"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // 2. Show/hide subtab contents
+    document.querySelectorAll('.settings-subtab-content').forEach(pane => {
+        pane.classList.remove('active');
+    });
+    const activePane = document.getElementById(`settings-content-${subtabId}`);
+    if (activePane) activePane.classList.add('active');
+
+    // 3. Show/hide global save button container
+    const saveBtn = document.getElementById('settings-save-btn-container');
+    if (saveBtn) {
+        if (subtabId === 'banks') {
+            saveBtn.style.display = 'none';
+        } else {
+            saveBtn.style.display = 'flex';
+        }
+    }
 }

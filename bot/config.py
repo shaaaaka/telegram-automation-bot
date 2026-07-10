@@ -112,3 +112,40 @@ def get_expected_code_length(bank_name: str) -> int | None:
             return length
     return None
 
+# Кеш налаштувань у пам'яті (для гарячого оновлення ID чатів без перезапуску)
+_settings_cache = {}
+
+def get_anketa_chat_id() -> int:
+    return _settings_cache.get("anketa_chat_id", ANKETA_CHAT_ID)
+
+def get_giver_chat_id() -> int:
+    return _settings_cache.get("giver_chat_id", GIVER_CHAT_ID)
+
+def get_archive_group_id() -> int:
+    return _settings_cache.get("archive_group_id", ARCHIVE_GROUP_ID)
+
+def get_admin_id() -> int:
+    return _settings_cache.get("admin_id", ADMIN_ID)
+
+def set_cached_setting(key: str, value: str):
+    if key == "anketa_chat_id":
+        try:
+            _settings_cache["anketa_chat_id"] = int(value)
+        except ValueError:
+            pass
+    elif key == "giver_chat_id":
+        try:
+            _settings_cache["giver_chat_id"] = int(value)
+        except ValueError:
+            pass
+    elif key == "archive_group_id":
+        try:
+            _settings_cache["archive_group_id"] = int(value)
+        except ValueError:
+            pass
+    elif key == "admin_id":
+        try:
+            _settings_cache["admin_id"] = int(value)
+        except ValueError:
+            pass
+

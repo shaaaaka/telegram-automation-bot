@@ -153,6 +153,14 @@ async def main():
     logging.info("Ініціалізація бази даних...")
     await init_db()
 
+    # Завантажуємо налаштування чатів з БД та кешуємо у конфіг
+    from bot.database import get_setting
+    from bot.config import set_cached_setting
+    for key in ["anketa_chat_id", "giver_chat_id", "archive_group_id", "admin_id"]:
+        val = await get_setting(key)
+        if val:
+            set_cached_setting(key, val)
+
     # Ініціалізація бота та диспетчера та реєстрація middleware
     bot = Bot(token=BOT_TOKEN)
     bot.session.middleware(OutgoingLoggingMiddleware(log_bot=log_bot))

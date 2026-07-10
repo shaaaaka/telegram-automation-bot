@@ -260,103 +260,252 @@
 
         <!-- Вкладка 3: Налаштування -->
         <div id="tab-content-settings" class="tab-content">
-            <!-- Panel 1: Загальні налаштування бота -->
-            <div class="panel collapsed">
-                <div class="panel-header" onclick="togglePanelCollapse(this, event)" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
-                    <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;"><span class="panel-icon-wrapper"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.5 1z"></path></svg></span>Загальні налаштування <span class="collapse-chevron">▼</span></h2>
-                    <label class="switch-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">Нагадування</span>
-                        <div class="switch">
-                            <input type="checkbox" id="settings-reminders-enabled" onchange="toggleReminderInputs(true)">
-                            <span class="slider"></span>
-                        </div>
-                    </label>
+            <style>
+                /* Sidebar Layout for Settings Tab */
+                .settings-container {
+                    display: flex;
+                    gap: 24px;
+                    margin-top: 16px;
+                    align-items: stretch;
+                }
+
+                .settings-sidebar {
+                    width: 250px;
+                    flex-shrink: 0;
+                    background: rgba(255, 255, 255, 0.02);
+                    border: 1px solid rgba(255, 255, 255, 0.05);
+                    border-radius: 12px;
+                    padding: 16px 12px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    align-self: flex-start;
+                }
+
+                .settings-subtab-btn {
+                    width: 100%;
+                    text-align: left;
+                    padding: 12px 16px;
+                    background: transparent;
+                    border: none;
+                    border-radius: 8px;
+                    color: var(--text-muted);
+                    font-weight: 500;
+                    font-size: 0.9rem;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    transition: all 0.2s ease;
+                }
+
+                .settings-subtab-btn:hover {
+                    background: rgba(255, 255, 255, 0.04);
+                    color: var(--text-color);
+                }
+
+                .settings-subtab-btn.active {
+                    background: var(--accent-primary) !important;
+                    color: #ffffff !important;
+                    box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+                }
+
+                .settings-content-pane {
+                    flex-grow: 1;
+                    background: rgba(255, 255, 255, 0.01);
+                    border: 1px solid rgba(255, 255, 255, 0.04);
+                    border-radius: 12px;
+                    padding: 24px;
+                    min-height: 480px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                }
+
+                .settings-subtab-content {
+                    display: none;
+                    animation: settingsFadeIn 0.2s ease-in-out;
+                }
+
+                .settings-subtab-content.active {
+                    display: block;
+                }
+
+                @keyframes settingsFadeIn {
+                    from { opacity: 0; transform: translateY(4px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+
+                @media (max-width: 768px) {
+                    .settings-container {
+                        flex-direction: column;
+                    }
+                    .settings-sidebar {
+                        width: 100%;
+                    }
+                }
+            </style>
+
+            <div class="settings-container">
+                <!-- Лівий сайдбар -->
+                <div class="settings-sidebar">
+                    <button type="button" class="settings-subtab-btn active" onclick="switchSettingsSubtab('general')">
+                        ⚙️ Основні налаштування
+                    </button>
+                    <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('templates')">
+                        💬 Шаблони повідомлень
+                    </button>
+                    <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('banks')">
+                        🏦 Шаблони банків
+                    </button>
+                    <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('chats')">
+                        📞 Системні чати та ID
+                    </button>
                 </div>
-                <div class="panel-body-wrapper">
-                    <!-- Bot Status & Sound toggle inside general settings -->
-                    <div style="display: flex; gap: 16px; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; margin-bottom: 24px; flex-wrap: wrap;">
-                        <div style="display: flex; flex-direction: column; gap: 6px;">
-                            <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;">Статус роботи бота</span>
-                            <div class="status-badge" id="bot-status" style="display: inline-flex; align-items: center; font-size: 0.95rem; font-weight: 600; color: #ffffff; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 6px 14px; border-radius: 8px; width: fit-content; min-height: 36px;">
-                                <span class="status-dot-inline" style="background:#f59e0b;box-shadow:0 0 8px #f59e0b;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span style="margin-left:8px;">Синхронізація</span>
+
+                <!-- Правий контент-лейаут -->
+                <div class="settings-content-pane">
+                    <!-- Загальна форма для збереження перших трьох розділів одним кліком -->
+                    <form id="general-settings-form" onsubmit="saveGeneralSettings(event)" style="display: flex; flex-direction: column; height: 100%; justify-content: space-between; flex-grow: 1;">
+                        <div style="flex-grow: 1;">
+                            <!-- Вкладка 1: Основні налаштування -->
+                            <div id="settings-content-general" class="settings-subtab-content active">
+                                <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: 600; color: #fff;">⚙️ Основні налаштування</h3>
+                                
+                                <!-- Статус & Звуки -->
+                                <div style="display: flex; gap: 16px; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; margin-bottom: 24px; flex-wrap: wrap;">
+                                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                                        <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;">Статус роботи бота</span>
+                                        <div class="status-badge" id="bot-status" style="display: inline-flex; align-items: center; font-size: 0.95rem; font-weight: 600; color: #ffffff; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 6px 14px; border-radius: 8px; width: fit-content; min-height: 36px;">
+                                            <span class="status-dot-inline" style="background:#f59e0b;box-shadow:0 0 8px #f59e0b;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span style="margin-left:8px;">Синхронізація</span>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start;">
+                                        <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;">Звукові сповіщення</span>
+                                        <button type="button" class="btn btn-secondary" id="sound-toggle-btn" onclick="toggleSound()" style="padding: 6px 14px; font-size: 0.85rem; height: 36px; display: inline-flex; align-items: center; gap: 8px; border-radius: 8px; font-weight: 500; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); cursor: pointer; transition: all 0.3s ease;">
+                                            🔊 <span>Звук увімкнено</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Нагадування -->
+                                <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 16px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px; margin-bottom: 4px;">
+                                        <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">⏰ Автоматичні нагадування</h4>
+                                        <label class="switch-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                            <div class="switch">
+                                                <input type="checkbox" id="settings-reminders-enabled" onchange="toggleReminderInputs(true)">
+                                                <span class="slider"></span>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="settings-reminder-delay" class="form-label">Затримка перед нагадуванням (хв)</label>
+                                        <input type="number" id="settings-reminder-delay" class="form-control" required style="width: 100%; max-width: 200px;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="settings-reminder-text" class="form-label">Текст автоматичного нагадування</label>
+                                        <textarea id="settings-reminder-text" class="form-control" rows="4" required style="width: 100%; resize: vertical; min-height: 100px; font-family: inherit;"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Вкладка 2: Шаблони повідомлень -->
+                            <div id="settings-content-templates" class="settings-subtab-content">
+                                <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: 600; color: #fff;">💬 Шаблони повідомлень</h3>
+                                
+                                <div style="display: flex; flex-direction: column; gap: 20px;">
+                                    <div class="form-group">
+                                        <label for="settings-giver-format" class="form-label">Шаблон запиту коду (Giver)</label>
+                                        <input type="text" id="settings-giver-format" class="form-control" required style="width: 100%;">
+                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Доступні змінні: <code>{line_id}</code> (ID лінії), <code>{bank_name}</code> (назва банку)</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="settings-giver-retry-format" class="form-label">Шаблон повторного запиту коду (Giver)</label>
+                                        <input type="text" id="settings-giver-retry-format" class="form-control" required style="width: 100%;">
+                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Доступні змінні: <code>{line_id}</code> (ID лінії), <code>{bank_name}</code> (назва банку)</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="settings-client-assign-format" class="form-label">Шаблон картки з номером клієнту (Telegram)</label>
+                                        <textarea id="settings-client-assign-format" class="form-control" rows="8" required style="width: 100%; resize: vertical; min-height: 150px; font-family: inherit; box-sizing: border-box; padding: 8px 12px;"></textarea>
+                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Доступні змінні: <code>{bank_name}</code> (назва банку), <code>{phone_number}</code> (номер телефону)</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Вкладка 4: Системні чати та ID -->
+                            <div id="settings-content-chats" class="settings-subtab-content">
+                                <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: 600; color: #fff;">📞 Системні чати та ID</h3>
+                                
+                                <div style="display: flex; flex-direction: column; gap: 20px;">
+                                    <div class="form-group">
+                                        <label for="settings-admin-id" class="form-label">ID Головного Адміна (Owner Telegram ID)</label>
+                                        <input type="text" id="settings-admin-id" class="form-control" required style="width: 100%;">
+                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Telegram ID власника бота, який має доступ до адмін-команд.</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="settings-anketa-chat-id" class="form-label">ID Чату Верифікатора (Verifier Chat ID)</label>
+                                        <input type="text" id="settings-anketa-chat-id" class="form-control" required style="width: 100%;">
+                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">ID чату/каналу, куди надсилаються анкети на перевірку. Має починатися з <code>-100</code>.</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="settings-giver-chat-id" class="form-label">ID Чату Постачальника (Giver Chat ID)</label>
+                                        <input type="text" id="settings-giver-chat-id" class="form-control" required style="width: 100%;">
+                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">ID чату, куди надсилаються запити на коди. Має починатися з <code>-100</code>.</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="settings-archive-group-id" class="form-label">ID Чату Архіву (Archive Group ID)</label>
+                                        <input type="text" id="settings-archive-group-id" class="form-control" required style="width: 100%;">
+                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">ID чату для архівних звітів про сесії. Має починатися з <code>-100</code>.</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start;">
-                            <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;">Звукові сповіщення</span>
-                            <button type="button" class="btn btn-secondary" id="sound-toggle-btn" onclick="toggleSound()" style="padding: 6px 14px; font-size: 0.85rem; height: 36px; display: inline-flex; align-items: center; gap: 8px; border-radius: 8px; font-weight: 500; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); cursor: pointer; transition: all 0.3s ease;">
-                                🔊 <span>Звук увімкнено</span>
-                            </button>
-                        </div>
-                    </div>
-                    <form id="general-settings-form" onsubmit="saveGeneralSettings(event)" style="display: flex; flex-direction: column; gap: 16px;">
-                        <div class="form-group">
-                            <label for="settings-reminder-delay" class="form-label">Затримка перед нагадуванням (хв)</label>
-                            <input type="number" id="settings-reminder-delay" class="form-control" required style="width: 100%; max-width: 200px;">
-                        </div>
-                        <div class="form-group">
-                            <label for="settings-reminder-text" class="form-label">Текст автоматичного нагадування</label>
-                            <textarea id="settings-reminder-text" class="form-control" rows="4" required style="width: 100%; resize: vertical; min-height: 100px; font-family: inherit;"></textarea>
-                        </div>
-                        <div class="form-group" style="margin-top: 8px;">
-                            <label for="settings-giver-format" class="form-label">Шаблон запиту коду (Giver)</label>
-                            <input type="text" id="settings-giver-format" class="form-control" required style="width: 100%;">
-                            <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Доступні змінні: <code>{line_id}</code> (ID лінії), <code>{bank_name}</code> (назва банку)</div>
-                        </div>
-                        <div class="form-group" style="margin-top: 8px;">
-                            <label for="settings-giver-retry-format" class="form-label">Шаблон повторного запиту коду (Giver)</label>
-                            <input type="text" id="settings-giver-retry-format" class="form-control" required style="width: 100%;">
-                            <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Доступні змінні: <code>{line_id}</code> (ID лінії), <code>{bank_name}</code> (назва банку)</div>
-                        </div>
-                        <div class="form-group" style="margin-top: 8px;">
-                            <label for="settings-client-assign-format" class="form-label">Шаблон картки з номером клієнту (Telegram)</label>
-                            <textarea id="settings-client-assign-format" class="form-control" rows="5" required style="width: 100%; resize: vertical; min-height: 100px; font-family: inherit; box-sizing: border-box; padding: 8px 12px;"></textarea>
-                            <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Доступні змінні: <code>{bank_name}</code> (назва банку), <code>{phone_number}</code> (номер телефону)</div>
-                        </div>
-                        <div>
-                            <button type="submit" class="btn btn-primary btn-sm">Зберегти налаштування</button>
+
+                        <!-- Кнопка збереження для вкладки 1, 2, 4 -->
+                        <div id="settings-save-btn-container" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: flex-end;">
+                            <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-size: 0.9rem; font-weight: 600;">Зберегти всі налаштування</button>
                         </div>
                     </form>
-                </div>
-            </div>
-            <!-- Panel 2: Шаблони банків (Швидкі заготовки) -->
-            <div class="panel collapsed" style="margin-top: 24px;">
-                <div class="panel-header" onclick="togglePanelCollapse(this, event)" style="cursor: pointer; user-select: none;">
-                    <h2 class="panel-title" style="display: flex; align-items: center; gap: 8px;"><span class="panel-icon-wrapper"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"></path></svg></span>Шаблони банків (Швидкі заготовки) <span class="collapse-chevron">▼</span></h2>
-                </div>
-                <div class="panel-body-wrapper">
-                    <div class="lines-list-container">
-                        <table class="lines-table">
-                            <thead>
-                                <tr>
-                                    <th>Назва банку</th>
-                                    <th>Команда</th>
-                                    <th>Текст заготовки</th>
-                                    <th>Дія</th>
-                                </tr>
-                            </thead>
-                            <tbody id="settings-templates-table-body">
-                                <!-- Заповнюється динамічно JS -->
-                            </tbody>
-                        </table>
-                    </div>
 
-                    <div class="divider-top" style="margin-top: 24px; padding-top: 24px;">
-                        <div class="section-label">Додати новий шаблон</div>
-                        <form id="add-template-form" onsubmit="handleAddTemplate(event)" style="display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 12px; align-items: end;">
-                            <div class="form-group">
-                                <label for="template-key" class="form-label" style="font-size: 12px;">Ключ банку (напр. izibank)</label>
-                                <input type="text" id="template-key" placeholder="Напр. izibank" required style="width: 100%;">
-                            </div>
-                            <div class="form-group">
-                                <label for="template-command" class="form-label" style="font-size: 12px;">Команда (напр. /ЗАВАНТАЖізі)</label>
-                                <input type="text" id="template-command" placeholder="Напр. /ЗАВАНТАЖізі" required style="width: 100%;">
-                            </div>
-                            <div class="form-group">
-                                <label for="template-text" class="form-label" style="font-size: 12px;">Текст інструкції</label>
-                                <textarea id="template-text" placeholder="Текст, який надішлеться клієнту" required style="width: 100%; height: 38px; min-height: 38px; max-height: 200px; resize: vertical; font-family: inherit; box-sizing: border-box; padding: 8px 12px;"></textarea>
-                            </div>
-                            <button type="submit" class="btn btn-primary btn-sm" style="height: 38px;">Додати</button>
-                        </form>
+                    <!-- Вкладка 3: Шаблони банків (Поза загальною формою) -->
+                    <div id="settings-content-banks" class="settings-subtab-content" style="display: none; height: 100%;">
+                        <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: 600; color: #fff;">🏦 Шаблони банків</h3>
+                        
+                        <div class="lines-list-container">
+                            <table class="lines-table">
+                                <thead>
+                                    <tr>
+                                        <th>Назва банку</th>
+                                        <th>Команда</th>
+                                        <th>Текст заготовки</th>
+                                        <th>Дія</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="settings-templates-table-body">
+                                    <!-- Заповнюється динамічно JS -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="divider-top" style="margin-top: 24px; padding-top: 24px;">
+                            <div class="section-label" style="font-weight: 600; margin-bottom: 12px; font-size: 0.95rem; color: #fff;">Додати новий шаблон</div>
+                            <form id="add-template-form" onsubmit="handleAddTemplate(event)" style="display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 12px; align-items: end;">
+                                <div class="form-group" style="margin: 0;">
+                                    <label for="template-key" class="form-label" style="font-size: 12px;">Ключ банку (напр. izibank)</label>
+                                    <input type="text" id="template-key" placeholder="Напр. izibank" required class="form-control" style="width: 100%;">
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label for="template-command" class="form-label" style="font-size: 12px;">Команда (напр. /ЗАВАНТАЖізі)</label>
+                                    <input type="text" id="template-command" placeholder="Напр. /ЗАВАНТАЖізі" required class="form-control" style="width: 100%;">
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label for="template-text" class="form-label" style="font-size: 12px;">Текст інструкції</label>
+                                    <textarea id="template-text" placeholder="Текст, який надішлеться клієнту" required class="form-control" style="width: 100%; height: 38px; min-height: 38px; max-height: 200px; resize: vertical; font-family: inherit; box-sizing: border-box; padding: 8px 12px;"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="height: 38px;">Додати</button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -970,6 +970,10 @@ class AppSettingsUpdate(BaseModel):
     giver_request_format: Optional[str] = None
     giver_request_retry_format: Optional[str] = None
     client_number_assigned_format: Optional[str] = None
+    admin_id: Optional[str] = None
+    anketa_chat_id: Optional[str] = None
+    giver_chat_id: Optional[str] = None
+    archive_group_id: Optional[str] = None
 
 class BankTemplateUpdate(BaseModel):
     key: str
@@ -1020,6 +1024,20 @@ async def update_settings_endpoint(body: AppSettingsUpdate):
             await db.set_setting("giver_request_retry_format", body.giver_request_retry_format)
         if body.client_number_assigned_format is not None:
             await db.set_setting("client_number_assigned_format", body.client_number_assigned_format)
+        
+        from bot.config import set_cached_setting
+        if body.admin_id is not None:
+            await db.set_setting("admin_id", body.admin_id)
+            set_cached_setting("admin_id", body.admin_id)
+        if body.anketa_chat_id is not None:
+            await db.set_setting("anketa_chat_id", body.anketa_chat_id)
+            set_cached_setting("anketa_chat_id", body.anketa_chat_id)
+        if body.giver_chat_id is not None:
+            await db.set_setting("giver_chat_id", body.giver_chat_id)
+            set_cached_setting("giver_chat_id", body.giver_chat_id)
+        if body.archive_group_id is not None:
+            await db.set_setting("archive_group_id", body.archive_group_id)
+            set_cached_setting("archive_group_id", body.archive_group_id)
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")

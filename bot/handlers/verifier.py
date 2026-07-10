@@ -1,7 +1,7 @@
 import logging
 from aiogram import Router, Bot, F
 from aiogram.types import Message, MessageReactionUpdated, ReplyKeyboardRemove
-from bot.config import ANKETA_CHAT_ID, ADMIN_ID
+from bot.config import get_anketa_chat_id, get_admin_id
 import bot.database as db
 
 logger = logging.getLogger(__name__)
@@ -135,7 +135,7 @@ async def is_verifier_action(message: Message) -> bool:
     return False
 
 async def verifier_chat_filter(message: Message) -> bool:
-    if message.chat.id != ANKETA_CHAT_ID:
+    if message.chat.id != get_anketa_chat_id():
         return False
     return await is_verifier_action(message)
 
@@ -232,8 +232,8 @@ async def handle_verifier_message(message: Message, bot: Bot):
 async def handle_verifier_reaction(reaction: MessageReactionUpdated, bot: Bot):
     """Обробник реакцій верифікатора на анкети"""
     logger.info(f"Received reaction update in chat {reaction.chat.id}, message {reaction.message_id}")
-    if reaction.chat.id != ANKETA_CHAT_ID:
-        logger.info(f"Reaction chat.id {reaction.chat.id} does not match ANKETA_CHAT_ID {ANKETA_CHAT_ID}")
+    if reaction.chat.id != get_anketa_chat_id():
+        logger.info(f"Reaction chat.id {reaction.chat.id} does not match ANKETA_CHAT_ID {get_anketa_chat_id()}")
         return
         
     # Шукаємо реакцію 👎 у списку нових реакцій

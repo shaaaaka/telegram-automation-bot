@@ -753,8 +753,8 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
         
     anketa_text = anketa_text.strip()
     
-    from bot.config import ANKETA_CHAT_ID
-    target_chat = ANKETA_CHAT_ID or ADMIN_ID
+    from bot.config import get_anketa_chat_id, get_admin_id
+    target_chat = get_anketa_chat_id() or get_admin_id()
     
     try:
         is_bank_kd = bank_name and "bank.kd" in bank_name.lower()
@@ -1540,11 +1540,12 @@ async def handle_proceedings_screenshot(message: Message, photo: PhotoSize, sess
     # 4. Якщо провадження закриті (CLOSED):
     if "[CLOSED]" in ai_verdict:
         # Пересилаємо чистий скріншот у чат верифікаторів як відповідь (reply) на анкету
-        from bot.config import ANKETA_CHAT_ID
-        if ANKETA_CHAT_ID and session.get('verifier_message_id'):
+        from bot.config import get_anketa_chat_id
+        anketa_chat_id = get_anketa_chat_id()
+        if anketa_chat_id and session.get('verifier_message_id'):
             try:
                 await bot.send_photo(
-                    chat_id=ANKETA_CHAT_ID,
+                    chat_id=anketa_chat_id,
                     photo=photo.file_id,
                     reply_to_message_id=session['verifier_message_id']
                 )
@@ -1843,13 +1844,13 @@ async def trigger_sms_code_request(client_id: int, bot: Bot, state: FSMContext, 
             giver_msg = f"Запрос {line_num} {bank_name}"
 
     # Надсилаємо запит постачальнику кодів (Giver)
-    from bot.config import GIVER_CHAT_ID
+    from bot.config import get_giver_chat_id, get_admin_id
     try:
-        await bot.send_message(chat_id=GIVER_CHAT_ID, text=giver_msg)
+        await bot.send_message(chat_id=get_giver_chat_id(), text=giver_msg)
     except Exception as e:
         # Якщо не вдалося надіслати гіверу, повідомляємо адміна
         await bot.send_message(
-            chat_id=ADMIN_ID,
+            chat_id=get_admin_id(),
             text=f"Помилка надсилання запиту гіверу (Line {line_num}): {str(e)}"
         )
     return True
@@ -2018,7 +2019,7 @@ async def process_lviv_success_confirm(message: Message, state: FSMContext, bot:
 async def send_anketa_to_verifier(client_id: int, bot: Bot) -> int | None:
     """Надсилання анкети у чат верифікаторів"""
     import re
-    from bot.config import ANKETA_CHAT_ID, ADMIN_ID
+    from bot.config import get_anketa_chat_id, get_admin_id
     
     session = await db.get_session(client_id)
     if not session:
@@ -2052,13 +2053,15 @@ async def send_anketa_to_verifier(client_id: int, bot: Bot) -> int | None:
         f"{formatted_banks}"
     )
     
-    if not ANKETA_CHAT_ID:
+    anketa_chat_id = get_anketa_chat_id()
+    admin_id = get_admin_id()
+    if not anketa_chat_id:
         # Автоматично схвалюємо, якщо верифікатор не налаштований
         await db.set_session_verified(client_id, 1)
         await db.update_session_status(client_id, 'registered')
         try:
             await bot.send_message(
-                chat_id=ADMIN_ID,
+                chat_id=admin_id,
                 text=f"⚠️ <b>ANKETA_CHAT_ID не налаштовано!</b>\nАнкету клієнта @{username} (ID: {client_id}) схвалено автоматично.",
                 parse_mode="HTML"
             )
@@ -2067,14 +2070,14 @@ async def send_anketa_to_verifier(client_id: int, bot: Bot) -> int | None:
         return None
         
     try:
-        sent_msg = await bot.send_message(chat_id=ANKETA_CHAT_ID, text=anketa_text)
+        sent_msg = await bot.send_message(chat_id=anketa_chat_id, text=anketa_text)
         await db.update_session_verifier_message_id(client_id, sent_msg.message_id)
         return sent_msg.message_id
     except Exception as e:
         logger.error(f"Помилка відправки анкети в чат верифікаторів: {e}")
         try:
             await bot.send_message(
-                chat_id=ADMIN_ID,
+                chat_id=admin_id,
                 text=f"Помилка відправки анкети в чат верифікаторів: {e}\n\nАнкета:\n{anketa_text}"
             )
         except Exception:

@@ -1,13 +1,13 @@
 import re
 from aiogram import Router, F, Bot
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from bot.config import GIVER_CHAT_ID, ADMIN_ID
+from bot.config import get_giver_chat_id, get_admin_id
 import bot.database as db
 
 router = Router()
 
 async def giver_chat_filter(message: Message) -> bool:
-    if message.chat.id != GIVER_CHAT_ID:
+    if message.chat.id != get_giver_chat_id():
         return False
     from bot.handlers.verifier import is_verifier_action
     if await is_verifier_action(message):
