@@ -738,6 +738,16 @@ async def handle_assign_line(callback: CallbackQuery, bot: Bot, state: FSMContex
     # Призначаємо лінію сесії
     await db.assign_line_to_session(client_id, line_id)
 
+    # Логуємо старт верифікації в статистиці
+    session = await db.get_session(client_id)
+    if session:
+        await db.log_verification_start(
+            client_id,
+            session.get('username') or 'Невідомий',
+            line_info['bank'],
+            line_info['phone_number']
+        )
+
     # Редагуємо повідомлення призначення назад у картку сесії
     await show_session_card(callback.message, client_id, edit=True)
 

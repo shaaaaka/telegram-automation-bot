@@ -7,40 +7,40 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=160.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=163.5">
 </head>
 <body>
     <div class="container">
         
         <!-- Навігація по вкладках -->
         <div class="tabs-nav">
-            <button class="tab-btn active" id="tab-btn-control" onclick="switchTab('control')">
+            <button class="tab-btn active" id="tab-btn-control" onclick="switchTab('control')" title="Керування">
                 <span class="tab-icon-wrapper">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
                 </span>
                 <span class="tab-text">Керування</span>
             </button>
-            <button class="tab-btn" id="tab-btn-stats" onclick="switchTab('stats')">
+            <button class="tab-btn" id="tab-btn-stats" onclick="switchTab('stats')" title="Статистика">
                 <span class="tab-icon-wrapper">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
                 </span>
                 <span class="tab-text">Статистика</span>
             </button>
-            <button class="tab-btn" id="tab-btn-chat" onclick="switchTab('chat')">
+            <button class="tab-btn" id="tab-btn-chat" onclick="switchTab('chat')" title="Чати">
                 <span class="tab-icon-wrapper">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                 </span>
                 <span class="tab-text">Чати</span>
             </button>
 
-            <button class="tab-btn" id="tab-btn-banned" onclick="switchTab('banned')">
+            <button class="tab-btn" id="tab-btn-banned" onclick="switchTab('banned')" title="Бан-лист">
                 <span class="tab-icon-wrapper">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                 </span>
                 <span class="tab-text">Бан-лист</span>
             </button>
 
-            <button class="tab-btn tab-btn-settings" id="tab-btn-settings" onclick="switchTab('settings')">
+            <button class="tab-btn tab-btn-settings" id="tab-btn-settings" onclick="switchTab('settings')" title="Налаштування">
                 <span class="tab-icon-wrapper">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.5 1z"></path></svg>
                 </span>
@@ -117,6 +117,12 @@
                             </div>
                             <button type="submit" class="btn btn-primary btn-sm">Додати</button>
                         </form>
+                        <div style="display: flex; justify-content: center; margin-top: 24px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px;">
+                            <button class="btn-clear-lines-bottom" onclick="clearLines()">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                Очистити базу ліній
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -580,9 +586,9 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=3.9"></script>
-    <script src="/static/js/control.js?v=3.9"></script>
-    <script src="/static/js/chat.js?v=3.9"></script>
+    <script src="/static/js/main.js?v=4.3"></script>
+    <script src="/static/js/control.js?v=4.0"></script>
+    <script src="/static/js/chat.js?v=4.3"></script>
     <script src="/static/js/stats.js?v=3.9"></script>
     <script src="/static/js/settings.js?v=3.9"></script>
 </body>

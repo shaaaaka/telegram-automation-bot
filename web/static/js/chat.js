@@ -252,7 +252,16 @@ async function toggleAISetting(clientId) {
             }
             
             if (selectedChatClientId === clientId) {
-                selectChatClient(clientId);
+                const btn = document.querySelector('.btn-toggle-ai-bottom');
+                if (btn) {
+                    if (data.is_paused) {
+                        btn.className = 'btn-toggle-ai-bottom paused';
+                        btn.title = 'ШІ вимкнено. Натисніть, щоб увімкнути.';
+                    } else {
+                        btn.className = 'btn-toggle-ai-bottom active';
+                        btn.title = 'ШІ працює. Натисніть, щоб вимкнути.';
+                    }
+                }
             }
             renderChatSidebar();
         } else {
@@ -304,9 +313,6 @@ async function selectChatClient(clientId) {
             <div class="chat-window-actions">
                 <button class="chat-actions-btn" onclick="toggleChatActionsMenu(event)" title="Опції чату">⋮</button>
                 <div class="chat-actions-dropdown" id="chat-actions-dropdown">
-                    <button class="dropdown-item" onclick="toggleAISetting(${session.client_id})">
-                        ${session.is_paused ? '▶ Увімкнути ШІ' : '⏸ Вимкнути ШІ'}
-                    </button>
                     <button class="dropdown-item" onclick="clearChatHistory(${session.client_id})">Очистити історію</button>
                     <button class="dropdown-item danger" onclick="deleteChatCompletely(${session.client_id})">Видалити чат повністю</button>
                 </div>
@@ -316,12 +322,14 @@ async function selectChatClient(clientId) {
             <div style="text-align:center;color:rgba(255,255,255,0.3);padding:20px;">Завантаження повідомлень...</div>
         </div>
         <div class="chat-window-footer">
-            <div class="chat-templates-row" id="chat-page-templates-row">
-                <!-- Templates row -->
-            </div>
             <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
                 <button class="btn-toggle-ai-bottom ${session.is_paused ? 'paused' : 'active'}" onclick="toggleAISetting(${session.client_id})" title="${session.is_paused ? 'ШІ вимкнено. Натисніть, щоб увімкнути.' : 'ШІ працює. Натисніть, щоб вимкнути.'}">
-                    🤖
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="10" rx="3"></rect>
+                        <path d="M12 2v3M9 5h6M5 11V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2"></path>
+                        <circle cx="8" cy="16" r="1.5" fill="currentColor"></circle>
+                        <circle cx="16" cy="16" r="1.5" fill="currentColor"></circle>
+                    </svg>
                 </button>
                 <div class="chat-input-wrapper" style="align-items: center; flex: 1;">
                     <textarea id="chat-msg-input" placeholder="Введіть повідомлення для клієнта..." rows="1" onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendChatPageMessage(); }"></textarea>
@@ -336,7 +344,6 @@ async function selectChatClient(clientId) {
         </div>
     `;
     
-    renderChatPageTemplates();
     await refreshChatPageMessages(clientId);
     
     // Auto-focus the input textarea
@@ -370,29 +377,6 @@ function backToChatList() {
     renderChatSidebar();
 }
 
-function renderChatPageTemplates() {
-    const row = document.getElementById('chat-page-templates-row');
-    if (!row) return;
-    row.innerHTML = '';
-    
-    if (window.bankTemplates) {
-        Object.keys(window.bankTemplates).forEach(key => {
-            const t = window.bankTemplates[key];
-            const btn = document.createElement('button');
-            btn.className = 'chat-template-btn';
-            btn.innerText = key;
-            btn.title = t.text;
-            btn.onclick = () => {
-                const textarea = document.getElementById('chat-msg-input');
-                if (textarea) {
-                    textarea.value = t.text;
-                    textarea.focus();
-                }
-            };
-            row.appendChild(btn);
-        });
-    }
-}
 
 async function refreshChatPageMessages(clientId) {
     try {
@@ -757,8 +741,13 @@ function closePhotoUploadModal() {
     }
     const preview = document.getElementById('photo-upload-preview');
     if (preview && preview.src) {
-        URL.revokeObjectURL(preview.src);
-        preview.src = '';
+        const oldSrc = preview.src;
+        setTimeout(() => {
+            if (preview.src === oldSrc) {
+                URL.revokeObjectURL(oldSrc);
+                preview.src = '';
+            }
+        }, 350); // wait for fade out animation to finish
     }
     currentPasteImageBlob = null;
 }

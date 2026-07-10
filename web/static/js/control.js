@@ -336,7 +336,12 @@ function renderSessions(sessions) {
     const activeClientIds = new Set();
 
     if (filtered.length === 0) {
-        container.innerHTML = `<div class="empty-state">Немає клієнтів за обраними фільтрами</div>`;
+        container.innerHTML = `
+            <div class="empty-state">
+                <span>🔌</span>
+                <span>Немає активних сесій</span>
+            </div>
+        `;
     } else {
         const emptyState = container.querySelector('.empty-state');
         if (emptyState) emptyState.remove();

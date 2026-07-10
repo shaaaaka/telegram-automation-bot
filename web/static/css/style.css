@@ -284,6 +284,8 @@ h1 {
     backdrop-filter: blur(20px);
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
     transition: all 0.3s var(--transition-curve);
+    display: flex;
+    flex-direction: column;
 }
 .panel:hover {
     border-color: rgba(255, 255, 255, 0.08);
@@ -327,6 +329,7 @@ h1 {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    flex-grow: 1;
 }
 
 .session-card {
@@ -1569,12 +1572,13 @@ input[type=number] {
     padding: 32px 24px;
     box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 171, 0, 0.12);
     transform: scale(0.9) translateY(20px);
-    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: transform 0.25s ease-in;
     text-align: center;
 }
 
 .modal-overlay.active .modal-card {
     transform: scale(1) translateY(0);
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .modal-header {
@@ -1768,13 +1772,14 @@ input[type=number] {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    width: 240px;
+    width: 76px;
     flex-shrink: 0;
     border-bottom: none;
     border-right: 1px solid rgba(255, 255, 255, 0.05);
-    padding-right: 20px;
+    padding-right: 0;
     margin-bottom: 0;
     height: 100%;
+    align-items: center;
 }
 .tab-btn {
     background: transparent;
@@ -1783,14 +1788,19 @@ input[type=number] {
     font-family: var(--font-family);
     font-size: 15px;
     font-weight: 500;
-    padding: 8px 12px;
+    padding: 0;
+    width: 48px;
+    height: 48px;
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.25s var(--transition-curve);
     display: flex;
     align-items: center;
-    gap: 12px;
-    width: 100%;
+    justify-content: center;
+    gap: 0;
+}
+.tab-text {
+    display: none;
 }
 .tab-icon-wrapper {
     display: inline-flex;
@@ -2159,12 +2169,12 @@ input[type=number] {
         display: none !important; /* Hide scrollbar for Chrome/Safari/Webkit */
     }
     .tab-btn {
-        padding: 8px 14px !important;
-        font-size: 0.85rem !important;
+        padding: 0 !important;
+        width: 44px !important;
+        height: 44px !important;
         flex-grow: 0 !important;
         flex-shrink: 0 !important; /* Do not shrink buttons */
         justify-content: center !important;
-        width: auto !important;
         display: inline-flex !important;
         align-items: center !important;
     }
@@ -2523,12 +2533,13 @@ input[type=number] {
                 inset 0 0 0 1px rgba(255, 255, 255, 0.04),
                 0 0 60px rgba(139, 92, 246, 0.12) !important;
     transform: scale(0.95) translateY(15px);
-    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: transform 0.25s ease-in;
     overflow: hidden;
 }
 
 .chat-modal-overlay.active .chat-modal-card {
     transform: scale(1) translateY(0);
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* Chat Modal Header Layout */
@@ -3896,39 +3907,44 @@ body.sidebar-hidden .tab-content {
 
 /* Bottom Toggle AI Button */
 .btn-toggle-ai-bottom {
-    width: 36px;
-    height: 36px;
-    border-radius: 12px;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 1.05rem;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 .btn-toggle-ai-bottom.active {
     background: rgba(16, 185, 129, 0.08);
-    border: 1px solid rgba(16, 185, 129, 0.25);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    color: #34d399;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.12);
 }
 
 .btn-toggle-ai-bottom.active:hover {
-    background: rgba(16, 185, 129, 0.15);
-    border-color: rgba(16, 185, 129, 0.7);
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+    background: rgba(16, 185, 129, 0.16);
+    border-color: #34d399;
+    color: #10b981;
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.35);
+    transform: translateY(-1px);
 }
 
 .btn-toggle-ai-bottom.paused {
-    background: rgba(239, 68, 68, 0.08);
-    border: 1px solid rgba(239, 68, 68, 0.25);
-    filter: grayscale(0.2);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.25);
 }
 
 .btn-toggle-ai-bottom.paused:hover {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: rgba(239, 68, 68, 0.7);
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.6);
+    transform: translateY(-1px);
 }
 
 /* Chat Rectangle Button */
@@ -4074,4 +4090,52 @@ body.sidebar-hidden .tab-content {
 .chat-templates-row {
     margin-bottom: 4px;
 }
+
+/* Bottom Clear Lines Database Button */
+.btn-clear-lines-bottom {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-clear-lines-bottom:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #ff8787;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+}
+
+/* General Empty State Styling */
+div.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 24px;
+    color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    text-align: center;
+    gap: 16px;
+    font-size: 0.95rem;
+    flex-grow: 1;
+}
+
+div.empty-state span:first-child {
+    font-size: 2.5rem;
+    opacity: 0.6;
+    filter: drop-shadow(0 4px 10px rgba(255, 255, 255, 0.05));
+}
+
 

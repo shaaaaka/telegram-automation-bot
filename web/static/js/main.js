@@ -34,7 +34,7 @@ try {
 }
 
 let previousUnroutedCount = 0;
-let lastFetchedSessions = [];   // Active sessions cache
+let lastFetchedSessions = null;   // Active sessions cache
 let lastUnroutedCodes = [];     // Unrouted codes cache
 
 // Audio Context (Web Audio API)
@@ -112,14 +112,21 @@ function showConfirm(message, type = 'danger') {
             modal.classList.remove('active');
             confirmBtn.removeEventListener('click', onConfirmClick);
             cancelBtn.removeEventListener('click', onCancelClick);
+            modal.removeEventListener('click', onOverlayClick);
             resolve(result);
         };
 
         function onConfirmClick() { cleanUp(true); }
         function onCancelClick() { cleanUp(false); }
+        function onOverlayClick(e) {
+            if (e.target === modal) {
+                cleanUp(false);
+            }
+        }
 
         confirmBtn.addEventListener('click', onConfirmClick);
         cancelBtn.addEventListener('click', onCancelClick);
+        modal.addEventListener('click', onOverlayClick);
     });
 }
 
@@ -412,10 +419,7 @@ async function pollData() {
         }
         
 
-        
-        if (activeChatClientId !== null) {
-            fetchAndRenderModalChat(activeChatClientId);
-        }
+        // Removed obsolete activeChatClientId check
 
         // 4. Unrouted codes poll
         const unroutedRes = await fetch('/api/unrouted-codes');
@@ -558,4 +562,15 @@ document.addEventListener('DOMContentLoaded', () => {
         connectChatWebSocket();
     }
 });
+
+function togglePanelCollapse(headerElement, event) {
+    // If the click is inside a switch-container, button, or input, don't toggle collapse
+    if (event && (event.target.closest('.switch-container') || event.target.closest('button') || event.target.closest('input') || event.target.closest('textarea'))) {
+        return;
+    }
+    const panel = headerElement.closest('.panel');
+    if (panel) {
+        panel.classList.toggle('collapsed');
+    }
+}
 
