@@ -39,7 +39,7 @@ let lastUnroutedCodes = [];     // Unrouted codes cache
 
 // Audio Context (Web Audio API)
 let audioCtx = null;
-let soundEnabled = true;
+let soundEnabled = localStorage.getItem('notification_sound_enabled') !== '0';
 let soundVolume = parseFloat(localStorage.getItem('notification_volume')) || 0.5;
 let soundProfile = localStorage.getItem('notification_sound_profile') || 'classic';
 
@@ -205,6 +205,7 @@ function initAudio() {
 
 function toggleSound() {
     soundEnabled = !soundEnabled;
+    localStorage.setItem('notification_sound_enabled', soundEnabled ? '1' : '0');
     const btns = [
         document.getElementById('sound-toggle-btn'),
         document.getElementById('settings-sound-toggle-btn')
@@ -576,6 +577,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Restore active tab
     const savedTab = localStorage.getItem('activeTab') || 'control';
     switchTab(savedTab);
+
+    // Sync initial sound state to global header toggle button
+    const headerBtn = document.getElementById('sound-toggle-btn');
+    if (headerBtn) {
+        if (soundEnabled) {
+            headerBtn.innerHTML = '🔊 <span class="hide-mobile">Звук увімкнено</span>';
+            headerBtn.classList.remove('sound-disabled');
+        } else {
+            headerBtn.innerHTML = '🔇 <span class="hide-mobile">Звук вимкнено</span>';
+            headerBtn.classList.add('sound-disabled');
+        }
+    }
 
     // Initial fetch and poll scheduling (every 1s)
     pollData();
