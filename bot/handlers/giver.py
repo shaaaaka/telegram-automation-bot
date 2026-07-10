@@ -6,7 +6,15 @@ import bot.database as db
 
 router = Router()
 
-@router.message(F.chat.id == GIVER_CHAT_ID)
+async def giver_chat_filter(message: Message) -> bool:
+    if message.chat.id != GIVER_CHAT_ID:
+        return False
+    from bot.handlers.verifier import is_verifier_action
+    if await is_verifier_action(message):
+        return False
+    return True
+
+@router.message(giver_chat_filter)
 async def handle_giver_message(message: Message, bot: Bot):
     """Обробник повідомлень від постачальника кодів"""
     text = message.text

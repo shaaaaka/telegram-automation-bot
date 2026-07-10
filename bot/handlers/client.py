@@ -1,6 +1,6 @@
 from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart, StateFilter
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove, FSInputFile, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove, FSInputFile, ReplyKeyboardMarkup, KeyboardButton, PhotoSize
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 from bot.config import ADMIN_ID, BANK_TEMPLATES, get_template_photo
@@ -168,7 +168,7 @@ async def cmd_start(message: Message, state: FSMContext):
         await message.answer("Ваш запит вже обробляється або лінія активна. Будь ласка, очікуйте вказівок адміна.")
         return
 
-    if existing_session and existing_session['status'] == 'registered':
+    if existing_session and existing_session['status'] in ('registered', 'waiting_verification', 'verified'):
         # Якщо всі банки завершено (немає залишкових банків), дозволяємо розпочати нову сесію
         remaining_banks_str = existing_session.get('remaining_banks', '')
         remaining = [b for b in remaining_banks_str.split(",") if b]
@@ -1357,6 +1357,24 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
         if existing_session['status'] == 'registered':
             await message.answer("Будь ласка, зачекайте, поки адміністратор призначить вам номер телефону для початку верифікації.")
             return
+        elif existing_session['status'] == 'waiting_verification':
+            if int(existing_session.get('waiting_proceedings') or 0) == 1:
+                text_lower = message.text.strip().lower()
+                is_yes = any(word in text_lower for word in ["так", "да", "yes", "є", "угу", "+"])
+                is_no = any(word in text_lower for word in ["ні", "нет", "no", "нема", "немає", "-"])
+                
+                if is_no:
+                    from bot.handlers.verifier import process_rejection
+                    await process_rejection(existing_session, bot, ban=False)
+                    await state.clear()
+                elif is_yes:
+                    await message.answer("Надішліть будь ласка скріншот з Дія, де видно що закрито")
+                else:
+                    await message.answer("Надішліть будь ласка скріншот з Дія, де видно що закрито")
+                return
+            else:
+                await message.answer("Ваша анкета знаходиться на перевірці у верифікатора. Будь ласка, зачекайте.")
+                return
         elif existing_session['status'] not in ('number_assigned', 'waiting_code'):
             await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
             return
@@ -1501,9 +1519,46 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
     # Якщо користувач не у стані анкетування, пропонуємо йому почати з команди /start
     await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
 
+async def handle_proceedings_screenshot(message: Message, photo: PhotoSize, session: dict, bot: Bot, state: FSMContext):
+    """Обробка скріншоту виконавчих проваджень від клієнта"""
+    client_id = session['client_id']
+    
+    # 1. Завантажуємо фото
+    import io
+    photo_file = await bot.get_file(photo.file_id)
+    photo_bytes = io.BytesIO()
+    await bot.download_file(photo_file.file_path, photo_bytes)
+    img_data = photo_bytes.getvalue()
+    
+    # 2. ШІ-аналіз скріншоту
+    from bot.openai_client import analyze_proceedings_screenshot
+    ai_verdict = await analyze_proceedings_screenshot(img_data)
+    
+    # 3. Скидаємо прапорець очікування
+    await db.set_session_waiting_proceedings(client_id, 0)
+    
+    # 4. Якщо провадження закриті (CLOSED):
+    if "[CLOSED]" in ai_verdict:
+        # Пересилаємо чистий скріншот у чат верифікаторів як відповідь (reply) на анкету
+        from bot.config import ANKETA_CHAT_ID
+        if ANKETA_CHAT_ID and session.get('verifier_message_id'):
+            try:
+                await bot.send_photo(
+                    chat_id=ANKETA_CHAT_ID,
+                    photo=photo.file_id,
+                    reply_to_message_id=session['verifier_message_id']
+                )
+            except Exception as e:
+                logger.error(f"Не вдалося переслати скріншот проваджень верифікатору: {e}")
+    else:
+        # Якщо відкриті (OPEN) або не вдалося розпізнати: мінусуємо сесію повністю
+        from bot.handlers.verifier import process_rejection
+        await process_rejection(session, bot, ban=False)
+        await state.clear()
+
 @router.message(StateFilter(None), F.chat.type == "private", F.photo)
 async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
-    """Обробник скріншотів/зображень від користувача (ШІ розпізнавання помилок)"""
+    """Обробник скріншоту від користувача (ШІ розпізнавання помилок)"""
     client_id = message.from_user.id
     
     # Перевіряємо, чи є вже активна сесія
@@ -1515,12 +1570,23 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
         if existing_session['status'] == 'registered':
             await message.answer("Будь ласка, зачекайте, поки адміністратор призначить вам номер телефону для початку верифікації.")
             return
+        elif existing_session['status'] == 'waiting_verification':
+            if int(existing_session.get('waiting_proceedings') or 0) == 1:
+                # Дозволяємо надсилання скріншоту
+                pass
+            else:
+                await message.answer("Ваша анкета знаходиться на перевірці у верифікатора. Будь ласка, зачекайте.")
+                return
         elif existing_session['status'] not in ('number_assigned', 'waiting_code'):
             await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
             return
         
         # Беремо фото найкращої якості
         photo = message.photo[-1]
+        
+        if existing_session['status'] == 'waiting_verification' and int(existing_session.get('waiting_proceedings') or 0) == 1:
+            await handle_proceedings_screenshot(message, photo, existing_session, bot, state)
+            return
         
         # Зберігаємо останнє фото в стані для можливості відновлення анкетування текстом
         await state.update_data(last_photo_id=photo.file_id)
@@ -1947,6 +2013,73 @@ async def process_lviv_success_confirm(message: Message, state: FSMContext, bot:
     else:
         await state.clear()
         await handle_client_data_manual(message, state, bot)
+
+
+async def send_anketa_to_verifier(client_id: int, bot: Bot) -> int | None:
+    """Надсилання анкети у чат верифікаторів"""
+    import re
+    from bot.config import ANKETA_CHAT_ID, ADMIN_ID
+    
+    session = await db.get_session(client_id)
+    if not session:
+        logger.error(f"Не знайдено сесію для надсилання анкети клієнта {client_id}")
+        return None
+        
+    username = session.get('username') or "Невідомий"
+    client_data = session.get('client_data', '')
+    
+    # Розпарсимо PIB, DOB, IPN
+    ipn_match = re.search(r'ІПН:\s*(\d+)', client_data)
+    pib_match = re.search(r'ПІБ:\s*(.+)', client_data)
+    dob_match = re.search(r'Дата:\s*(.+)', client_data)
+    
+    ipn = ipn_match.group(1) if ipn_match else "Невідомо"
+    pib = pib_match.group(1) if pib_match else "Невідомо"
+    dob = dob_match.group(1) if dob_match else "Невідомо"
+    
+    # Форматування списку банків
+    selected_banks_str = session.get('selected_banks', '')
+    banks_list = [b.strip() for b in selected_banks_str.split(',') if b.strip()]
+    formatted_banks = " | ".join(banks_list) if banks_list else "Не обрано"
+    
+    drop_line = f"Дроп - @{username}" if username and username != "Немає юзернейму" else "Дроп - Без юзернейму"
+    
+    anketa_text = (
+        f"ІПН: {ipn}\n"
+        f"ПІБ: {pib}\n"
+        f"Дата: {dob}\n\n"
+        f"{drop_line}\n\n"
+        f"{formatted_banks}"
+    )
+    
+    if not ANKETA_CHAT_ID:
+        # Автоматично схвалюємо, якщо верифікатор не налаштований
+        await db.set_session_verified(client_id, 1)
+        await db.update_session_status(client_id, 'registered')
+        try:
+            await bot.send_message(
+                chat_id=ADMIN_ID,
+                text=f"⚠️ <b>ANKETA_CHAT_ID не налаштовано!</b>\nАнкету клієнта @{username} (ID: {client_id}) схвалено автоматично.",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+        return None
+        
+    try:
+        sent_msg = await bot.send_message(chat_id=ANKETA_CHAT_ID, text=anketa_text)
+        await db.update_session_verifier_message_id(client_id, sent_msg.message_id)
+        return sent_msg.message_id
+    except Exception as e:
+        logger.error(f"Помилка відправки анкети в чат верифікаторів: {e}")
+        try:
+            await bot.send_message(
+                chat_id=ADMIN_ID,
+                text=f"Помилка відправки анкети в чат верифікаторів: {e}\n\nАнкета:\n{anketa_text}"
+            )
+        except Exception:
+            pass
+        return None
 
 
 

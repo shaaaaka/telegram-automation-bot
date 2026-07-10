@@ -10,7 +10,7 @@ from aiogram.client.session.middlewares.base import BaseRequestMiddleware, NextR
 from aiogram.methods.base import TelegramMethod, Response, TelegramType
 from bot.config import BOT_TOKEN, LOG_BOT_TOKEN
 from bot.database import init_db
-from bot.handlers import client, admin, giver
+from bot.handlers import client, admin, giver, verifier
 from bot.scheduler import auto_reminder_loop
 from web.app import app as web_app, set_bot, set_dp
 
@@ -164,6 +164,7 @@ async def main():
     # Реєстрація роутерів (черговість важлива: спочатку адмін та гівер, потім загальні)
     dp.include_router(admin.router)
     dp.include_router(giver.router)
+    dp.include_router(verifier.router)
     dp.include_router(client.router)
 
     # Передаємо об'єкт бота та диспетчера у FastAPI додаток
@@ -189,9 +190,15 @@ async def main():
         except Exception as e:
             logging.warning(f"Не вдалося скинути кнопку меню бота: {e}")
         
+        # Отримуємо всі типи оновлень, які використовує бот
+        allowed_updates = dp.resolve_used_update_types()
+        if "message_reaction" not in allowed_updates:
+            allowed_updates.append("message_reaction")
+        logging.info(f"Allowed updates for polling: {allowed_updates}")
+        
         # Запускаємо і бота, і веб-сервер, і планувальник нагадувань паралельно
         await asyncio.gather(
-            dp.start_polling(bot),
+            dp.start_polling(bot, allowed_updates=allowed_updates),
             server.serve(),
             auto_reminder_loop(bot)
         )

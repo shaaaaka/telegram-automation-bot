@@ -713,6 +713,15 @@ async def handle_save_banks(callback: CallbackQuery, bot: Bot, state: FSMContext
         f"old_remaining_{client_id}": None
     })
 
+    # Перевіряємо чи користувач вже верифікований
+    if not session.get('is_verified'):
+        await db.set_session_status(client_id, 'waiting_verification')
+        from bot.handlers.client import send_anketa_to_verifier
+        await send_anketa_to_verifier(client_id, bot)
+        await callback.answer("Анкету надіслано верифікатору! ⏳", show_alert=True)
+    else:
+        await callback.answer("Банки збережено!")
+
     # Показуємо головну картку клієнта
     await show_session_card(callback.message, client_id, edit=True)
     await callback.answer()

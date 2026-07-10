@@ -265,7 +265,10 @@ function renderClientDataHTML(session) {
     let html = '<div class="client-data-text-block">';
     lines.forEach(line => {
         const trimmed = line.trim();
-        if (!trimmed) return;
+        if (!trimmed) {
+            html += '<div style="height: 10px;"></div>';
+            return;
+        }
         const colonIdx = trimmed.indexOf(':');
         if (colonIdx !== -1) {
             const key = trimmed.substring(0, colonIdx).trim();
@@ -287,7 +290,49 @@ function renderClientDataHTML(session) {
 }
 
 // Render dropdown tray for success/failure tags
+function renderVerifierActionsHTML(session) {
+    if (Number(session.is_verified) === 1) {
+        return `
+            <button class="btn btn-primary btn-sm" onclick="completeSessionBank(${session.client_id}, 'release')" ${!session.line_id ? 'disabled' : ''}>
+                Завершити реєстрацію банку
+            </button>
+        `;
+    }
+    
+    // Якщо банки обрані, але ще не перевірений дроп
+    const selectedBanksStr = session.selected_banks;
+    const selected = selectedBanksStr ? selectedBanksStr.split(',').filter(Boolean) : [];
+    if (selected.length === 0) {
+        // Якщо банки не обрані, не показуємо кнопки перевірки в футері
+        return '';
+    }
+    
+    if (session.status === 'waiting_verification') {
+        return `
+            <span style="color: #f59e0b; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">
+                Очікує перевірки
+            </span>
+            <button class="btn btn-secondary btn-sm" onclick="verifyManually(${session.client_id})">
+                Схвалити вручну
+            </button>
+        `;
+    }
+    
+    return `
+        <button class="btn btn-primary btn-sm" onclick="sendToVerifier(${session.client_id})">
+            Надіслати
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="verifyManually(${session.client_id})">
+            Схвалити вручну
+        </button>
+    `;
+}
+
+// Render dropdown tray for success/failure tags
 function renderActionTrayHTML(session) {
+    if (Number(session.is_verified) !== 1) {
+        return '';
+    }
     const isTrayOpen = openActionTrays.has(session.client_id);
     const disabledAttr = !session.line_id ? 'disabled' : '';
     return `
@@ -455,6 +500,8 @@ function renderSessions(sessions) {
                         <span>⚠️ Будь ласка, оберіть один або кілька банків вище для початку роботи.</span>
                     </div>
                 `;
+            } else if (Number(session.is_verified) !== 1) {
+                assignmentHTML = '';
             } else if (remaining.length > 0) {
                 if (session.line_id) {
                     const activeLine = (allLines || []).find(l => l.id === session.line_id);
@@ -587,9 +634,7 @@ function renderSessions(sessions) {
                         </div>
                         <div class="action-footer-right">
                             ${renderActionTrayHTML(session)}
-                            <button class="btn btn-primary btn-sm" onclick="completeSessionBank(${session.client_id}, 'release')" ${!session.line_id ? 'disabled' : ''}>
-                                Завершити реєстрацію банку
-                            </button>
+                            ${renderVerifierActionsHTML(session)}
                         </div>
                     </div>
                 </div>
@@ -1064,5 +1109,37 @@ async function sendClientMessage(clientId) {
         }
     } catch (err) {
         showToast("Не вдалося надіслати повідомлення", "error");
+    }
+}
+
+async function sendToVerifier(clientId) {
+    try {
+        const res = await fetch(`/api/sessions/${clientId}/send-to-verifier`, {
+            method: 'POST'
+        });
+        if (res.ok) {
+            showToast("Анкету надіслано верифікатору!", "success");
+        } else {
+            const err = await res.json();
+            showToast("Помилка відправки: " + (err.detail || "невідома помилка"), "error");
+        }
+    } catch (err) {
+        showToast("Не вдалося надіслати анкету", "error");
+    }
+}
+
+async function verifyManually(clientId) {
+    try {
+        const res = await fetch(`/api/sessions/${clientId}/verify-manually`, {
+            method: 'POST'
+        });
+        if (res.ok) {
+            showToast("Анкету схвалено вручну!", "success");
+        } else {
+            const err = await res.json();
+            showToast("Помилка схвалення: " + (err.detail || "невідома помилка"), "error");
+        }
+    } catch (err) {
+        showToast("Не вдалося схвалити анкету", "error");
     }
 }

@@ -112,7 +112,6 @@ async def init_db():
             async for col in cursor:
                 sessions_columns.add(col[1])
 
-        # Додаємо нові колонки, якщо вони ще не існують (для зворотної сумісності)
         new_columns = [
             ("assigned_at", "TIMESTAMP"),
             ("last_reminder_sent_at", "TIMESTAMP"),
@@ -125,7 +124,11 @@ async def init_db():
             ("client_phone", "TEXT"),
             ("bank", "TEXT"),
             ("sent_codes_count", "INTEGER DEFAULT 0"),
-            ("is_paused", "INTEGER DEFAULT 0")
+            ("is_paused", "INTEGER DEFAULT 0"),
+            ("verifier_message_id", "INTEGER"),
+            ("is_verified", "INTEGER DEFAULT 0"),
+            ("waiting_proceedings", "INTEGER DEFAULT 0"),
+            ("proceedings_question_msg_id", "INTEGER")
         ]
         
         for col_name, col_type in new_columns:
@@ -366,7 +369,9 @@ async def create_registering_session(client_id: int, username: str):
                 card_first4 = NULL,
                 card_last4 = NULL,
                 card_photo_id = NULL,
-                sent_codes_count = 0
+                sent_codes_count = 0,
+                is_verified = 0,
+                verifier_message_id = NULL
         """, (client_id, username))
         await db.commit()
 
@@ -389,7 +394,9 @@ async def create_or_update_session(client_id: int, username: str, client_data: s
                 card_first4 = NULL,
                 card_last4 = NULL,
                 card_photo_id = NULL,
-                sent_codes_count = 0
+                sent_codes_count = 0,
+                is_verified = 0,
+                verifier_message_id = NULL
         """, (client_id, username, client_data))
         await db.commit()
 
@@ -411,6 +418,54 @@ async def get_session(client_id: int):
     async with aiosqlite.connect(DB_FILE) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT * FROM sessions WHERE client_id = ?", (client_id,)) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+async def update_session_verifier_message_id(client_id: int, message_id: int):
+    """Оновлення ID повідомлення верифікатора в сесії"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("UPDATE sessions SET verifier_message_id = ? WHERE client_id = ?", (message_id, client_id))
+        await db.commit()
+
+async def set_session_verified(client_id: int, is_verified: int = 1):
+    """Встановлення прапорця верифікації для сесії"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("UPDATE sessions SET is_verified = ? WHERE client_id = ?", (is_verified, client_id))
+        await db.commit()
+
+async def get_session_by_verifier_message_id(message_id: int):
+    """Отримання сесії за ID повідомлення верифікатора"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM sessions WHERE verifier_message_id = ?", (message_id,)) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+async def get_session_by_proceedings_question_message_id(message_id: int):
+    """Отримання сесії за ID повідомлення запитання про провадження"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM sessions WHERE proceedings_question_msg_id = ?", (message_id,)) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+async def set_session_waiting_proceedings(client_id: int, waiting: int):
+    """Встановлення прапорця очікування проваджень для сесії"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("UPDATE sessions SET waiting_proceedings = ? WHERE client_id = ?", (waiting, client_id))
+        await db.commit()
+
+async def set_session_proceedings_question_msg_id(client_id: int, message_id: int):
+    """Встановлення ID повідомлення запитання про провадження"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("UPDATE sessions SET proceedings_question_msg_id = ? WHERE client_id = ?", (message_id, client_id))
+        await db.commit()
+
+async def get_latest_waiting_verification_session():
+    """Отримання останньої сесії, яка чекає перевірки"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM sessions WHERE status = 'waiting_verification' ORDER BY created_at DESC LIMIT 1") as cursor:
             row = await cursor.fetchone()
             return dict(row) if row else None
 

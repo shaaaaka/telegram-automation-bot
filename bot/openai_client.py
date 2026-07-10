@@ -294,3 +294,56 @@ async def analyze_chat_and_propose_rule(chat_history_text: str) -> str:
     except Exception as e:
         logger.error(f"Помилка при аналізі чату: {e}")
         return ""
+
+async def analyze_proceedings_screenshot(image_bytes: bytes) -> str:
+    """Аналіз скріншоту виконавчих проваджень на предмет наявності відкритих проваджень"""
+    if not client:
+        return "[UNKNOWN] OpenAI API key is not configured."
+        
+    base64_image = base64.b64encode(image_bytes).decode('utf-8')
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are an AI assistant specialized in analyzing screenshots of 'Виконавчі провадження' "
+                "(Executive Proceedings) from the Ukrainian state application 'Дія'.\n\n"
+                "Your task is to determine whether the screenshot indicates that the user has any "
+                "ACTIVE / OPEN (відкриті) proceedings, or if they are all CLOSED / FINISHED (закриті) or NONE exist.\n\n"
+                "Guidance on what to look for:\n"
+                "1. If the screenshot has the text 'У вас усе добре' or 'Відкритих проваджень немає' (or similar), "
+                "or shows empty list under 'Відкриті' tab, classify as CLOSED.\n"
+                "2. If the screenshot shows proceedings with the status 'Завершено' or 'Завершено без оплати' (or similar), "
+                "classify as CLOSED.\n"
+                "3. If the screenshot shows proceedings with the status 'Чекає на зарахування', 'Відкрите', or shows active "
+                "sums of money that must be paid (often with black 'Детальніше' buttons under active headers), "
+                "classify as OPEN.\n\n"
+                "CRITICAL: Start your response with exactly either '[OPEN]' or '[CLOSED]', and then write a brief "
+                "explanation in Ukrainian (1 sentence) describing what you see on the screenshot (e.g. '[CLOSED] Відкритих проваджень немає, усе добре')."
+            )
+        },
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{base64_image}"
+                    }
+                }
+            ]
+        }
+    ]
+    
+    try:
+        response = await client.chat.completions.create(
+            model=OPENROUTER_MODEL,
+            messages=messages,
+            extra_headers={
+                "HTTP-Referer": "https://github.com/shaaaaka/telegram-automation-bot",
+                "X-Title": "Verification Support Bot"
+            }
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error(f"Помилка при запиті до OpenRouter для аналізу проваджень: {e}")
+        return f"[UNKNOWN] Не вдалося проаналізувати скріншот через помилку: {e}"

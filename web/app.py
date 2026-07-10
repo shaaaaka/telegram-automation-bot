@@ -351,6 +351,42 @@ async def save_client_banks(client_id: int, body: BanksSelection):
     await db.update_session_banks(client_id, selected_str, remaining_str)
     return {"status": "success", "selected_banks": new_selected}
 
+@app.post("/api/sessions/{client_id}/send-to-verifier")
+async def send_to_verifier_endpoint(client_id: int):
+    """Надсилання анкети клієнта верифікатору з веб-панелі"""
+    session = await db.get_session(client_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    await db.set_session_status(client_id, 'waiting_verification')
+    
+    from bot.handlers.client import send_anketa_to_verifier
+    if bot:
+        await send_anketa_to_verifier(client_id, bot)
+        
+    return {"status": "success"}
+
+@app.post("/api/sessions/{client_id}/verify-manually")
+async def verify_manually_endpoint(client_id: int):
+    """Ручне схвалення анкети дропа (без перевірки верифікатором)"""
+    session = await db.get_session(client_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    await db.set_session_verified(client_id, 1)
+    await db.set_session_status(client_id, 'registered')
+    
+    if bot:
+        try:
+            await bot.send_message(
+                chat_id=client_id,
+                text="✨ Вашу анкету успішно схвалено! Будь ласка, очікуйте на призначення лінії."
+            )
+        except Exception:
+            pass
+            
+    return {"status": "success"}
+
 @app.post("/api/sessions/{client_id}/banks/readd")
 async def readd_session_bank(client_id: int, bank: str):
     """Додавання банку назад до списку залишкових (remaining_banks)"""
