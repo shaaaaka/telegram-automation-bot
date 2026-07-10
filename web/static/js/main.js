@@ -297,7 +297,6 @@ function switchTab(tabId) {
         loadStats();
     } else if (tabId === 'settings') {
         loadSettings();
-        loadAISettings();
     } else if (tabId === 'chat') {
         loadChatSessions();
     } else if (tabId === 'banned') {
