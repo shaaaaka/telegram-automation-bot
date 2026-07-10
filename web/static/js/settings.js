@@ -186,12 +186,115 @@ function getBankIconGradient(key) {
     return 'linear-gradient(135deg, #64748b, #475569)'; // grey
 }
 
+let dragSourceEl = null;
+let isDraggingBank = false;
+
+function saveBankOrder() {
+    const list = document.getElementById('bank-settings-accordion');
+    if (!list) return;
+    const items = list.querySelectorAll('.bank-accordion-item');
+    const order = [];
+    items.forEach(item => {
+        const key = item.id.replace('bank-accordion-item-', '');
+        order.push(key);
+    });
+    localStorage.setItem('bank_accordion_order', JSON.stringify(order));
+}
+
+function addDragAndDropListeners(item) {
+    const header = item.querySelector('.bank-accordion-header');
+    if (!header) return;
+
+    header.setAttribute('draggable', 'true');
+
+    header.addEventListener('dragstart', (e) => {
+        isDraggingBank = true;
+        dragSourceEl = item;
+        item.style.opacity = '0.4';
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', item.id);
+    });
+
+    header.addEventListener('dragover', (e) => {
+        if (e.preventDefault) {
+            e.preventDefault();
+        }
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+    });
+
+    header.addEventListener('dragenter', (e) => {
+        const targetItem = e.target.closest('.bank-accordion-item');
+        if (targetItem && targetItem !== dragSourceEl) {
+            targetItem.style.border = '1px dashed var(--accent-primary)';
+            targetItem.style.transform = 'translateY(2px)';
+        }
+    });
+
+    header.addEventListener('dragleave', (e) => {
+        const targetItem = e.target.closest('.bank-accordion-item');
+        if (targetItem) {
+            targetItem.style.border = '';
+            targetItem.style.transform = '';
+        }
+    });
+
+    header.addEventListener('drop', (e) => {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+        
+        const targetItem = e.target.closest('.bank-accordion-item');
+        if (dragSourceEl && targetItem && dragSourceEl !== targetItem) {
+            const list = document.getElementById('bank-settings-accordion');
+            const children = Array.from(list.children);
+            const sourceIndex = children.indexOf(dragSourceEl);
+            const targetIndex = children.indexOf(targetItem);
+            
+            if (sourceIndex < targetIndex) {
+                list.insertBefore(dragSourceEl, targetItem.nextSibling);
+            } else {
+                list.insertBefore(dragSourceEl, targetItem);
+            }
+            
+            saveBankOrder();
+        }
+        return false;
+    });
+
+    header.addEventListener('dragend', (e) => {
+        setTimeout(() => { isDraggingBank = false; }, 50);
+        document.querySelectorAll('.bank-accordion-item').forEach(el => {
+            el.style.opacity = '1';
+            el.style.border = '';
+            el.style.transform = '';
+        });
+    });
+}
+
 function renderBankAccordion(templates, activeKey) {
     const container = document.getElementById('bank-settings-accordion');
     if (!container) return;
     container.innerHTML = '';
 
-    const keys = Object.keys(templates);
+    let keys = Object.keys(templates);
+    const savedOrder = localStorage.getItem('bank_accordion_order');
+    if (savedOrder) {
+        try {
+            const orderArr = JSON.parse(savedOrder);
+            keys.sort((a, b) => {
+                const idxA = orderArr.indexOf(a);
+                const idxB = orderArr.indexOf(b);
+                if (idxA === -1 && idxB === -1) return 0;
+                if (idxA === -1) return 1;
+                if (idxB === -1) return -1;
+                return idxA - idxB;
+            });
+        } catch (e) {
+            console.error("Error parsing bank order", e);
+        }
+    }
+
     if (keys.length === 0) {
         container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 32px; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 12px;">Немає збережених банків. Додайте перший банк за допомогою кнопки вище.</div>';
         return;
@@ -238,10 +341,12 @@ function renderBankAccordion(templates, activeKey) {
             </div>
         `;
         container.appendChild(item);
+        addDragAndDropListeners(item);
     });
 }
 
 function toggleBankAccordion(key) {
+    if (isDraggingBank) return;
     const el = document.getElementById(`bank-accordion-item-${key}`);
     if (!el) return;
     

@@ -49,17 +49,17 @@ BANK_TEMPLATES = {
     "amobank": {
         "command": "/ЗАВАНТАЖамо",
         "text": "Завантажуйте будь ласка додаток \"amobank\"",
-        "code_length": 6
+        "code_length": 4
     },
     "lvivbank": {
         "command": "/ЗАВАНТАЖльвів",
         "text": "Завантажуйте будь ласка додаток \"Bank Lviv\"",
-        "code_length": 4
+        "code_length": 6
     },
     "bank.kd": {
         "command": "/ЗАВАНТАЖкд",
         "text": "Завантажуйте будь ласка додаток \"bank.kd\"",
-        "code_length": 5
+        "code_length": 6
     },
     "alliance": {
         "command": "/ЗАВАНТАЖальянс",

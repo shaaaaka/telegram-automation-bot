@@ -260,13 +260,14 @@ async def init_db():
         # Синхронізуємо стандартні шаблони банків з конфігом
         from bot.config import BANK_TEMPLATES
         if BANK_TEMPLATES:
-            await db.execute(
-                "DELETE FROM bank_templates WHERE key NOT IN ({})".format(",".join(["?"] * len(BANK_TEMPLATES))),
-                tuple(BANK_TEMPLATES.keys())
-            )
+            # Оновлюємо некоректні довжини за замовчуванням
+            await db.execute("UPDATE bank_templates SET code_length = 4 WHERE key = 'amobank' AND code_length = 6")
+            await db.execute("UPDATE bank_templates SET code_length = 6 WHERE key = 'lvivbank' AND code_length = 4")
+            await db.execute("UPDATE bank_templates SET code_length = 6 WHERE key = 'bank.kd' AND code_length = 5")
+
             for key, val in BANK_TEMPLATES.items():
                 await db.execute(
-                    "INSERT OR REPLACE INTO bank_templates (key, command, text, code_length) VALUES (?, ?, ?, ?)",
+                    "INSERT OR IGNORE INTO bank_templates (key, command, text, code_length) VALUES (?, ?, ?, ?)",
                     (key, val['command'], val['text'], val.get('code_length', 4))
                 )
 
