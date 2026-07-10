@@ -82,6 +82,10 @@ async function loadSettings() {
         if (typeof renderChatPageTemplates === 'function') {
             renderChatPageTemplates();
         }
+
+        // Restore active settings subtab
+        const savedSubtab = localStorage.getItem('active_settings_subtab') || 'general';
+        switchSettingsSubtab(savedSubtab);
     } catch (err) {
         showToast("Не вдалося завантажити налаштування", "error");
     }
@@ -700,6 +704,7 @@ if (bankTextEl) {
 }
 
 function switchSettingsSubtab(subtabId) {
+    localStorage.setItem('active_settings_subtab', subtabId);
     // 1. Update subtab button classes
     document.querySelectorAll('.settings-subtab-btn').forEach(btn => {
         btn.classList.remove('active');
