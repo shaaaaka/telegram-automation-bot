@@ -352,39 +352,44 @@
                     color: var(--accent-danger) !important;
                 }
 
-                .bank-chip {
-                    padding: 10px 20px;
+                .bank-accordion-item {
+                    background: rgba(255, 255, 255, 0.02);
+                    border: 1px solid rgba(255, 255, 255, 0.05);
+                    border-radius: 14px;
+                    padding: 16px 20px;
+                    transition: all 0.25s ease;
+                    overflow: hidden;
+                }
+                .bank-accordion-item:hover {
+                    border-color: rgba(255, 255, 255, 0.1);
                     background: rgba(255, 255, 255, 0.03);
-                    border: 1px solid rgba(255, 255, 255, 0.08);
-                    border-radius: 12px;
-                    color: var(--text-color);
-                    font-size: 0.9rem;
-                    font-weight: 500;
-                    cursor: pointer;
-                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+                .bank-accordion-item.active {
+                    background: rgba(255, 255, 255, 0.03);
+                    border-color: rgba(59, 130, 246, 0.25);
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+                }
+                .bank-accordion-header {
                     display: flex;
+                    justify-content: space-between;
                     align-items: center;
-                    gap: 8px;
+                    cursor: pointer;
+                    user-select: none;
                 }
-                .bank-chip:hover {
-                    background: rgba(255, 255, 255, 0.06);
-                    border-color: rgba(255, 255, 255, 0.15);
-                    transform: translateY(-1px);
+                .bank-accordion-body {
+                    display: none;
+                    animation: slideDown 0.25s ease-out;
                 }
-                .bank-chip.active {
-                    background: var(--accent-primary) !important;
-                    border-color: var(--accent-primary) !important;
-                    color: #ffffff !important;
-                    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+                .bank-accordion-item.active .bank-accordion-body {
+                    display: block;
                 }
-                .bank-chip-add {
-                    border-style: dashed;
-                    border-color: rgba(255, 255, 255, 0.2);
-                    color: var(--text-muted);
+                .bank-accordion-item.active .accordion-arrow {
+                    transform: rotate(180deg);
                 }
-                .bank-chip-add:hover {
-                    border-color: var(--accent-primary);
-                    color: var(--accent-primary);
+
+                @keyframes slideDown {
+                    from { opacity: 0; transform: translateY(-8px); }
+                    to { opacity: 1; transform: translateY(0); }
                 }
 
                 @media (max-width: 768px) {
@@ -535,47 +540,47 @@
 
                     <!-- Вкладка 3: Налаштування банків (Поза загальною формою) -->
                     <div id="settings-content-banks" class="settings-subtab-content" style="height: 100%;">
-                        <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: 600; color: #fff;">🏦 Налаштування банків</h3>
-                        
-                        <!-- Селектор банків у вигляді красивих чіпсів -->
-                        <div style="margin-bottom: 24px;">
-                            <label class="form-label" style="margin-bottom: 12px; display: block; font-weight: 600; font-size: 0.9rem; color: var(--text-muted);">Оберіть банк для редагування:</label>
-                            <div id="bank-settings-chips" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                                <!-- Динамічні чіпси банків -->
-                            </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
+                            <h3 style="margin: 0; font-size: 1.2rem; font-weight: 600; color: #fff;">🏦 Налаштування банків</h3>
+                            <button type="button" class="btn btn-primary btn-sm" id="btn-show-add-bank" onclick="showAddAccordionBank()" style="padding: 8px 16px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                                ➕ Додати новий банк
+                            </button>
                         </div>
-
-                        <!-- Форма редагування обраного банку -->
-                        <div id="bank-edit-pane" style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 24px; border-radius: 16px; display: flex; flex-direction: column; gap: 20px;">
+                        
+                        <!-- Форма додавання нового банку (прихована за замовчуванням) -->
+                        <div id="bank-add-pane" style="display: none; background: rgba(59,130,246,0.02); border: 1px solid rgba(59, 130, 246, 0.2); padding: 24px; border-radius: 16px; margin-bottom: 24px; flex-direction: column; gap: 20px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
-                                <h4 id="bank-pane-title" style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #fff;">Налаштування банку</h4>
-                                <button type="button" id="btn-delete-bank" class="btn btn-danger btn-sm" onclick="handleDeleteCurrentBank()" style="display: none; padding: 6px 12px; font-size: 0.8rem;">Видалити банк</button>
+                                <h4 style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #fff;">➕ Додати новий банк</h4>
                             </div>
-                            
-                            <form id="bank-settings-form" onsubmit="handleSaveBankSettings(event)" style="display: flex; flex-direction: column; gap: 16px;">
+                            <form id="add-bank-form" onsubmit="handleCreateAccordionBank(event)" style="display: flex; flex-direction: column; gap: 16px;">
                                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
                                     <div class="form-group" style="margin: 0;">
-                                        <label for="bank-settings-key" class="form-label">Ключ банку (напр. izibank)</label>
-                                        <input type="text" id="bank-settings-key" placeholder="Напр. izibank" required class="form-control" style="width: 100%;">
+                                        <label for="new-bank-key" class="form-label">Ключ банку (напр. izibank)</label>
+                                        <input type="text" id="new-bank-key" placeholder="Напр. izibank" required class="form-control" style="width: 100%;">
                                     </div>
                                     <div class="form-group" style="margin: 0;">
-                                        <label for="bank-settings-command" class="form-label">Команда в Telegram</label>
-                                        <input type="text" id="bank-settings-command" placeholder="Напр. /ЗАВАНТАЖізі" required class="form-control" style="width: 100%;">
+                                        <label for="new-bank-command" class="form-label">Команда в Telegram</label>
+                                        <input type="text" id="new-bank-command" placeholder="Напр. /ЗАВАНТАЖізі" required class="form-control" style="width: 100%;">
                                     </div>
                                     <div class="form-group" style="margin: 0;">
-                                        <label for="bank-settings-code-length" class="form-label">Довжина SMS-коду (цифр)</label>
-                                        <input type="number" id="bank-settings-code-length" placeholder="4" required min="1" max="10" class="form-control" style="width: 100%;">
+                                        <label for="new-bank-code-length" class="form-label">Довжина SMS-коду (цифр)</label>
+                                        <input type="number" id="new-bank-code-length" placeholder="4" value="4" required min="1" max="10" class="form-control" style="width: 100%;">
                                     </div>
                                 </div>
                                 <div class="form-group" style="margin: 0;">
-                                    <label for="bank-settings-text" class="form-label">Текст інструкції для клієнта</label>
-                                    <textarea id="bank-settings-text" placeholder="Текст заготовки..." required class="form-control" rows="4" style="width: 100%; resize: vertical; min-height: 100px; font-family: inherit;"></textarea>
+                                    <label for="new-bank-text" class="form-label">Текст інструкції для клієнта</label>
+                                    <textarea id="new-bank-text" placeholder="Текст заготовки..." required class="form-control" rows="4" style="width: 100%; resize: vertical; min-height: 100px; font-family: inherit;"></textarea>
                                 </div>
                                 <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
-                                    <button type="button" id="btn-cancel-bank-edit" class="btn btn-secondary" onclick="resetBankSettingsForm()" style="display: none; padding: 10px 20px;">Скасувати</button>
-                                    <button type="submit" id="btn-save-bank" class="btn btn-primary" style="padding: 10px 24px; font-weight: 600;">Зберегти налаштування банку</button>
+                                    <button type="button" class="btn btn-secondary" onclick="hideAddAccordionBank()" style="padding: 10px 20px;">Скасувати</button>
+                                    <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 600;">Створити банк</button>
                                 </div>
                             </form>
+                        </div>
+
+                        <!-- Контейнер для списку акордів банків -->
+                        <div id="bank-settings-accordion" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+                            <!-- Заповнюється динамічно JS -->
                         </div>
                     </div>
     </div><!-- Custom Premium Modal Dialog -->
@@ -656,10 +661,10 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=6.4"></script>
-    <script src="/static/js/control.js?v=6.4"></script>
-    <script src="/static/js/chat.js?v=6.4"></script>
-    <script src="/static/js/stats.js?v=6.4"></script>
-    <script src="/static/js/settings.js?v=6.4"></script>
+    <script src="/static/js/main.js?v=6.6"></script>
+    <script src="/static/js/control.js?v=6.6"></script>
+    <script src="/static/js/chat.js?v=6.6"></script>
+    <script src="/static/js/stats.js?v=6.6"></script>
+    <script src="/static/js/settings.js?v=6.6"></script>
 </body>
 </html>

@@ -70,14 +70,9 @@ async function loadSettings() {
 
         window.bankTemplates = data.templates;
         
-        // Render bank selection chips
-        const keys = Object.keys(data.templates);
-        if (!window.selectedBankKey && keys.length > 0) {
-            window.selectedBankKey = keys[0]; // Select first bank by default
-        }
-        
-        renderBankChips(data.templates, window.selectedBankKey);
-        selectBankSetting(window.selectedBankKey);
+        // Render bank accordion items
+        const activeAccordionKey = localStorage.getItem('active_bank_accordion') || null;
+        renderBankAccordion(data.templates, activeAccordionKey);
         
         if (typeof renderChatPageTemplates === 'function') {
             renderChatPageTemplates();
@@ -168,113 +163,106 @@ async function saveGeneralSettings(event) {
     }
 }
 
-function renderBankChips(templates, selectedKey) {
-    const container = document.getElementById('bank-settings-chips');
+function renderBankAccordion(templates, activeKey) {
+    const container = document.getElementById('bank-settings-accordion');
     if (!container) return;
     container.innerHTML = '';
 
     const keys = Object.keys(templates);
+    if (keys.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 32px; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 12px;">Немає збережених банків. Додайте перший банк за допомогою кнопки вище.</div>';
+        return;
+    }
+
     keys.forEach(key => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'bank-chip';
-        if (key === selectedKey) btn.classList.add('active');
-        btn.innerHTML = `🏦 <span>${key}</span>`;
-        btn.onclick = () => {
-            selectBankSetting(key);
-        };
-        container.appendChild(btn);
+        const template = templates[key];
+        const item = document.createElement('div');
+        item.className = 'bank-accordion-item';
+        item.id = `bank-accordion-item-${key}`;
+        if (key === activeKey) item.classList.add('active');
+
+        item.innerHTML = `
+            <div class="bank-accordion-header" onclick="toggleBankAccordion('${key}')">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 1.25rem;">🏦</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="bank-title" style="font-weight: 600; color: #fff; font-size: 0.95rem;">${key}</span>
+                        <span style="font-family: monospace; font-size: 0.75rem; color: var(--accent-primary); background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 2px 6px; border-radius: 4px;">${template.command}</span>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">Код: <strong style="color: var(--accent-success);">${template.code_length || 4} ц</strong></span>
+                    <span class="accordion-arrow" style="font-size: 0.8rem; color: var(--text-muted); transition: transform 0.25s ease; display: inline-block;">▼</span>
+                </div>
+            </div>
+            <div class="bank-accordion-body">
+                <form onsubmit="saveAccordionBankSettings(event, '${key}')" style="display: flex; flex-direction: column; gap: 16px; margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Команда в Telegram</label>
+                            <input type="text" id="bank-acc-cmd-${key}" value="${template.command || ''}" required class="form-control" style="width: 100%;">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Довжина SMS-коду (цифр)</label>
+                            <input type="number" id="bank-acc-len-${key}" value="${template.code_length || 4}" required min="1" max="10" class="form-control" style="width: 100%;">
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Текст інструкції для клієнта</label>
+                        <textarea id="bank-acc-text-${key}" required class="form-control" rows="3" style="width: 100%; resize: vertical; min-height: 80px; font-family: inherit;">${template.text || ''}</textarea>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 4px;">
+                        <button type="button" class="btn btn-danger btn-sm" onclick="deleteAccordionBank('${key}')" style="padding: 8px 16px; font-size: 0.8rem;">Видалити банк</button>
+                        <button type="submit" class="btn btn-primary" style="padding: 8px 20px; font-weight: 600; font-size: 0.85rem;">Зберегти зміни</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        container.appendChild(item);
     });
-
-    // Add bank button
-    const addBtn = document.createElement('button');
-    addBtn.type = 'button';
-    addBtn.className = 'bank-chip bank-chip-add';
-    if (selectedKey === null) addBtn.classList.add('active');
-    addBtn.innerHTML = `➕ <span>Додати новий банк</span>`;
-    addBtn.onclick = () => {
-        selectBankSetting(null);
-    };
-    container.appendChild(addBtn);
 }
 
-function selectBankSetting(key) {
-    window.selectedBankKey = key;
+function toggleBankAccordion(key) {
+    const el = document.getElementById(`bank-accordion-item-${key}`);
+    if (!el) return;
     
-    // Update active state on chips
-    const container = document.getElementById('bank-settings-chips');
-    if (container) {
-        const chips = container.querySelectorAll('.bank-chip');
-        chips.forEach(chip => {
-            const span = chip.querySelector('span');
-            if (span) {
-                const text = span.textContent;
-                if ((key === null && text === 'Додати новий банк') || (key !== null && text === key)) {
-                    chip.classList.add('active');
-                } else {
-                    chip.classList.remove('active');
-                }
-            }
-        });
-    }
-
-    const keyInput = document.getElementById('bank-settings-key');
-    const cmdInput = document.getElementById('bank-settings-command');
-    const lenInput = document.getElementById('bank-settings-code-length');
-    const textInput = document.getElementById('bank-settings-text');
-    const titleEl = document.getElementById('bank-pane-title');
-    const deleteBtn = document.getElementById('btn-delete-bank');
-    const cancelBtn = document.getElementById('btn-cancel-bank-edit');
-    const saveBtn = document.getElementById('btn-save-bank');
-
-    if (!keyInput) return;
-
-    if (key !== null) {
-        const template = window.bankTemplates ? window.bankTemplates[key] : null;
-        if (template) {
-            titleEl.textContent = `Налаштування банку: ${key}`;
-            keyInput.value = key;
-            keyInput.disabled = true;
-            cmdInput.value = template.command || '';
-            lenInput.value = template.code_length || 4;
-            textInput.value = template.text || '';
-            
-            deleteBtn.style.display = 'block';
-            cancelBtn.style.display = 'none';
-            saveBtn.textContent = 'Зберегти зміни';
-        }
+    const isActive = el.classList.contains('active');
+    
+    // Collapse all items
+    document.querySelectorAll('.bank-accordion-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    if (!isActive) {
+        el.classList.add('active');
+        localStorage.setItem('active_bank_accordion', key);
     } else {
-        titleEl.textContent = 'Додати новий банк';
-        keyInput.value = '';
-        keyInput.disabled = false;
-        cmdInput.value = '';
-        lenInput.value = 4;
-        textInput.value = '';
-        
-        deleteBtn.style.display = 'none';
-        cancelBtn.style.display = 'block';
-        saveBtn.textContent = 'Створити банк';
+        localStorage.removeItem('active_bank_accordion');
     }
 }
 
-function resetBankSettingsForm() {
-    // Select first bank if cancel clicked
-    const keys = window.bankTemplates ? Object.keys(window.bankTemplates) : [];
-    if (keys.length > 0) {
-        selectBankSetting(keys[0]);
-    } else {
-        selectBankSetting(null);
+function showAddAccordionBank() {
+    const pane = document.getElementById('bank-add-pane');
+    if (pane) {
+        pane.style.display = 'flex';
+        pane.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 }
 
-async function handleSaveBankSettings(event) {
+function hideAddAccordionBank() {
+    const pane = document.getElementById('bank-add-pane');
+    if (pane) {
+        pane.style.display = 'none';
+        document.getElementById('add-bank-form').reset();
+    }
+}
+
+async function handleCreateAccordionBank(event) {
     if (event) event.preventDefault();
-    const keyInput = document.getElementById('bank-settings-key');
-    const key = keyInput.value.trim();
-    const command = document.getElementById('bank-settings-command').value.trim();
-    const code_length = parseInt(document.getElementById('bank-settings-code-length').value) || 4;
-    const text = document.getElementById('bank-settings-text').value.trim();
-    const isEdit = keyInput.disabled;
+    const key = document.getElementById('new-bank-key').value.trim();
+    const command = document.getElementById('new-bank-command').value.trim();
+    const code_length = parseInt(document.getElementById('new-bank-code-length').value) || 4;
+    const text = document.getElementById('new-bank-text').value.trim();
 
     try {
         const res = await fetch('/api/settings/templates', {
@@ -283,8 +271,34 @@ async function handleSaveBankSettings(event) {
             body: JSON.stringify({ key, command, text, code_length })
         });
         if (res.ok) {
-            showToast(isEdit ? `Налаштування банку ${key} збережено!` : `Банк ${key} успішно створено!`, "success");
-            window.selectedBankKey = key;
+            showToast(`Банк ${key} успішно створено!`, "success");
+            hideAddAccordionBank();
+            localStorage.setItem('active_bank_accordion', key);
+            await loadSettings();
+        } else {
+            const err = await res.json();
+            showToast("Помилка збереження: " + err.detail, "error");
+        }
+    } catch (err) {
+        showToast("Не вдалося створити банк", "error");
+    }
+}
+
+async function saveAccordionBankSettings(event, key) {
+    if (event) event.preventDefault();
+    const command = document.getElementById(`bank-acc-cmd-${key}`).value.trim();
+    const code_length = parseInt(document.getElementById(`bank-acc-len-${key}`).value) || 4;
+    const text = document.getElementById(`bank-acc-text-${key}`).value.trim();
+
+    try {
+        const res = await fetch('/api/settings/templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key, command, text, code_length })
+        });
+        if (res.ok) {
+            showToast(`Налаштування банку ${key} збережено!`, "success");
+            localStorage.setItem('active_bank_accordion', key);
             await loadSettings();
         } else {
             const err = await res.json();
@@ -295,8 +309,7 @@ async function handleSaveBankSettings(event) {
     }
 }
 
-async function handleDeleteCurrentBank() {
-    const key = window.selectedBankKey;
+async function deleteAccordionBank(key) {
     if (!key) return;
     
     const confirmed = await showConfirm(`Ви впевнені, що хочете видалити банк ${key}?`, 'danger');
@@ -308,7 +321,7 @@ async function handleDeleteCurrentBank() {
         });
         if (res.ok) {
             showToast(`Банк ${key} успішно видалено.`, "success");
-            window.selectedBankKey = null;
+            localStorage.removeItem('active_bank_accordion');
             await loadSettings();
         } else {
             showToast("Помилка видалення банку", "error");
@@ -690,13 +703,13 @@ async function dismissProposedRule(ruleId) {
 }
 
 // Add Shift+Enter / Enter shortcuts for adding bank settings
-const bankTextEl = document.getElementById('bank-settings-text');
+const bankTextEl = document.getElementById('new-bank-text');
 if (bankTextEl) {
     bankTextEl.addEventListener('keydown', function(event) {
         if (event.key === 'Enter') {
             if (!event.shiftKey) {
                 event.preventDefault();
-                const form = document.getElementById('bank-settings-form');
+                const form = document.getElementById('add-bank-form');
                 if (form) form.requestSubmit();
             }
         }
