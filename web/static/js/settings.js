@@ -163,6 +163,29 @@ async function saveGeneralSettings(event) {
     }
 }
 
+function getBankIcon(key) {
+    const k = key.toLowerCase();
+    if (k.includes('izi')) return '💜';
+    if (k.includes('amo')) return '🧡';
+    if (k.includes('lviv')) return '🦁';
+    if (k.includes('kd')) return '💎';
+    if (k.includes('alliance')) return '🤝';
+    if (k.includes('mono')) return '🐱';
+    if (k.includes('privat')) return '💚';
+    if (k.includes('pumb') || k.includes('пумб')) return '❤️';
+    return '🏦';
+}
+
+function getBankIconGradient(key) {
+    const k = key.toLowerCase();
+    if (k.includes('izi')) return 'linear-gradient(135deg, #a855f7, #7c3aed)'; // purple
+    if (k.includes('amo')) return 'linear-gradient(135deg, #f97316, #ea580c)'; // orange
+    if (k.includes('lviv')) return 'linear-gradient(135deg, #eab308, #ca8a04)'; // gold
+    if (k.includes('kd')) return 'linear-gradient(135deg, #06b6d4, #0891b2)'; // cyan/diamond
+    if (k.includes('alliance')) return 'linear-gradient(135deg, #22c55e, #16a34a)'; // green
+    return 'linear-gradient(135deg, #64748b, #475569)'; // grey
+}
+
 function renderBankAccordion(templates, activeKey) {
     const container = document.getElementById('bank-settings-accordion');
     if (!container) return;
@@ -183,16 +206,12 @@ function renderBankAccordion(templates, activeKey) {
 
         item.innerHTML = `
             <div class="bank-accordion-header" onclick="toggleBankAccordion('${key}')">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <span style="font-size: 1.25rem;">🏦</span>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span class="bank-title" style="font-weight: 600; color: #fff; font-size: 0.95rem;">${key}</span>
-                        <span style="font-family: monospace; font-size: 0.75rem; color: var(--accent-primary); background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 2px 6px; border-radius: 4px;">${template.command}</span>
-                    </div>
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <div class="bank-icon-badge" style="background: ${getBankIconGradient(key)};">${getBankIcon(key)}</div>
+                    <span class="bank-title" style="font-weight: 600; color: #fff; font-size: 1rem; letter-spacing: 0.3px;">${key}</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 16px;">
-                    <span style="font-size: 0.8rem; color: var(--text-muted);">Код: <strong style="color: var(--accent-success);">${template.code_length || 4} ц</strong></span>
-                    <span class="accordion-arrow" style="font-size: 0.8rem; color: var(--text-muted); transition: transform 0.25s ease; display: inline-block;">▼</span>
+                <div style="display: flex; align-items: center;">
+                    <span class="accordion-arrow" style="font-size: 0.85rem; color: var(--text-muted); transition: transform 0.25s ease; display: inline-block;">▼</span>
                 </div>
             </div>
             <div class="bank-accordion-body">
