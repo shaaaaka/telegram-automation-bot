@@ -165,11 +165,11 @@ async function saveGeneralSettings(event) {
 
 function getBankIcon(key) {
     const k = key.toLowerCase();
-    if (k.includes('izi')) return '💜';
-    if (k.includes('amo')) return '🧡';
-    if (k.includes('lviv')) return '🦁';
-    if (k.includes('kd')) return '💎';
-    if (k.includes('alliance')) return '🤝';
+    if (k.includes('izi')) return `<img src="/static/images/izibank.png" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">`;
+    if (k.includes('amo')) return `<img src="/static/images/amobank.png" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">`;
+    if (k.includes('lviv')) return `<img src="/static/images/lvivbank.png" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">`;
+    if (k.includes('kd')) return `<img src="/static/images/bank_kd.png" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">`;
+    if (k.includes('alliance')) return `<img src="/static/images/alliance.png" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">`;
     if (k.includes('mono')) return '🐱';
     if (k.includes('privat')) return '💚';
     if (k.includes('pumb') || k.includes('пумб')) return '❤️';
@@ -178,11 +178,10 @@ function getBankIcon(key) {
 
 function getBankIconGradient(key) {
     const k = key.toLowerCase();
-    if (k.includes('izi')) return 'linear-gradient(135deg, #a855f7, #7c3aed)'; // purple
-    if (k.includes('amo')) return 'linear-gradient(135deg, #f97316, #ea580c)'; // orange
-    if (k.includes('lviv')) return 'linear-gradient(135deg, #eab308, #ca8a04)'; // gold
-    if (k.includes('kd')) return 'linear-gradient(135deg, #06b6d4, #0891b2)'; // cyan/diamond
-    if (k.includes('alliance')) return 'linear-gradient(135deg, #22c55e, #16a34a)'; // green
+    // For specific banks with image logos, we don't need a gradient background
+    if (k.includes('izi') || k.includes('amo') || k.includes('lviv') || k.includes('kd') || k.includes('alliance')) {
+        return 'transparent';
+    }
     return 'linear-gradient(135deg, #64748b, #475569)'; // grey
 }
 
