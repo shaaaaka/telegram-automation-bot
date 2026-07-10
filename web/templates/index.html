@@ -352,12 +352,6 @@
                     <button type="button" class="settings-subtab-btn active" onclick="switchSettingsSubtab('general')">
                         ⚙️ Основні налаштування
                     </button>
-                    <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('templates')">
-                        💬 Шаблони повідомлень
-                    </button>
-                    <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('banks')">
-                        🏦 Шаблони банків
-                    </button>
                     <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('chats')">
                         📞 Системні чати та ID
                     </button>
@@ -410,28 +404,10 @@
                                 </div>
                             </div>
 
-                            <!-- Вкладка 2: Шаблони повідомлень -->
-                            <div id="settings-content-templates" class="settings-subtab-content">
-                                <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: 600; color: #fff;">💬 Шаблони повідомлень</h3>
-                                
-                                <div style="display: flex; flex-direction: column; gap: 20px;">
-                                    <div class="form-group">
-                                        <label for="settings-giver-format" class="form-label">Шаблон запиту коду (Giver)</label>
-                                        <input type="text" id="settings-giver-format" class="form-control" required style="width: 100%;">
-                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Доступні змінні: <code>{line_id}</code> (ID лінії), <code>{bank_name}</code> (назва банку)</div>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="settings-giver-retry-format" class="form-label">Шаблон повторного запиту коду (Giver)</label>
-                                        <input type="text" id="settings-giver-retry-format" class="form-control" required style="width: 100%;">
-                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Доступні змінні: <code>{line_id}</code> (ID лінії), <code>{bank_name}</code> (назва банку)</div>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="settings-client-assign-format" class="form-label">Шаблон картки з номером клієнту (Telegram)</label>
-                                        <textarea id="settings-client-assign-format" class="form-control" rows="8" required style="width: 100%; resize: vertical; min-height: 150px; font-family: inherit; box-sizing: border-box; padding: 8px 12px;"></textarea>
-                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Доступні змінні: <code>{bank_name}</code> (назва банку), <code>{phone_number}</code> (номер телефону)</div>
-                                    </div>
-                                </div>
-                            </div>
+                            <!-- Приховані шаблони повідомлень (щоб JS не видавав помилок) -->
+                            <input type="hidden" id="settings-giver-format">
+                            <input type="hidden" id="settings-giver-retry-format">
+                            <textarea id="settings-client-assign-format" style="display: none;"></textarea>
 
                             <!-- Вкладка 4: Системні чати та ID -->
                             <div id="settings-content-chats" class="settings-subtab-content">
@@ -467,49 +443,6 @@
                             <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-size: 0.9rem; font-weight: 600;">Зберегти всі налаштування</button>
                         </div>
                     </form>
-
-                    <!-- Вкладка 3: Шаблони банків (Поза загальною формою) -->
-                    <div id="settings-content-banks" class="settings-subtab-content" style="display: none; height: 100%;">
-                        <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: 600; color: #fff;">🏦 Шаблони банків</h3>
-                        
-                        <div class="lines-list-container">
-                            <table class="lines-table">
-                                <thead>
-                                    <tr>
-                                        <th>Назва банку</th>
-                                        <th>Команда</th>
-                                        <th>Текст заготовки</th>
-                                        <th>Дія</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="settings-templates-table-body">
-                                    <!-- Заповнюється динамічно JS -->
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div class="divider-top" style="margin-top: 24px; padding-top: 24px;">
-                            <div class="section-label" style="font-weight: 600; margin-bottom: 12px; font-size: 0.95rem; color: #fff;">Додати новий шаблон</div>
-                            <form id="add-template-form" onsubmit="handleAddTemplate(event)" style="display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 12px; align-items: end;">
-                                <div class="form-group" style="margin: 0;">
-                                    <label for="template-key" class="form-label" style="font-size: 12px;">Ключ банку (напр. izibank)</label>
-                                    <input type="text" id="template-key" placeholder="Напр. izibank" required class="form-control" style="width: 100%;">
-                                </div>
-                                <div class="form-group" style="margin: 0;">
-                                    <label for="template-command" class="form-label" style="font-size: 12px;">Команда (напр. /ЗАВАНТАЖізі)</label>
-                                    <input type="text" id="template-command" placeholder="Напр. /ЗАВАНТАЖізі" required class="form-control" style="width: 100%;">
-                                </div>
-                                <div class="form-group" style="margin: 0;">
-                                    <label for="template-text" class="form-label" style="font-size: 12px;">Текст інструкції</label>
-                                    <textarea id="template-text" placeholder="Текст, який надішлеться клієнту" required class="form-control" style="width: 100%; height: 38px; min-height: 38px; max-height: 200px; resize: vertical; font-family: inherit; box-sizing: border-box; padding: 8px 12px;"></textarea>
-                                </div>
-                                <button type="submit" class="btn btn-primary" style="height: 38px;">Додати</button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div><!-- Custom Premium Modal Dialog -->
     <div id="custom-modal" class="modal-overlay">
         <div class="modal-card">
