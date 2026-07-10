@@ -1003,6 +1003,18 @@ async def get_settings_endpoint():
     """Отримання налаштувань та шаблонів банків"""
     try:
         settings = await db.get_all_settings()
+        
+        # Load environment defaults if database values are missing
+        from bot.config import ADMIN_ID, ANKETA_CHAT_ID, GIVER_CHAT_ID, ARCHIVE_GROUP_ID
+        if "admin_id" not in settings:
+            settings["admin_id"] = str(ADMIN_ID) if ADMIN_ID else ""
+        if "anketa_chat_id" not in settings:
+            settings["anketa_chat_id"] = str(ANKETA_CHAT_ID) if ANKETA_CHAT_ID else ""
+        if "giver_chat_id" not in settings:
+            settings["giver_chat_id"] = str(GIVER_CHAT_ID) if GIVER_CHAT_ID else ""
+        if "archive_group_id" not in settings:
+            settings["archive_group_id"] = str(ARCHIVE_GROUP_ID) if ARCHIVE_GROUP_ID else ""
+            
         templates = await db.get_all_bank_templates()
         return {
             "settings": settings,
