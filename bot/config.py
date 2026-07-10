@@ -43,23 +43,28 @@ if not GIVER_CHAT_ID:
 BANK_TEMPLATES = {
     "izibank": {
         "command": "/ЗАВАНТАЖізі",
-        "text": "Завантажуйте будь ласка додаток \"izi bank\""
+        "text": "Завантажуйте будь ласка додаток \"izi bank\"",
+        "code_length": 4
     },
     "amobank": {
         "command": "/ЗАВАНТАЖамо",
-        "text": "Завантажуйте будь ласка додаток \"amobank\""
+        "text": "Завантажуйте будь ласка додаток \"amobank\"",
+        "code_length": 6
     },
     "lvivbank": {
         "command": "/ЗАВАНТАЖльвів",
-        "text": "Завантажуйте будь ласка додаток \"Bank Lviv\""
+        "text": "Завантажуйте будь ласка додаток \"Bank Lviv\"",
+        "code_length": 4
     },
     "bank.kd": {
         "command": "/ЗАВАНТАЖкд",
-        "text": "Завантажуйте будь ласка додаток \"bank.kd\""
+        "text": "Завантажуйте будь ласка додаток \"bank.kd\"",
+        "code_length": 5
     },
     "alliance": {
         "command": "/ЗАВАНТАЖальянс",
-        "text": "Завантажуйте будь ласка додаток \"Alliance\""
+        "text": "Завантажуйте будь ласка додаток \"Alliance\"",
+        "code_length": 4
     }
 }
 
@@ -96,16 +101,28 @@ def get_template_photo(key: str):
     return None
 
 
-def get_expected_code_length(bank_name: str) -> int | None:
+async def get_expected_code_length(bank_name: str) -> int | None:
     if not bank_name:
         return None
     name_norm = bank_name.lower().replace(" ", "").replace("-", "").replace(".", "")
+    
+    try:
+        from bot import database as db
+        templates = await db.get_all_bank_templates()
+        for key, val in templates.items():
+            key_norm = key.lower().replace(" ", "").replace("-", "").replace(".", "")
+            if key_norm in name_norm or name_norm in key_norm:
+                if 'code_length' in val and val['code_length'] is not None:
+                    return int(val['code_length'])
+    except Exception:
+        pass
+
     norm_lengths = {
-        "bankkd": 6,
+        "bankkd": 5,
         "izibank": 4,
         "alliance": 4,
-        "lvivbank": 6,
-        "amobank": 4
+        "lvivbank": 4,
+        "amobank": 6
     }
     for key, length in norm_lengths.items():
         if key in name_norm or name_norm in key:

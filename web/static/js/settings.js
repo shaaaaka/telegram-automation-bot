@@ -85,8 +85,9 @@ async function loadSettings() {
             tr.innerHTML = `
                 <td style="font-weight: 600;">${key}</td>
                 <td style="font-family: monospace; font-size: 0.85rem; color: var(--accent-primary);">${template.command}</td>
+                <td style="text-align: center; font-weight: 600;">${template.code_length || 4}</td>
                 <td style="font-size: 0.85rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${template.text}">${template.text}</td>
-                <td>
+                <td style="text-align: right;">
                     <button class="btn btn-primary btn-sm" onclick="editTemplate('${key}')" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;">Редагувати</button>
                     <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${key}')" style="padding: 4px 8px; font-size: 0.75rem;">Видалити</button>
                 </td>
@@ -186,6 +187,7 @@ function editTemplate(key) {
     document.getElementById('template-key').value = key;
     document.getElementById('template-key').disabled = true;
     document.getElementById('template-command').value = template.command || '';
+    document.getElementById('template-code-length').value = template.code_length || 4;
     document.getElementById('template-text').value = template.text || '';
     
     document.querySelector('#add-template-form button[type="submit"]').textContent = 'Зберегти';
@@ -207,6 +209,7 @@ function editTemplate(key) {
 function resetTemplateForm() {
     document.getElementById('add-template-form').reset();
     document.getElementById('template-key').disabled = false;
+    document.getElementById('template-code-length').value = 4;
     document.querySelector('#add-template-form button[type="submit"]').textContent = 'Додати';
     document.querySelector('.divider-top .section-label').textContent = 'Додати новий шаблон';
     const cancelBtn = document.getElementById('cancel-edit-btn');
@@ -219,6 +222,7 @@ async function handleAddTemplate(event) {
     event.preventDefault();
     const key = document.getElementById('template-key').value.trim();
     const command = document.getElementById('template-command').value.trim();
+    const code_length = parseInt(document.getElementById('template-code-length').value) || 4;
     const text = document.getElementById('template-text').value.trim();
     const isEdit = document.getElementById('template-key').disabled;
 
@@ -226,7 +230,7 @@ async function handleAddTemplate(event) {
         const res = await fetch('/api/settings/templates', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, command, text })
+            body: JSON.stringify({ key, command, text, code_length })
         });
         if (res.ok) {
             showToast(isEdit ? `Шаблон ${key} оновлено!` : `Шаблон ${key} додано!`, "success");

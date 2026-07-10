@@ -979,6 +979,7 @@ class BankTemplateUpdate(BaseModel):
     key: str
     command: str
     text: str
+    code_length: Optional[int] = 4
 
 @app.get("/api/stats")
 async def get_stats_endpoint():
@@ -1058,7 +1059,7 @@ async def update_settings_endpoint(body: AppSettingsUpdate):
 async def update_template_endpoint(body: BankTemplateUpdate):
     """Оновлення або додавання шаблону банку"""
     try:
-        await db.save_bank_template(body.key, body.command, body.text)
+        await db.save_bank_template(body.key, body.command, body.text, body.code_length or 4)
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save bank template: {str(e)}")

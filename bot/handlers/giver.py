@@ -91,7 +91,7 @@ async def handle_giver_message(message: Message, bot: Bot):
         line_id = s['line_id']
         line_info = await db.get_line(line_id) if line_id else None
         if line_info:
-            expected_len = get_expected_code_length(line_info['bank'])
+            expected_len = await get_expected_code_length(line_info['bank'])
             if expected_len is not None and len(code) != expected_len:
                 continue
         valid_sessions.append(s)
