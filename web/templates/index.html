@@ -352,6 +352,41 @@
                     color: var(--accent-danger) !important;
                 }
 
+                .bank-chip {
+                    padding: 10px 20px;
+                    background: rgba(255, 255, 255, 0.03);
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    border-radius: 12px;
+                    color: var(--text-color);
+                    font-size: 0.9rem;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .bank-chip:hover {
+                    background: rgba(255, 255, 255, 0.06);
+                    border-color: rgba(255, 255, 255, 0.15);
+                    transform: translateY(-1px);
+                }
+                .bank-chip.active {
+                    background: var(--accent-primary) !important;
+                    border-color: var(--accent-primary) !important;
+                    color: #ffffff !important;
+                    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+                }
+                .bank-chip-add {
+                    border-style: dashed;
+                    border-color: rgba(255, 255, 255, 0.2);
+                    color: var(--text-muted);
+                }
+                .bank-chip-add:hover {
+                    border-color: var(--accent-primary);
+                    color: var(--accent-primary);
+                }
+
                 @media (max-width: 768px) {
                     .settings-container {
                         flex-direction: column;
@@ -371,7 +406,7 @@
                         🔊 Статус та звук
                     </button>
                     <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('banks')">
-                        🏦 Шаблони банків
+                        🏦 Налаштування банків
                     </button>
                     <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('chats')">
                         📞 Системні чати та ID
@@ -498,47 +533,48 @@
                         </div>
                     </form>
 
-                    <!-- Вкладка 3: Шаблони банків (Поза загальною формою) -->
+                    <!-- Вкладка 3: Налаштування банків (Поза загальною формою) -->
                     <div id="settings-content-banks" class="settings-subtab-content" style="display: none; height: 100%;">
-                        <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: 600; color: #fff;">🏦 Шаблони банків</h3>
+                        <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: 600; color: #fff;">🏦 Налаштування банків</h3>
                         
-                        <div class="lines-list-container" style="max-height: 380px; overflow-y: auto;">
-                            <table class="lines-table">
-                                <thead>
-                                    <tr>
-                                        <th>Назва банку</th>
-                                        <th>Команда</th>
-                                        <th style="text-align: center;">Довжина коду</th>
-                                        <th>Текст заготовки</th>
-                                        <th style="text-align: right;">Дія</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="settings-templates-table-body">
-                                    <!-- Заповнюється динамічно JS -->
-                                </tbody>
-                            </table>
+                        <!-- Селектор банків у вигляді красивих чіпсів -->
+                        <div style="margin-bottom: 24px;">
+                            <label class="form-label" style="margin-bottom: 12px; display: block; font-weight: 600; font-size: 0.9rem; color: var(--text-muted);">Оберіть банк для редагування:</label>
+                            <div id="bank-settings-chips" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                                <!-- Динамічні чіпси банків -->
+                            </div>
                         </div>
 
-                        <div class="divider-top" style="margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.05);">
-                            <div class="section-label" style="font-weight: 600; margin-bottom: 12px; font-size: 0.95rem; color: #fff;">Додати новий шаблон</div>
-                            <form id="add-template-form" onsubmit="handleAddTemplate(event)" style="display: grid; grid-template-columns: 1.2fr 1.2fr 0.8fr 2.5fr auto; gap: 12px; align-items: end;">
-                                <div class="form-group" style="margin: 0;">
-                                    <label for="template-key" class="form-label" style="font-size: 12px;">Ключ банку (напр. izibank)</label>
-                                    <input type="text" id="template-key" placeholder="Напр. izibank" required class="form-control" style="width: 100%;">
+                        <!-- Форма редагування обраного банку -->
+                        <div id="bank-edit-pane" style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 24px; border-radius: 16px; display: flex; flex-direction: column; gap: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
+                                <h4 id="bank-pane-title" style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #fff;">Налаштування банку</h4>
+                                <button type="button" id="btn-delete-bank" class="btn btn-danger btn-sm" onclick="handleDeleteCurrentBank()" style="display: none; padding: 6px 12px; font-size: 0.8rem;">Видалити банк</button>
+                            </div>
+                            
+                            <form id="bank-settings-form" onsubmit="handleSaveBankSettings(event)" style="display: flex; flex-direction: column; gap: 16px;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label for="bank-settings-key" class="form-label">Ключ банку (напр. izibank)</label>
+                                        <input type="text" id="bank-settings-key" placeholder="Напр. izibank" required class="form-control" style="width: 100%;">
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label for="bank-settings-command" class="form-label">Команда в Telegram</label>
+                                        <input type="text" id="bank-settings-command" placeholder="Напр. /ЗАВАНТАЖізі" required class="form-control" style="width: 100%;">
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label for="bank-settings-code-length" class="form-label">Довжина SMS-коду (цифр)</label>
+                                        <input type="number" id="bank-settings-code-length" placeholder="4" required min="1" max="10" class="form-control" style="width: 100%;">
+                                    </div>
                                 </div>
                                 <div class="form-group" style="margin: 0;">
-                                    <label for="template-command" class="form-label" style="font-size: 12px;">Команда (напр. /ЗАВАНТАЖізі)</label>
-                                    <input type="text" id="template-command" placeholder="Напр. /ЗАВАНТАЖізі" required class="form-control" style="width: 100%;">
+                                    <label for="bank-settings-text" class="form-label">Текст інструкції для клієнта</label>
+                                    <textarea id="bank-settings-text" placeholder="Текст заготовки..." required class="form-control" rows="4" style="width: 100%; resize: vertical; min-height: 100px; font-family: inherit;"></textarea>
                                 </div>
-                                <div class="form-group" style="margin: 0;">
-                                    <label for="template-code-length" class="form-label" style="font-size: 12px;">Довжина коду</label>
-                                    <input type="number" id="template-code-length" placeholder="4" required min="1" max="10" value="4" class="form-control" style="width: 100%;">
+                                <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
+                                    <button type="button" id="btn-cancel-bank-edit" class="btn btn-secondary" onclick="resetBankSettingsForm()" style="display: none; padding: 10px 20px;">Скасувати</button>
+                                    <button type="submit" id="btn-save-bank" class="btn btn-primary" style="padding: 10px 24px; font-weight: 600;">Зберегти налаштування банку</button>
                                 </div>
-                                <div class="form-group" style="margin: 0;">
-                                    <label for="template-text" class="form-label" style="font-size: 12px;">Текст інструкції</label>
-                                    <textarea id="template-text" placeholder="Текст, який надішлеться клієнту" required class="form-control" style="width: 100%; height: 38px; min-height: 38px; max-height: 200px; resize: vertical; font-family: inherit; box-sizing: border-box; padding: 8px 12px;"></textarea>
-                                </div>
-                                <button type="submit" class="btn btn-primary" style="height: 38px; padding: 0 16px;">Додати</button>
                             </form>
                         </div>
                     </div>
@@ -620,10 +656,10 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=6.2"></script>
-    <script src="/static/js/control.js?v=6.2"></script>
-    <script src="/static/js/chat.js?v=6.2"></script>
-    <script src="/static/js/stats.js?v=6.2"></script>
-    <script src="/static/js/settings.js?v=6.2"></script>
+    <script src="/static/js/main.js?v=6.3"></script>
+    <script src="/static/js/control.js?v=6.3"></script>
+    <script src="/static/js/chat.js?v=6.3"></script>
+    <script src="/static/js/stats.js?v=6.3"></script>
+    <script src="/static/js/settings.js?v=6.3"></script>
 </body>
 </html>

@@ -68,32 +68,16 @@ async function loadSettings() {
             syncSoundControlsUI();
         }
 
-        const tableBody = document.getElementById('settings-templates-table-body');
-        if (!tableBody) return;
-        tableBody.innerHTML = '';
-
-        const keys = Object.keys(data.templates);
-        if (keys.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="4" class="empty-state">Немає збережених шаблонів</td></tr>';
-            return;
-        }
-
         window.bankTemplates = data.templates;
-        keys.forEach(key => {
-            const template = data.templates[key];
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="font-weight: 600;">${key}</td>
-                <td style="font-family: monospace; font-size: 0.85rem; color: var(--accent-primary);">${template.command}</td>
-                <td style="text-align: center; font-weight: 600;">${template.code_length || 4}</td>
-                <td style="font-size: 0.85rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${template.text}">${template.text}</td>
-                <td style="text-align: right;">
-                    <button class="btn btn-primary btn-sm" onclick="editTemplate('${key}')" style="padding: 4px 8px; font-size: 0.75rem; margin-right: 4px;">Редагувати</button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${key}')" style="padding: 4px 8px; font-size: 0.75rem;">Видалити</button>
-                </td>
-            `;
-            tableBody.appendChild(tr);
-        });
+        
+        // Render bank selection chips
+        const keys = Object.keys(data.templates);
+        if (!window.selectedBankKey && keys.length > 0) {
+            window.selectedBankKey = keys[0]; // Select first bank by default
+        }
+        
+        renderBankChips(data.templates, window.selectedBankKey);
+        selectBankSetting(window.selectedBankKey);
         
         if (typeof renderChatPageTemplates === 'function') {
             renderChatPageTemplates();
@@ -180,51 +164,113 @@ async function saveGeneralSettings(event) {
     }
 }
 
-function editTemplate(key) {
-    const template = window.bankTemplates ? window.bankTemplates[key] : null;
-    if (!template) return;
+function renderBankChips(templates, selectedKey) {
+    const container = document.getElementById('bank-settings-chips');
+    if (!container) return;
+    container.innerHTML = '';
 
-    document.getElementById('template-key').value = key;
-    document.getElementById('template-key').disabled = true;
-    document.getElementById('template-command').value = template.command || '';
-    document.getElementById('template-code-length').value = template.code_length || 4;
-    document.getElementById('template-text').value = template.text || '';
+    const keys = Object.keys(templates);
+    keys.forEach(key => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'bank-chip';
+        if (key === selectedKey) btn.classList.add('active');
+        btn.innerHTML = `🏦 <span>${key}</span>`;
+        btn.onclick = () => {
+            selectBankSetting(key);
+        };
+        container.appendChild(btn);
+    });
+
+    // Add bank button
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'bank-chip bank-chip-add';
+    if (selectedKey === null) addBtn.classList.add('active');
+    addBtn.innerHTML = `➕ <span>Додати новий банк</span>`;
+    addBtn.onclick = () => {
+        selectBankSetting(null);
+    };
+    container.appendChild(addBtn);
+}
+
+function selectBankSetting(key) {
+    window.selectedBankKey = key;
     
-    document.querySelector('#add-template-form button[type="submit"]').textContent = 'Зберегти';
-    document.querySelector('.divider-top .section-label').textContent = 'Редагувати шаблон';
-    
-    if (!document.getElementById('cancel-edit-btn')) {
-        const cancelBtn = document.createElement('button');
-        cancelBtn.type = 'button';
-        cancelBtn.id = 'cancel-edit-btn';
-        cancelBtn.className = 'btn btn-secondary btn-sm';
-        cancelBtn.style.height = '38px';
-        cancelBtn.style.marginLeft = '8px';
-        cancelBtn.textContent = 'Скасувати';
-        cancelBtn.onclick = resetTemplateForm;
-        document.getElementById('add-template-form').appendChild(cancelBtn);
+    // Update active state on chips
+    const container = document.getElementById('bank-settings-chips');
+    if (container) {
+        const chips = container.querySelectorAll('.bank-chip');
+        chips.forEach(chip => {
+            const span = chip.querySelector('span');
+            if (span) {
+                const text = span.textContent;
+                if ((key === null && text === 'Додати новий банк') || (key !== null && text === key)) {
+                    chip.classList.add('active');
+                } else {
+                    chip.classList.remove('active');
+                }
+            }
+        });
+    }
+
+    const keyInput = document.getElementById('bank-settings-key');
+    const cmdInput = document.getElementById('bank-settings-command');
+    const lenInput = document.getElementById('bank-settings-code-length');
+    const textInput = document.getElementById('bank-settings-text');
+    const titleEl = document.getElementById('bank-pane-title');
+    const deleteBtn = document.getElementById('btn-delete-bank');
+    const cancelBtn = document.getElementById('btn-cancel-bank-edit');
+    const saveBtn = document.getElementById('btn-save-bank');
+
+    if (!keyInput) return;
+
+    if (key !== null) {
+        const template = window.bankTemplates ? window.bankTemplates[key] : null;
+        if (template) {
+            titleEl.textContent = `Налаштування банку: ${key}`;
+            keyInput.value = key;
+            keyInput.disabled = true;
+            cmdInput.value = template.command || '';
+            lenInput.value = template.code_length || 4;
+            textInput.value = template.text || '';
+            
+            deleteBtn.style.display = 'block';
+            cancelBtn.style.display = 'none';
+            saveBtn.textContent = 'Зберегти зміни';
+        }
+    } else {
+        titleEl.textContent = 'Додати новий банк';
+        keyInput.value = '';
+        keyInput.disabled = false;
+        cmdInput.value = '';
+        lenInput.value = 4;
+        textInput.value = '';
+        
+        deleteBtn.style.display = 'none';
+        cancelBtn.style.display = 'block';
+        saveBtn.textContent = 'Створити банк';
     }
 }
 
-function resetTemplateForm() {
-    document.getElementById('add-template-form').reset();
-    document.getElementById('template-key').disabled = false;
-    document.getElementById('template-code-length').value = 4;
-    document.querySelector('#add-template-form button[type="submit"]').textContent = 'Додати';
-    document.querySelector('.divider-top .section-label').textContent = 'Додати новий шаблон';
-    const cancelBtn = document.getElementById('cancel-edit-btn');
-    if (cancelBtn) {
-        cancelBtn.remove();
+function resetBankSettingsForm() {
+    // Select first bank if cancel clicked
+    const keys = window.bankTemplates ? Object.keys(window.bankTemplates) : [];
+    if (keys.length > 0) {
+        selectBankSetting(keys[0]);
+    } else {
+        selectBankSetting(null);
     }
 }
 
-async function handleAddTemplate(event) {
-    event.preventDefault();
-    const key = document.getElementById('template-key').value.trim();
-    const command = document.getElementById('template-command').value.trim();
-    const code_length = parseInt(document.getElementById('template-code-length').value) || 4;
-    const text = document.getElementById('template-text').value.trim();
-    const isEdit = document.getElementById('template-key').disabled;
+async function handleSaveBankSettings(event) {
+    if (event) event.preventDefault();
+    const keyInput = document.getElementById('bank-settings-key');
+    const key = keyInput.value.trim();
+    const command = document.getElementById('bank-settings-command').value.trim();
+    const code_length = parseInt(document.getElementById('bank-settings-code-length').value) || 4;
+    const text = document.getElementById('bank-settings-text').value.trim();
+    const isEdit = keyInput.disabled;
 
     try {
         const res = await fetch('/api/settings/templates', {
@@ -233,20 +279,23 @@ async function handleAddTemplate(event) {
             body: JSON.stringify({ key, command, text, code_length })
         });
         if (res.ok) {
-            showToast(isEdit ? `Шаблон ${key} оновлено!` : `Шаблон ${key} додано!`, "success");
-            resetTemplateForm();
-            loadSettings();
+            showToast(isEdit ? `Налаштування банку ${key} збережено!` : `Банк ${key} успішно створено!`, "success");
+            window.selectedBankKey = key;
+            await loadSettings();
         } else {
             const err = await res.json();
-            showToast("Помилка: " + err.detail, "error");
+            showToast("Помилка збереження: " + err.detail, "error");
         }
     } catch (err) {
-        showToast("Не вдалося зберегти шаблон", "error");
+        showToast("Не вдалося зберегти налаштування банку", "error");
     }
 }
 
-async function deleteTemplate(key) {
-    const confirmed = await showConfirm(`Ви впевнені, що хочете видалити шаблон для банку ${key}?`, 'danger');
+async function handleDeleteCurrentBank() {
+    const key = window.selectedBankKey;
+    if (!key) return;
+    
+    const confirmed = await showConfirm(`Ви впевнені, що хочете видалити банк ${key}?`, 'danger');
     if (!confirmed) return;
 
     try {
@@ -254,13 +303,14 @@ async function deleteTemplate(key) {
             method: 'DELETE'
         });
         if (res.ok) {
-            showToast(`Шаблон ${key} видалено.`, "success");
-            loadSettings();
+            showToast(`Банк ${key} успішно видалено.`, "success");
+            window.selectedBankKey = null;
+            await loadSettings();
         } else {
-            showToast("Помилка видалення", "error");
+            showToast("Помилка видалення банку", "error");
         }
     } catch (err) {
-        showToast("Помилка відправки запиту", "error");
+        showToast("Помилка з'єднання", "error");
     }
 }
 
@@ -635,14 +685,14 @@ async function dismissProposedRule(ruleId) {
     }
 }
 
-// Add Shift+Enter / Enter shortcuts for adding template
-const templateTextEl = document.getElementById('template-text');
-if (templateTextEl) {
-    templateTextEl.addEventListener('keydown', function(event) {
+// Add Shift+Enter / Enter shortcuts for adding bank settings
+const bankTextEl = document.getElementById('bank-settings-text');
+if (bankTextEl) {
+    bankTextEl.addEventListener('keydown', function(event) {
         if (event.key === 'Enter') {
             if (!event.shiftKey) {
                 event.preventDefault();
-                const form = document.getElementById('add-template-form');
+                const form = document.getElementById('bank-settings-form');
                 if (form) form.requestSubmit();
             }
         }
