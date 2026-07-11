@@ -2682,7 +2682,7 @@ input[type=number] {
     }
     body.hide-nav-bar .chat-window-footer,
     body:has(.chat-page-layout.chat-selected) .chat-window-footer {
-        padding: 10px 14px calc(env(safe-area-inset-bottom) + 10px) 14px !important;
+        padding: 10px 14px calc(env(safe-area-inset-bottom) + 2px) 14px !important;
         background: #0f1326 !important;
         border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
