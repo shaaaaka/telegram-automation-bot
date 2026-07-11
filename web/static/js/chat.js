@@ -117,7 +117,7 @@ function renderChatSidebar() {
             <div class="chat-item-info">
                 <div class="chat-item-top">
                     <span class="chat-item-name">${displayName}</span>
-                    <span class="chat-item-time">${formatChatTime(session.created_at)}</span>
+                    <span class="chat-item-time">${formatChatTime((session.last_message && session.last_message.created_at) ? session.last_message.created_at : session.created_at)}</span>
                 </div>
                 <div class="chat-item-bottom" style="display: flex; justify-content: space-between; align-items: center; min-height: 18px; margin-top: 4px;">
                     <span class="chat-item-preview" style="max-width: 80%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.78rem; color: rgba(255, 255, 255, 0.4);">${previewText}</span>

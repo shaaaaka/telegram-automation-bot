@@ -239,7 +239,7 @@ async def get_sessions():
                 
                 # Запит на отримання останнього повідомлення чату
                 async with conn.execute("""
-                    SELECT message_text, photo_id, sender FROM chat_logs 
+                    SELECT message_text, photo_id, sender, created_at FROM chat_logs 
                     WHERE client_id = ? 
                     ORDER BY id DESC LIMIT 1
                 """, (client_id,)) as msg_cursor:
@@ -248,12 +248,19 @@ async def get_sessions():
                         session_dict['last_message'] = {
                             'text': msg_row['message_text'],
                             'photo': bool(msg_row['photo_id']),
-                            'sender': msg_row['sender']
+                            'sender': msg_row['sender'],
+                            'created_at': msg_row['created_at']
                         }
                     else:
                         session_dict['last_message'] = None
                 
                 sessions_list.append(session_dict)
+            
+            # Сортуємо сесії за часом останнього повідомлення (або за часом створення, якщо повідомлень немає)
+            sessions_list.sort(
+                key=lambda s: s['last_message']['created_at'] if (s.get('last_message') and s['last_message'].get('created_at')) else s['created_at'],
+                reverse=True
+            )
             return sessions_list
 
 @app.get("/api/sessions/{client_id}/chat")
@@ -946,7 +953,7 @@ async def get_completed_sessions():
                 
                 # Запит на отримання останнього повідомлення чату
                 async with conn.execute("""
-                    SELECT message_text, photo_id, sender FROM chat_logs 
+                    SELECT message_text, photo_id, sender, created_at FROM chat_logs 
                     WHERE client_id = ? 
                     ORDER BY id DESC LIMIT 1
                 """, (client_id,)) as msg_cursor:
@@ -955,12 +962,19 @@ async def get_completed_sessions():
                         session_dict['last_message'] = {
                             'text': msg_row['message_text'],
                             'photo': bool(msg_row['photo_id']),
-                            'sender': msg_row['sender']
+                            'sender': msg_row['sender'],
+                            'created_at': msg_row['created_at']
                         }
                     else:
                         session_dict['last_message'] = None
                 
                 sessions_list.append(session_dict)
+            
+            # Сортуємо сесії за часом останнього повідомлення (або за часом створення, якщо повідомлень немає)
+            sessions_list.sort(
+                key=lambda s: s['last_message']['created_at'] if (s.get('last_message') and s['last_message'].get('created_at')) else s['created_at'],
+                reverse=True
+            )
             return sessions_list
 
 class AppSettingsUpdate(BaseModel):
