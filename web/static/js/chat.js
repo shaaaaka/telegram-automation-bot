@@ -399,8 +399,9 @@ async function refreshChatPageMessages(clientId) {
             return 'support'; // admin or operator
         };
 
-        logs.forEach((log, index) => {
-            const nextLog = logs[index + 1];
+        const groupedLogs = groupPhotoLogs(logs);
+        groupedLogs.forEach((log, index) => {
+            const nextLog = groupedLogs[index + 1];
             const hideAvatar = nextLog && getSenderGroup(nextLog.sender) === getSenderGroup(log.sender);
             renderSingleChatMessage(bodyContainer, log, hideAvatar);
         });
@@ -438,14 +439,21 @@ function renderSingleChatMessage(container, log, hideAvatar = false) {
 
     let contentHtml = '';
     let bubbleClass = 'chat-msg-bubble';
-    if (log.photo_id) {
+    const hasPhoto = log.photo_id || (log.photo_ids && log.photo_ids.length > 0);
+    if (hasPhoto) {
         bubbleClass += ' has-photo';
         if (!log.message_text) {
             bubbleClass += ' photo-only';
         }
     }
 
-    if (log.photo_id) {
+    if (log.photo_ids && log.photo_ids.length > 1) {
+        contentHtml += `<div class="chat-msg-gallery">`;
+        log.photo_ids.forEach(pid => {
+            contentHtml += `<img class="chat-msg-gallery-img" src="/api/photos/${pid}" onload="scrollToBottom('chat-window-body-container')" onclick="openLightbox(this.src)">`;
+        });
+        contentHtml += `</div>`;
+    } else if (log.photo_id) {
         contentHtml += `<img class="chat-msg-img" src="/api/photos/${log.photo_id}" onload="scrollToBottom('chat-window-body-container')" onclick="openLightbox(this.src)">`;
     }
     if (log.message_text) {
@@ -508,6 +516,7 @@ function renderSingleChatMessage(container, log, hideAvatar = false) {
             </div>
         </div>
     `;
+    containerDiv._receivedAt = Date.now();
     container.appendChild(containerDiv);
 }
 
@@ -631,6 +640,84 @@ function handleIncomingWebSocketMessage(data) {
                 if (container.classList.contains('bot')) return 'bot';
                 return 'support';
             };
+
+            // Attempt to merge photos in real-time if received within 5 seconds
+            if (data.photo_id && lastMsgContainer && lastMsgContainer._receivedAt && (Date.now() - lastMsgContainer._receivedAt < 5000)) {
+                if (getLastMsgSenderGroup(lastMsgContainer) === getSenderGroup(data.sender)) {
+                    const lastBubble = lastMsgContainer.querySelector('.chat-msg-bubble');
+                    if (lastBubble) {
+                        const singleImg = lastBubble.querySelector('.chat-msg-img');
+                        if (singleImg) {
+                            // Convert single image to gallery
+                            const gallery = document.createElement('div');
+                            gallery.className = 'chat-msg-gallery';
+                            
+                            const img1 = singleImg.cloneNode();
+                            img1.className = 'chat-msg-gallery-img';
+                            
+                            const img2 = document.createElement('img');
+                            img2.className = 'chat-msg-gallery-img';
+                            img2.src = `/api/photos/${data.photo_id}`;
+                            img2.onclick = function() { openLightbox(img2.src); };
+                            img2.onload = function() { scrollToBottom('chat-window-body-container'); };
+                            
+                            gallery.appendChild(img1);
+                            gallery.appendChild(img2);
+                            
+                            singleImg.replaceWith(gallery);
+                            
+                            lastBubble.classList.add('has-photo');
+                            if (!lastBubble.querySelector('.chat-msg-text')) {
+                                lastBubble.classList.add('photo-only');
+                            }
+                            
+                            // If the incoming message has text and the bubble doesn't, add it
+                            if (data.message_text && !lastBubble.querySelector('.chat-msg-text')) {
+                                let escapedText = escapeHtml(data.message_text);
+                                escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                                escapedText = escapedText.replace(/`/g, '');
+                                const textSpan = document.createElement('span');
+                                textSpan.className = 'chat-msg-text';
+                                textSpan.innerHTML = escapedText.replace(/\n/g, '<br>');
+                                lastBubble.insertBefore(textSpan, lastBubble.querySelector('.chat-msg-time-inline'));
+                            }
+                            
+                            // Update _receivedAt to extend the grouping window for subsequent photos
+                            lastMsgContainer._receivedAt = Date.now();
+                            scrollToBottom('chat-window-body-container');
+                            return;
+                        }
+                        
+                        const existingGallery = lastBubble.querySelector('.chat-msg-gallery');
+                        if (existingGallery) {
+                            // Add to existing gallery
+                            const img = document.createElement('img');
+                            img.className = 'chat-msg-gallery-img';
+                            img.src = `/api/photos/${data.photo_id}`;
+                            img.onclick = function() { openLightbox(img.src); };
+                            img.onload = function() { scrollToBottom('chat-window-body-container'); };
+                            
+                            existingGallery.appendChild(img);
+                            
+                            // If the incoming message has text and the bubble doesn't, add it
+                            if (data.message_text && !lastBubble.querySelector('.chat-msg-text')) {
+                                let escapedText = escapeHtml(data.message_text);
+                                escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                                escapedText = escapedText.replace(/`/g, '');
+                                const textSpan = document.createElement('span');
+                                textSpan.className = 'chat-msg-text';
+                                textSpan.innerHTML = escapedText.replace(/\n/g, '<br>');
+                                lastBubble.insertBefore(textSpan, lastBubble.querySelector('.chat-msg-time-inline'));
+                            }
+                            
+                            lastMsgContainer._receivedAt = Date.now();
+                            scrollToBottom('chat-window-body-container');
+                            return;
+                        }
+                    }
+                }
+            }
+
             const isSameGroup = lastMsgContainer && getSenderGroup(data.sender) === getLastMsgSenderGroup(lastMsgContainer);
 
             if (isSameGroup) {
@@ -853,8 +940,84 @@ autocompleteStyle.textContent = `
     .chat-autocomplete-menu::-webkit-scrollbar-thumb:hover {
         background: rgba(255, 255, 255, 0.25);
     }
+    .chat-msg-gallery {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+        max-width: 320px;
+        margin-bottom: 6px;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .chat-msg-gallery-img {
+        width: 100%;
+        height: 120px;
+        object-fit: cover;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: transform 0.2s ease;
+    }
+    .chat-msg-gallery-img:hover {
+        transform: scale(1.03);
+    }
 `;
 document.head.appendChild(autocompleteStyle);
+
+// Preprocess messages list to group consecutive photos from the same sender within 5s
+function groupPhotoLogs(logs) {
+    const grouped = [];
+    let i = 0;
+    
+    while (i < logs.length) {
+        const current = logs[i];
+        if (!current.photo_id) {
+            grouped.push(current);
+            i++;
+            continue;
+        }
+        
+        // It's a photo. Let's see if we can group it with subsequent photos.
+        const currentGroup = {
+            ...current,
+            photo_ids: [current.photo_id]
+        };
+        
+        let j = i + 1;
+        const currentGroupTime = parseUtcToLocal(current.created_at);
+        
+        while (j < logs.length) {
+            const next = logs[j];
+            if (!next.photo_id) {
+                break;
+            }
+            if (next.sender !== current.sender) {
+                break;
+            }
+            
+            // Check time difference
+            const nextTime = parseUtcToLocal(next.created_at);
+            if (currentGroupTime && nextTime) {
+                const diffMs = Math.abs(nextTime.getTime() - currentGroupTime.getTime());
+                if (diffMs > 5000) { // 5 seconds threshold
+                    break;
+                }
+            } else {
+                break; 
+            }
+            
+            // Add to group
+            currentGroup.photo_ids.push(next.photo_id);
+            if (next.message_text && !currentGroup.message_text) {
+                currentGroup.message_text = next.message_text;
+            }
+            j++;
+        }
+        
+        grouped.push(currentGroup);
+        i = j;
+    }
+    return grouped;
+}
 
 let currentAutocompleteMenu = null;
 let activeAutocompleteIndex = 0;
