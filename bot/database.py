@@ -128,7 +128,8 @@ async def init_db():
             ("verifier_message_id", "INTEGER"),
             ("is_verified", "INTEGER DEFAULT 0"),
             ("waiting_proceedings", "INTEGER DEFAULT 0"),
-            ("proceedings_question_msg_id", "INTEGER")
+            ("proceedings_question_msg_id", "INTEGER"),
+            ("notified_banks", "TEXT DEFAULT ''")
         ]
         
         for col_name, col_type in new_columns:
@@ -377,7 +378,8 @@ async def create_registering_session(client_id: int, username: str):
                 card_photo_id = NULL,
                 sent_codes_count = 0,
                 is_verified = 0,
-                verifier_message_id = NULL
+                verifier_message_id = NULL,
+                notified_banks = ''
         """, (client_id, username))
         await db.commit()
 
@@ -402,7 +404,8 @@ async def create_or_update_session(client_id: int, username: str, client_data: s
                 card_photo_id = NULL,
                 sent_codes_count = 0,
                 is_verified = 0,
-                verifier_message_id = NULL
+                verifier_message_id = NULL,
+                notified_banks = ''
         """, (client_id, username, client_data))
         await db.commit()
 
@@ -1063,5 +1066,20 @@ async def get_banned_users() -> list:
         async with db.execute("SELECT client_id, username, banned_at FROM banned_users ORDER BY banned_at DESC") as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
+
+async def add_notified_bank(client_id: int, bank_name: str):
+    """Додає назву банку до списку сповіщених банків у сесії"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT notified_banks FROM sessions WHERE client_id = ?", (client_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                current = row['notified_banks'] or ''
+                banks = [b.strip() for b in current.split(",") if b.strip()]
+                if bank_name not in banks:
+                    banks.append(bank_name)
+                    new_val = ",".join(banks)
+                    await db.execute("UPDATE sessions SET notified_banks = ? WHERE client_id = ?", (new_val, client_id))
+                    await db.commit()
 
 

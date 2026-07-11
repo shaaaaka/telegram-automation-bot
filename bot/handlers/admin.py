@@ -763,38 +763,55 @@ async def handle_assign_line(callback: CallbackQuery, bot: Bot, state: FSMContex
 
     # Сповіщаємо клієнта: спочатку надсилаємо інструкцію завантаження банку
     bank_name = line_info['bank']
-    key, template = get_bank_template_with_key(bank_name)
-    if template:
-        photo_path = get_template_photo(key)
-        instruction_msg = None
-        if photo_path:
-            try:
-                instruction_msg = await bot.send_photo(
-                    chat_id=client_id,
-                    photo=FSInputFile(photo_path),
-                    caption=template['text']
-                )
-            except Exception as e:
-                print(f"Помилка надсилання фото шаблону банку: {e}")
+    
+    # Перевіряємо чи банк вже був сповіщений
+    session = await db.get_session(client_id)
+    notified_banks_str = session.get('notified_banks') or ''
+    notified_list = [b.strip() for b in notified_banks_str.split(",") if b.strip()]
+    is_already_notified = bank_name in notified_list
+
+    if is_already_notified:
+        # Вже сповіщали про цей банк, надсилаємо лише новий номер телефону
+        await bot.send_message(
+            chat_id=client_id,
+            text="Ось новий номер телефону по якому робити реєстрацію:"
+        )
+    else:
+        # Перший запуск: надсилаємо повну інструкцію
+        key, template = get_bank_template_with_key(bank_name)
+        if template:
+            photo_path = get_template_photo(key)
+            instruction_msg = None
+            if photo_path:
+                try:
+                    instruction_msg = await bot.send_photo(
+                        chat_id=client_id,
+                        photo=FSInputFile(photo_path),
+                        caption=template['text']
+                    )
+                except Exception as e:
+                    print(f"Помилка надсилання фото шаблону банку: {e}")
+                    try:
+                        instruction_msg = await bot.send_message(chat_id=client_id, text=template['text'])
+                    except Exception:
+                        pass
+            else:
                 try:
                     instruction_msg = await bot.send_message(chat_id=client_id, text=template['text'])
-                except Exception:
-                    pass
-        else:
-            try:
-                instruction_msg = await bot.send_message(chat_id=client_id, text=template['text'])
-            except Exception as e:
-                print(f"Помилка надсилання тексту шаблону банку: {e}")
-        if instruction_msg:
-            try:
-                await db.update_session_instruction_message_id(client_id, instruction_msg.message_id)
-            except Exception as e:
-                print(f"Помилка оновлення instruction_message_id в БД: {e}")
+                except Exception as e:
+                    print(f"Помилка надсилання тексту шаблону банку: {e}")
+            if instruction_msg:
+                try:
+                    await db.update_session_instruction_message_id(client_id, instruction_msg.message_id)
+                except Exception as e:
+                    print(f"Помилка оновлення instruction_message_id в БД: {e}")
 
-    await bot.send_message(
-        chat_id=client_id,
-        text="Реєстрація робиться за моїм номером телефону, скажете коли потрібен буде СМС код"
-    )
+        await bot.send_message(
+            chat_id=client_id,
+            text="Реєстрація робиться за моїм номером телефону, скажете коли потрібен буде СМС код"
+        )
+        # Додаємо банк у список сповіщених
+        await db.add_notified_bank(client_id, bank_name)
 
     client_msg = await bot.send_message(
         chat_id=client_id,

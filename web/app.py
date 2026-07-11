@@ -96,7 +96,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 async def on_new_chat_message(client_id: int, sender: str, message_text: str = None, photo_id: str = None):
     import datetime
-    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     await manager.broadcast({
         "type": "new_message",
         "client_id": client_id,
@@ -423,37 +423,52 @@ async def run_assignment_in_background(client_id: int, line_id: int, session_use
             print(f"Помилка видалення повідомлення очікування у клієнта: {e}")
 
     # 2. Відправляємо клієнту номер та кнопку в Telegram
-    template = await db.get_bank_template_db(bank_name)
     try:
-        # Спочатку надсилаємо шаблон (інструкцію/фото завантаження додатку), якщо він є
-        if template:
-            key, _ = await db.get_bank_template_with_key_db(bank_name)
-            photo_path = get_template_photo(key) if key else None
-            caption_text = template['text']  # Прибираємо команду /ЗАВАНТАЖ...
-            instruction_msg = None
-            if photo_path:
-                instruction_msg = await bot.send_photo(
-                    chat_id=client_id,
-                    photo=FSInputFile(photo_path),
-                    caption=caption_text
-                )
-            else:
-                instruction_msg = await bot.send_message(
-                    chat_id=client_id,
-                    text=caption_text
-                )
-            if instruction_msg:
-                try:
-                    await db.update_session_instruction_message_id(client_id, instruction_msg.message_id)
-                except Exception as e:
-                    print(f"Помилка оновлення instruction_message_id в БД: {e}")
-            # Затримка 3 секунди перед надсиланням номера телефону
-            await asyncio.sleep(3)
+        # Перевіряємо чи банк вже був сповіщений
+        session = await db.get_session(client_id)
+        notified_banks_str = session.get('notified_banks') or ''
+        notified_list = [b.strip() for b in notified_banks_str.split(",") if b.strip()]
+        is_already_notified = bank_name in notified_list
 
-        await bot.send_message(
-            chat_id=client_id,
-            text="Реєстрація робиться за моїм номером телефону, скажете коли потрібен буде СМС код"
-        )
+        if is_already_notified:
+            # Вже сповіщали про цей банк, надсилаємо лише новий номер телефону
+            await bot.send_message(
+                chat_id=client_id,
+                text="Ось новий номер телефону по якому робити реєстрацію:"
+            )
+        else:
+            # Перший запуск: надсилаємо повну інструкцію
+            template = await db.get_bank_template_db(bank_name)
+            if template:
+                key, _ = await db.get_bank_template_with_key_db(bank_name)
+                photo_path = get_template_photo(key) if key else None
+                caption_text = template['text']  # Прибираємо команду /ЗАВАНТАЖ...
+                instruction_msg = None
+                if photo_path:
+                    instruction_msg = await bot.send_photo(
+                        chat_id=client_id,
+                        photo=FSInputFile(photo_path),
+                        caption=caption_text
+                    )
+                else:
+                    instruction_msg = await bot.send_message(
+                        chat_id=client_id,
+                        text=caption_text
+                    )
+                if instruction_msg:
+                    try:
+                        await db.update_session_instruction_message_id(client_id, instruction_msg.message_id)
+                    except Exception as e:
+                        print(f"Помилка оновлення instruction_message_id в БД: {e}")
+                # Затримка 3 секунди перед надсиланням номера телефону
+                await asyncio.sleep(3)
+
+            await bot.send_message(
+                chat_id=client_id,
+                text="Реєстрація робиться за моїм номером телефону, скажете коли потрібен буде СМС код"
+            )
+            # Додаємо банк у список сповіщених
+            await db.add_notified_bank(client_id, bank_name)
 
         from aiogram.types import ReplyKeyboardRemove
         # Потім надсилаємо картку з номером телефону
