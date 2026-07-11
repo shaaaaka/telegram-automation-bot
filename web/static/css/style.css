@@ -2137,7 +2137,7 @@ input[type=number] {
         overflow: auto;
         min-height: 100vh !important;
         padding-top: env(safe-area-inset-top) !important;
-        padding-bottom: calc(75px + env(safe-area-inset-bottom)) !important;
+        padding-bottom: calc(70px + env(safe-area-inset-bottom)) !important;
     }
     .container {
         flex-direction: column;
@@ -2159,20 +2159,20 @@ input[type=number] {
         left: 0 !important;
         right: 0 !important;
         width: 100% !important;
-        height: calc(60px + env(safe-area-inset-bottom)) !important;
+        height: calc(56px + env(safe-area-inset-bottom)) !important;
         background: rgba(8, 10, 20, 0.92) !important;
         backdrop-filter: blur(20px) !important;
         -webkit-backdrop-filter: blur(20px) !important;
         border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
         border-bottom: none !important;
         margin: 0 !important;
-        padding: 6px 16px calc(6px + env(safe-area-inset-bottom)) 16px !important;
+        padding: 5px 16px 0 16px !important;
         box-sizing: border-box !important;
         z-index: 99999 !important;
         display: flex !important;
         flex-direction: row !important;
         justify-content: center !important;
-        align-items: center !important;
+        align-items: flex-start !important;
         gap: 16px !important;
         overflow: visible !important;
         box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4) !important;
