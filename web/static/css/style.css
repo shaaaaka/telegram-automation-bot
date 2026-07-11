@@ -2667,9 +2667,22 @@ input[type=number] {
         line-height: 1.2 !important;
     }
 
-    body #lines-table-body td::before,
-    body #stats-banks-table-body td::before,
-    body #banned-users-table-body td::before {
+    /* High-specificity overrides for all column labels on mobile to prevent collision with original !important rules */
+    body #lines-table-body td:nth-of-type(1):not(.empty-state):not([colspan])::before,
+    body #lines-table-body td:nth-of-type(2)::before,
+    body #lines-table-body td:nth-of-type(3)::before,
+    body #lines-table-body td:nth-of-type(4)::before,
+    body #lines-table-body td:nth-of-type(5)::before,
+    body #stats-banks-table-body td:nth-of-type(1):not(.empty-state):not([colspan])::before,
+    body #stats-banks-table-body td:nth-of-type(2)::before,
+    body #stats-banks-table-body td:nth-of-type(3)::before,
+    body #stats-banks-table-body td:nth-of-type(4)::before,
+    body #stats-banks-table-body td:nth-of-type(5)::before,
+    body #stats-banks-table-body td:nth-of-type(6)::before,
+    body #banned-users-table-body td:nth-of-type(1):not(.empty-state):not([colspan])::before,
+    body #banned-users-table-body td:nth-of-type(2)::before,
+    body #banned-users-table-body td:nth-of-type(3)::before,
+    body #banned-users-table-body td:nth-of-type(4)::before {
         text-transform: none !important; /* Soft capitalized text (e.g. "Телефон:") instead of aggressive uppercase */
         font-weight: 500 !important;
         color: rgba(255, 255, 255, 0.4) !important;
