@@ -2685,6 +2685,7 @@ input[type=number] {
         padding: 10px 14px calc(env(safe-area-inset-bottom) - 14px) 14px !important;
         background: #0f1326 !important;
         border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+        box-shadow: 0 100px 0 0 #0f1326 !important; /* Fills safe area bottom completely, resolving any sub-pixel border gaps */
     }
 
     /* Unified, premium typography and alignment for table elements on mobile */
