@@ -2694,6 +2694,32 @@ input[type=number] {
     body:has(.chat-page-layout.chat-selected) .chat-input-wrapper textarea {
         font-size: 17px !important; /* Forces 17px font-size to prevent iOS Safari auto-zoom on input focus */
     }
+    body.hide-nav-bar .message-content,
+    body:has(.chat-page-layout.chat-selected) .message-content {
+        font-size: 1.05rem !important; /* Matches the larger scaled message content */
+    }
+    body.hide-nav-bar .chat-window-header h3,
+    body:has(.chat-page-layout.chat-selected) .chat-window-header h3 {
+        font-size: 1.25rem !important; /* Matches the larger header h3 client name */
+    }
+    body.hide-nav-bar .chat-window-header p,
+    body:has(.chat-page-layout.chat-selected) .chat-window-header p {
+        font-size: 0.95rem !important; /* Matches the larger header p status text */
+    }
+    body.hide-nav-bar .btn-send-message,
+    body:has(.chat-page-layout.chat-selected) .btn-send-message {
+        width: 48px !important;
+        height: 48px !important;
+    }
+    body.hide-nav-bar .btn-toggle-ai-bottom,
+    body:has(.chat-page-layout.chat-selected) .btn-toggle-ai-bottom {
+        width: 48px !important;
+        height: 48px !important;
+    }
+    body.hide-nav-bar .chat-input-wrapper,
+    body:has(.chat-page-layout.chat-selected) .chat-input-wrapper {
+        min-height: 48px !important;
+    }
 
     /* Unified, premium typography and alignment for table elements on mobile */
     body .lines-table td {
