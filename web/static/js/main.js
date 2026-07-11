@@ -529,6 +529,7 @@ function isSessionsDataEqual(arr1, arr2) {
             s1.client_message_id !== s2.client_message_id ||
             s1.selected_banks !== s2.selected_banks ||
             s1.remaining_banks !== s2.remaining_banks ||
+            s1.is_verified !== s2.is_verified ||
             s1.status !== s2.status) {
             return false;
         }

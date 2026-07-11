@@ -1119,6 +1119,9 @@ async function sendToVerifier(clientId) {
         });
         if (res.ok) {
             showToast("Анкету надіслано верифікатору!", "success");
+            if (typeof pollData === 'function') {
+                await pollData();
+            }
         } else {
             const err = await res.json();
             showToast("Помилка відправки: " + (err.detail || "невідома помилка"), "error");
@@ -1135,6 +1138,9 @@ async function verifyManually(clientId) {
         });
         if (res.ok) {
             showToast("Анкету схвалено вручну!", "success");
+            if (typeof pollData === 'function') {
+                await pollData();
+            }
         } else {
             const err = await res.json();
             showToast("Помилка схвалення: " + (err.detail || "невідома помилка"), "error");

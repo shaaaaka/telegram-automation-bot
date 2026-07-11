@@ -382,15 +382,6 @@ async def verify_manually_endpoint(client_id: int):
         
     await db.set_session_verified(client_id, 1)
     await db.set_session_status(client_id, 'registered')
-    
-    if bot:
-        try:
-            await bot.send_message(
-                chat_id=client_id,
-                text="✨ Вашу анкету успішно схвалено! Будь ласка, очікуйте на призначення лінії."
-            )
-        except Exception:
-            pass
             
     return {"status": "success"}
 
