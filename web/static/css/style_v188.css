@@ -2093,7 +2093,7 @@ input[type=number] {
 /* --- Mobile Responsive Enhancements --- */
 @media (max-width: 768px) {
     html {
-        font-size: 17.2px !important; /* Scales up the entire mobile layout (text, inputs, paddings) for optimal readability, mimicking user zoom-in */
+        font-size: 15px !important; /* Scales up the entire mobile layout (text, inputs, paddings) for optimal readability, mimicking user zoom-in */
     }
     header {
         padding: 12px 16px !important;
@@ -2677,7 +2677,7 @@ input[type=number] {
         left: 0 !important;
         right: 0 !important;
         bottom: 0 !important;
-        height: 100% !important;
+        height: var(--viewport-height, 100%) !important;
         width: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
@@ -2687,46 +2687,76 @@ input[type=number] {
     }
     body.hide-nav-bar .chat-window-header,
     body:has(.chat-page-layout.chat-selected) .chat-window-header {
-        padding-top: calc(env(safe-area-inset-top) + 40px) !important; /* Pushes back button and name below physical status bar notch on iOS */
+        position: relative !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding-top: calc(env(safe-area-inset-top) + 14px) !important;
+        padding-bottom: 12px !important;
         background: #0f1326 !important;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
+    body.hide-nav-bar .chat-window-client-info,
+    body:has(.chat-page-layout.chat-selected) .chat-window-client-info {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 10px !important;
+        margin: 0 auto !important;
+    }
+    body.hide-nav-bar .chat-back-btn,
+    body:has(.chat-page-layout.chat-selected) .chat-back-btn {
+        position: absolute !important;
+        left: 14px !important;
+        top: calc(env(safe-area-inset-top) + 13px) !important;
+        margin: 0 !important;
+        z-index: 10 !important;
+    }
+    body.hide-nav-bar .chat-window-actions,
+    body:has(.chat-page-layout.chat-selected) .chat-window-actions {
+        position: absolute !important;
+        right: 14px !important;
+        top: calc(env(safe-area-inset-top) + 13px) !important;
+        z-index: 10 !important;
+    }
     body.hide-nav-bar .chat-window-footer,
     body:has(.chat-page-layout.chat-selected) .chat-window-footer {
-        padding: 10px 14px calc(env(safe-area-inset-bottom) - 14px) 14px !important;
+        padding: 8px 12px calc(env(safe-area-inset-bottom) + 6px) 12px !important;
         background: #0f1326 !important;
         border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
         box-shadow: 0 100px 0 0 #0f1326 !important; /* Fills safe area bottom completely, resolving any sub-pixel border gaps */
     }
     body.hide-nav-bar .chat-input-wrapper textarea,
     body:has(.chat-page-layout.chat-selected) .chat-input-wrapper textarea {
-        font-size: 17px !important; /* Forces 17px font-size to prevent iOS Safari auto-zoom on input focus */
+        font-size: 16.5px !important; /* Legible, prevents iOS auto-zoom */
     }
     body.hide-nav-bar .message-content,
     body:has(.chat-page-layout.chat-selected) .message-content {
-        font-size: 1.05rem !important; /* Matches the larger scaled message content */
+        font-size: 0.95rem !important;
     }
     body.hide-nav-bar .chat-window-header h3,
     body:has(.chat-page-layout.chat-selected) .chat-window-header h3 {
-        font-size: 1.25rem !important; /* Matches the larger header h3 client name */
+        font-size: 1.15rem !important;
     }
     body.hide-nav-bar .chat-window-header p,
     body:has(.chat-page-layout.chat-selected) .chat-window-header p {
-        font-size: 0.95rem !important; /* Matches the larger header p status text */
+        font-size: 0.85rem !important;
     }
     body.hide-nav-bar .btn-send-message,
     body:has(.chat-page-layout.chat-selected) .btn-send-message {
-        width: 48px !important;
-        height: 48px !important;
+        width: 42px !important;
+        height: 42px !important;
     }
     body.hide-nav-bar .btn-toggle-ai-bottom,
     body:has(.chat-page-layout.chat-selected) .btn-toggle-ai-bottom {
-        width: 48px !important;
-        height: 48px !important;
+        width: 42px !important;
+        height: 42px !important;
     }
     body.hide-nav-bar .chat-input-wrapper,
     body:has(.chat-page-layout.chat-selected) .chat-input-wrapper {
-        min-height: 48px !important;
+        min-height: 42px !important;
+        padding: 6px 10px 6px 12px !important;
+        border-radius: 12px !important;
     }
 
     /* Unified, premium typography and alignment for table elements on mobile */
