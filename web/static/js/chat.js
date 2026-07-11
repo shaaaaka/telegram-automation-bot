@@ -312,6 +312,7 @@ async function toggleAISetting(clientId) {
 }
 
 async function selectChatClient(clientId) {
+    if (window.resetViewportScale) window.resetViewportScale();
     selectedChatClientId = clientId;
     try {
         localStorage.setItem('selectedChatClientId', clientId);
@@ -394,6 +395,7 @@ async function selectChatClient(clientId) {
 }
 
 function backToChatList() {
+    if (window.resetViewportScale) window.resetViewportScale();
     selectedChatClientId = null;
     try {
         localStorage.removeItem('selectedChatClientId');

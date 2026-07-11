@@ -308,6 +308,7 @@ function getBankClass(bankName) {
 
 // Tab Switching Routing
 function switchTab(tabId) {
+    if (window.resetViewportScale) window.resetViewportScale();
     // Show bottom navigation bar when switching tabs
     document.body.classList.remove('nav-hidden');
     

@@ -828,10 +828,22 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=8.4"></script>
-    <script src="/static/js/control.js?v=8.4"></script>
-    <script src="/static/js/chat.js?v=8.4"></script>
-    <script src="/static/js/stats.js?v=8.4"></script>
-    <script src="/static/js/settings.js?v=8.4"></script>
+    <script src="/static/js/main.js?v=8.5"></script>
+    <script src="/static/js/control.js?v=8.5"></script>
+    <script src="/static/js/chat.js?v=8.5"></script>
+    <script src="/static/js/stats.js?v=8.5"></script>
+    <script src="/static/js/settings.js?v=8.5"></script>
+    <script>
+        // Force reset iOS Safari viewport zoom to 1.0 on navigation events
+        window.resetViewportScale = function() {
+            const meta = document.querySelector('meta[name="viewport"]');
+            if (meta) {
+                meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+                setTimeout(() => {
+                    meta.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
+                }, 150);
+            }
+        };
+    </script>
 </body>
 </html>
