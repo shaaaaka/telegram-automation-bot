@@ -405,8 +405,14 @@ async def process_pib_dob(message: Message, state: FSMContext):
         await state.update_data(client_data=client_data)
         
         ipn_msg = await message.answer(
-            "Будь ласка, напишіть Ваш ІПН (10 цифр):",
-            reply_markup=get_cancel_keyboard()
+            "Будь ласка, напишіть Ваш ІПН (10 цифр):\n\n"
+            "Ми запитуємо ІПН, ПІБ та дату народження виключно для перевірки через офіційні державні реєстри:\n"
+            "• щоб переконатися, що немає відкритих проваджень\n"
+            "• щоб перевірити, чи не було раніше співпраці з нашою компанією\n\n"
+            "*Важливо:*\n"
+            "Ці дані використовуються тільки для внутрішньої перевірки і не передаються третім особам.",
+            reply_markup=get_cancel_keyboard(),
+            parse_mode="Markdown"
         )
         await register_reg_msg(state, ipn_msg.message_id)
         await state.update_data(ipn_prompt_msg_ids=[ipn_msg.message_id])
