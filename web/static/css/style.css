@@ -2135,6 +2135,7 @@ input[type=number] {
     body {
         height: auto;
         overflow: auto;
+        padding-top: env(safe-area-inset-top) !important;
     }
     .container {
         flex-direction: column;
