@@ -470,6 +470,15 @@
                         </div>
                         <span>Звук</span>
                     </button>
+                    <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('reminders')">
+                        <div class="subtab-icon-wrapper">
+                            <svg class="subtab-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                            </svg>
+                        </div>
+                        <span>Нагадування</span>
+                    </button>
                     <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('banks')">
                         <div class="subtab-icon-wrapper">
                             <svg class="subtab-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -515,11 +524,28 @@
                                         <span class="status-dot-inline" style="background:#f59e0b;box-shadow:0 0 10px #f59e0b;display:inline-block;width:10px;height:10px;border-radius:50%;"></span><span style="margin-left:10px;">Синхронізація</span>
                                     </div>
                                 </div>
+                            </div>
+
+                            <!-- Вкладка 5: Нагадування -->
+                            <div id="settings-content-reminders" class="settings-subtab-content">
+                                <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                    <svg class="subtab-svg" style="color: var(--accent-primary); width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                    </svg>
+                                    Нагадування
+                                </h3>
 
                                 <!-- Нагадування -->
                                 <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 16px;">
                                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px; margin-bottom: 4px;">
-                                        <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">⏰ Автоматичні нагадування</h4>
+                                        <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                            <svg class="subtab-svg" style="color: var(--accent-primary); width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                            </svg>
+                                            Автоматичні нагадування
+                                        </h4>
                                         <label class="switch-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                                             <div class="switch">
                                                 <input type="checkbox" id="settings-reminders-enabled" onchange="toggleReminderInputs(true)">
@@ -768,10 +794,10 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=7.2"></script>
-    <script src="/static/js/control.js?v=7.2"></script>
-    <script src="/static/js/chat.js?v=7.2"></script>
-    <script src="/static/js/stats.js?v=7.2"></script>
-    <script src="/static/js/settings.js?v=7.2"></script>
+    <script src="/static/js/main.js?v=7.3"></script>
+    <script src="/static/js/control.js?v=7.3"></script>
+    <script src="/static/js/chat.js?v=7.3"></script>
+    <script src="/static/js/stats.js?v=7.3"></script>
+    <script src="/static/js/settings.js?v=7.3"></script>
 </body>
 </html>
