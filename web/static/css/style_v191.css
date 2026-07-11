@@ -2159,27 +2159,27 @@ input[type=number] {
     /* Centered Bottom Navigation Tab Bar on Mobile */
     .tabs-nav {
         position: fixed !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        width: 100% !important;
-        height: calc(50px + env(safe-area-inset-bottom)) !important;
-        background: rgba(8, 10, 20, 0.92) !important;
+        bottom: 10px !important;
+        left: 10px !important;
+        right: 10px !important;
+        width: calc(100% - 20px) !important;
+        height: 50px !important;
+        background: rgba(13, 16, 32, 0.92) !important;
         backdrop-filter: blur(20px) !important;
         -webkit-backdrop-filter: blur(20px) !important;
-        border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-bottom: none !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 14px !important;
         margin: 0 !important;
-        padding: 0 16px env(safe-area-inset-bottom) 16px !important;
+        padding: 0 12px !important;
         box-sizing: border-box !important;
         z-index: 99999 !important;
         display: flex !important;
         flex-direction: row !important;
-        justify-content: center !important;
+        justify-content: space-around !important;
         align-items: center !important;
-        gap: 16px !important;
+        gap: 0 !important;
         overflow: visible !important;
-        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4) !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s !important;
     }
     .tabs-nav::-webkit-scrollbar {
@@ -2863,6 +2863,43 @@ input[type=number] {
     .settings-subtab-content h3 {
         justify-content: center !important;
         text-align: center !important;
+    }
+
+    /* Premium compact chat bubbles and layout for mobile */
+    body.hide-nav-bar .chat-logs-container,
+    body:has(.chat-page-layout.chat-selected) .chat-logs-container {
+        gap: 8px !important;
+        padding: 12px 14px !important;
+    }
+    body.hide-nav-bar .chat-message,
+    body:has(.chat-page-layout.chat-selected) .chat-message {
+        max-width: 85% !important;
+        padding: 8px 12px !important;
+        font-size: 0.88rem !important;
+        line-height: 1.45 !important;
+        border-radius: 12px !important;
+        margin-bottom: 2px !important;
+    }
+    body.hide-nav-bar .chat-message.client,
+    body:has(.chat-page-layout.chat-selected) .chat-message.client {
+        border-radius: 14px 14px 14px 4px !important;
+    }
+    body.hide-nav-bar .chat-message.bot,
+    body:has(.chat-page-layout.chat-selected) .chat-message.bot,
+    body.hide-nav-bar .chat-message.admin,
+    body:has(.chat-page-layout.chat-selected) .chat-message.admin {
+        border-radius: 14px 14px 4px 14px !important;
+    }
+    body.hide-nav-bar .chat-message .message-time,
+    body:has(.chat-page-layout.chat-selected) .chat-message .message-time {
+        font-size: 0.65rem !important;
+        margin-top: 4px !important;
+    }
+    body.hide-nav-bar .msg-avatar,
+    body:has(.chat-page-layout.chat-selected) .msg-avatar {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 0.8rem !important;
     }
 }
 
