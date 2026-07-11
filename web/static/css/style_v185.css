@@ -2679,7 +2679,7 @@ input[type=number] {
     }
     body.hide-nav-bar .chat-window-header,
     body:has(.chat-page-layout.chat-selected) .chat-window-header {
-        padding-top: calc(env(safe-area-inset-top) + 12px) !important;
+        padding-top: calc(env(safe-area-inset-top) + 40px) !important; /* Pushes back button and name below physical status bar notch on iOS */
         background: #0f1326 !important;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
