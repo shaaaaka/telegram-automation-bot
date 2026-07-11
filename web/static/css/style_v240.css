@@ -2866,9 +2866,36 @@ input[type=number] {
         opacity: 0.8 !important;
         display: block !important;
     }
-    .settings-subtab-content h3 {
+    .settings-subtab-content {
+        text-align: center !important;
+    }
+    .settings-subtab-content h3,
+    .settings-subtab-content h4 {
         justify-content: center !important;
         text-align: center !important;
+        width: 100% !important;
+    }
+    .settings-subtab-content .form-group {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        width: 100% !important;
+    }
+    .settings-subtab-content .form-label {
+        text-align: center !important;
+        width: 100% !important;
+    }
+    .settings-subtab-content input {
+        text-align: center !important;
+        margin: 0 auto !important;
+    }
+    .settings-subtab-content .form-hint {
+        text-align: center !important;
+        width: 100% !important;
+    }
+    #settings-save-btn-container {
+        justify-content: center !important;
     }
 
     /* Premium compact chat bubbles and layout for mobile */
