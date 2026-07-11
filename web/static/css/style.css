@@ -2650,6 +2650,51 @@ input[type=number] {
     body:has(.chat-page-layout.chat-selected) .chat-page-layout {
         height: calc(100vh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
     }
+
+    /* Unified, premium typography and alignment for table elements on mobile */
+    body .lines-table td {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+        padding: 8px 0 !important;
+        border: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+        box-sizing: border-box !important;
+        font-size: 0.9rem !important;
+        color: rgba(255, 255, 255, 0.85) !important;
+        text-align: left !important;
+        line-height: 1.2 !important;
+    }
+
+    body #lines-table-body td::before,
+    body #stats-banks-table-body td::before,
+    body #banned-users-table-body td::before {
+        text-transform: none !important; /* Soft capitalized text (e.g. "Телефон:") instead of aggressive uppercase */
+        font-weight: 500 !important;
+        color: rgba(255, 255, 255, 0.4) !important;
+        font-size: 0.88rem !important;
+        letter-spacing: normal !important;
+        line-height: 1.2 !important;
+    }
+
+    /* Softer, unified badges and phone copy style on mobile */
+    body .phone-number-copy,
+    body .sla-timer,
+    body .status-badge {
+        font-family: var(--font-family) !important; /* Premium Outfit font instead of monospace */
+        font-size: 0.82rem !important;
+        font-weight: 600 !important;
+        height: 28px !important;
+        padding: 0 10px !important;
+        border-radius: 8px !important; /* Unified rounded rectangle shape */
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        line-height: 1 !important;
+        box-sizing: border-box !important;
+        text-transform: none !important;
+    }
 }
 
 /* Extra small screens scale down */
