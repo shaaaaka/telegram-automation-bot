@@ -53,19 +53,10 @@ function showToast(message, type = 'info') {
         document.body.appendChild(container);
     }
 
-    const panelLines = document.querySelector('.panel-lines');
-    const activeTabEl = document.querySelector('.tab-content.active');
-    if (panelLines && activeTabEl && activeTabEl.id === 'tab-content-control') {
-        if (container.parentElement !== panelLines) {
-            panelLines.appendChild(container);
-        }
-        container.classList.add('inside-panel');
-    } else {
-        if (container.parentElement !== document.body) {
-            document.body.appendChild(container);
-        }
-        container.classList.remove('inside-panel');
+    if (container.parentElement !== document.body) {
+        document.body.appendChild(container);
     }
+    container.classList.remove('inside-panel');
 
     // De-duplicate active messages
     const existingToasts = container.querySelectorAll('.toast');

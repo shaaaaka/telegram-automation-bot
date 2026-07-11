@@ -2617,7 +2617,7 @@ input[type=number] {
     .toast-container.inside-panel,
     .toast-container {
         position: fixed !important;
-        top: 20px !important;
+        top: calc(env(safe-area-inset-top) + 16px) !important; /* Floats cleanly below status bar/notch on iOS */
         left: 50% !important;
         right: auto !important;
         transform: translateX(-50%) !important;
@@ -2629,7 +2629,14 @@ input[type=number] {
     .toast {
         min-width: 100% !important;
         box-sizing: border-box !important;
-        font-size: 0.9rem !important;
+        font-size: 0.88rem !important;
+        padding: 10px 16px !important;
+        border-radius: 12px !important;
+        background: rgba(13, 16, 32, 0.95) !important; /* Premium glassmorphic style */
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5) !important;
     }
 
     /* Prevent iOS auto-zoom on input/textarea focus by forcing min-size of 16px */
