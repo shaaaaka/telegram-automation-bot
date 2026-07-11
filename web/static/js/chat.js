@@ -341,7 +341,12 @@ async function selectChatClient(clientId) {
     windowContainer.innerHTML = `
         <div class="chat-window-header">
             <div class="chat-window-client-info">
-                <button class="chat-back-btn" onclick="backToChatList()">← Назад</button>
+                <button class="chat-back-btn" onclick="backToChatList()" title="Назад">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                </button>
                 <div class="chat-window-avatar">
                     <span id="avatar-placeholder-${session.client_id}" style="display: none;">${displayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К'}</span>
                     <img src="/api/avatar/${session.client_id}" onerror="this.remove(); const el = document.getElementById('avatar-placeholder-${session.client_id}'); if(el) el.style.display='inline-flex';">

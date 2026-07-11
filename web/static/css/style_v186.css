@@ -2472,19 +2472,27 @@ input[type=number] {
     .chat-back-btn {
         display: inline-flex !important;
         align-items: center !important;
+        justify-content: center !important;
         background: rgba(255, 255, 255, 0.05) !important;
         border: 1px solid rgba(255, 255, 255, 0.08) !important;
         color: var(--accent-primary) !important;
-        font-size: 0.85rem !important;
-        font-weight: 600 !important;
         cursor: pointer !important;
-        padding: 6px 12px !important;
-        border-radius: 8px !important;
-        margin-right: 12px !important;
+        padding: 0 !important;
+        width: 44px !important;
+        height: 44px !important;
+        border-radius: 50% !important;
+        margin-right: 8px !important;
+        flex-shrink: 0 !important;
         transition: all 0.2s ease !important;
     }
     .chat-back-btn:hover {
         background: rgba(255, 255, 255, 0.1) !important;
+    }
+    .chat-back-btn svg {
+        width: 20px !important;
+        height: 20px !important;
+        stroke: var(--accent-primary) !important;
+        display: block !important;
     }
 
     /* Make message bubbles distinct and readable on mobile */
