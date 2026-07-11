@@ -2136,8 +2136,9 @@ input[type=number] {
         height: auto;
         overflow: auto;
         min-height: 100vh !important;
+        min-height: 100dvh !important;
         padding-top: env(safe-area-inset-top) !important;
-        padding-bottom: calc(70px + env(safe-area-inset-bottom)) !important;
+        padding-bottom: calc(62px + env(safe-area-inset-bottom)) !important;
     }
     .container {
         flex-direction: column;
@@ -2159,14 +2160,14 @@ input[type=number] {
         left: 0 !important;
         right: 0 !important;
         width: 100% !important;
-        height: calc(56px + env(safe-area-inset-bottom)) !important;
+        height: calc(48px + env(safe-area-inset-bottom)) !important;
         background: rgba(8, 10, 20, 0.92) !important;
         backdrop-filter: blur(20px) !important;
         -webkit-backdrop-filter: blur(20px) !important;
         border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
         border-bottom: none !important;
         margin: 0 !important;
-        padding: 5px 16px 0 16px !important;
+        padding: 2px 16px 0 16px !important;
         box-sizing: border-box !important;
         z-index: 99999 !important;
         display: flex !important;
@@ -2430,7 +2431,7 @@ input[type=number] {
     /* CRM Chat page mobile responsiveness */
     .chat-page-layout {
         flex-direction: column !important;
-        height: calc(100vh - 80px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+        height: calc(100dvh - 72px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
         max-height: none !important;
         border-radius: 12px !important;
     }
@@ -2650,7 +2651,7 @@ input[type=number] {
     }
     body.hide-nav-bar .chat-page-layout,
     body:has(.chat-page-layout.chat-selected) .chat-page-layout {
-        height: calc(100vh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+        height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 10px) !important;
     }
 
     /* Unified, premium typography and alignment for table elements on mobile */
