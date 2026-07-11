@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style_v189.css">
+    <link rel="stylesheet" href="/static/css/style_v190.css">
 </head>
 <body>
     <div class="container">
@@ -844,26 +844,6 @@
                 }, 150);
             }
         };
-
-        // Visual Viewport keyboard adjustment for iOS Safari
-        if (window.visualViewport) {
-            const updateViewportHeight = () => {
-                const height = window.visualViewport.height;
-                document.documentElement.style.setProperty('--viewport-height', height + 'px');
-                
-                // Keep the active chat scrolled to the bottom on keyboard height adjustments
-                const container = document.querySelector('.chat-logs-container');
-                if (container && document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT')) {
-                    setTimeout(() => {
-                        container.scrollTop = container.scrollHeight;
-                    }, 50);
-                }
-            };
-            window.visualViewport.addEventListener('resize', updateViewportHeight);
-            window.visualViewport.addEventListener('scroll', updateViewportHeight);
-            // Run on load
-            window.addEventListener('DOMContentLoaded', updateViewportHeight);
-        }
     </script>
 </body>
 </html>
