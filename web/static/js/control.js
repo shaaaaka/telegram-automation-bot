@@ -452,7 +452,11 @@ function renderSessions(sessions) {
                 
                 if (isRemaining) {
                     chipClasses += ' selected';
-                    onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
+                    if (hasHistory) {
+                        onclickAttr = ''; // Не дозволяємо віджати назад в архів
+                    } else {
+                        onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', '')"`;
+                    }
                 } else {
                     if (hasHistory) {
                         const status = bankStatuses[bank] || 'released';

@@ -184,8 +184,8 @@ async def cmd_start(message: Message, state: FSMContext):
     await db.create_registering_session(client_id, username_db)
     await register_reg_msg(state, message.message_id)
     
-    # Перевіряємо можливість автозаповнення з попередньої завершеної сесії
-    if existing_session and existing_session['status'] == 'completed' and existing_session['client_data']:
+    # Перевіряємо можливість автозаповнення з попередньої/поточної сесії
+    if existing_session and existing_session['client_data']:
         ipn_match = re.search(r'ІПН:\s*(\d+)', existing_session['client_data'])
         pib_match = re.search(r'ПІБ:\s*(.+)', existing_session['client_data'])
         dob_match = re.search(r'Дата:\s*(.+)', existing_session['client_data'])
