@@ -222,6 +222,13 @@ async def get_sessions():
                 session_dict = dict(row)
                 client_id = session_dict['client_id']
                 
+                # Заповнення назви банку з lines, якщо колонка порожня (для старих сесій)
+                if not session_dict.get('bank') and session_dict.get('line_id'):
+                    async with conn.execute("SELECT bank FROM lines WHERE id = ?", (session_dict['line_id'],)) as l_cursor:
+                        l_row = await l_cursor.fetchone()
+                        if l_row:
+                            session_dict['bank'] = l_row['bank']
+                
                 # Запит на отримання останніх завершених спроб верифікації
                 async with conn.execute("""
                     SELECT bank, status FROM bank_verifications 
@@ -269,6 +276,50 @@ async def get_session_chat(client_id: int):
     try:
         logs = await db.get_chat_logs(client_id)
         return logs
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class TemplateSendRequest(BaseModel):
+    template_key: str
+
+@app.post("/api/sessions/{client_id}/send_template")
+async def send_session_template(client_id: int, body: TemplateSendRequest):
+    """Надсилання готового шаблону (наприклад, фото AmoBank) через бота"""
+    if not bot:
+        raise HTTPException(status_code=500, detail="Bot is not configured")
+    try:
+        session = await db.get_session(client_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Сесію не знайдено")
+            
+        if body.template_key == "amobank_steps":
+            from aiogram.types import InputMediaPhoto, FSInputFile
+            import os
+            
+            # Шлях до зображень
+            images_dir = os.path.join(os.path.dirname(__file__), "..", "bot", "resources", "images")
+            media = []
+            for i in range(1, 5):
+                img_path = os.path.join(images_dir, f"amobank_step{i}.png")
+                if os.path.exists(img_path):
+                    # Для першого фото додаємо підпис
+                    caption = "Ось детальний шаблон заповнення анкети для AmoBank:" if len(media) == 0 else None
+                    media.append(InputMediaPhoto(media=FSInputFile(img_path), caption=caption))
+            
+            if media:
+                sent_messages = await bot.send_media_group(chat_id=client_id, media=media)
+                # Логуємо кожне надіслане повідомлення
+                for i, msg in enumerate(sent_messages):
+                    photo_id = msg.photo[-1].file_id if msg.photo else None
+                    # Додаємо підпис тільки до першого логу
+                    txt = "Ось детальний шаблон заповнення анкети для AmoBank:" if i == 0 else None
+                    await db.log_chat_message(client_id, 'operator', txt, photo_id)
+                return {"status": "success", "message": "Шаблон AmoBank надіслано успішно"}
+            else:
+                raise HTTPException(status_code=404, detail="Файли шаблонів не знайдено")
+        else:
+            raise HTTPException(status_code=400, detail=f"Невідомий ключ шаблону: {body.template_key}")
+            
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -941,6 +992,13 @@ async def get_completed_sessions():
             for row in rows:
                 session_dict = dict(row)
                 client_id = session_dict['client_id']
+                
+                # Заповнення назви банку з lines, якщо колонка порожня (для старих сесій)
+                if not session_dict.get('bank') and session_dict.get('line_id'):
+                    async with conn.execute("SELECT bank FROM lines WHERE id = ?", (session_dict['line_id'],)) as l_cursor:
+                        l_row = await l_cursor.fetchone()
+                        if l_row:
+                            session_dict['bank'] = l_row['bank']
                 
                 # Запит на отримання завершених спроб верифікації
                 async with conn.execute("""

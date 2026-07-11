@@ -350,6 +350,7 @@ async function selectChatClient(clientId) {
     const textarea = document.getElementById('chat-msg-input');
     if (textarea) {
         textarea.focus();
+        setupCannedTemplatesAutocomplete('chat-msg-input', () => selectedChatClientId);
     }
 }
 
@@ -792,3 +793,287 @@ async function submitPhotoUpload() {
         btn.textContent = oldText;
     }
 }
+
+// --- Canned Templates Autocomplete (Швидкі відповіді) ---
+
+const CANNED_TEMPLATES = [
+    {
+        key: 'amobank_steps',
+        label: '🏦 Надіслати скріншоти AmoBank (4 фото)',
+        type: 'media',
+        bank: 'amobank'
+    },
+    {
+        key: 'amobank_gray_button',
+        label: '🔘 Проблема з сірою кнопкою Продовжити',
+        type: 'text',
+        bank: 'amobank',
+        text: 'Підкажіть, а ви перевіряли верхні поля? В Амобанку є фішка: якщо пропустити хоча б один рядок (наприклад, пошту), кнопка «Продовжити» залишається сірою або просто не натискається. Перевірте, будь ласка, чи все заповнено.'
+    },
+    {
+        key: 'limits',
+        label: '💰 Про виплати (до менеджера)',
+        type: 'text',
+        bank: 'general',
+        text: 'Щодо виплат — це до менеджера, зараз підключиться. Наша задача — закінчити верифікацію банку.'
+    },
+    {
+        key: 'work_info',
+        label: '📝 Працевлаштування (АТБ)',
+        type: 'text',
+        bank: 'general',
+        text: 'Обирайте роботу: Місце роботи — ТОВ АТБ Маркет, Посада — Спеціаліст (або Студент/Тимчасово не працюю, якщо вам до 21 року).'
+    },
+    {
+        key: 'vpn_gps',
+        label: '🌐 Вимкнути VPN / Увімкнути GPS',
+        type: 'text',
+        bank: 'general',
+        text: 'Будь ласка, вимкніть VPN та увімкніть GPS (геолокацію). Це обов\'язкова вимога безпеки банку.'
+    },
+    {
+        key: 'diia_crash',
+        label: '🔄 Зависання Дії / додатку',
+        type: 'text',
+        bank: 'general',
+        text: 'Спробуйте зараз повністю закрити додаток, вивантажити його з фону (закрити вкладку) та зайти знову за 15 секунд.'
+    },
+    {
+        key: 'photo_screen',
+        label: '📸 Якщо не робиться скріншот',
+        type: 'text',
+        bank: 'general',
+        text: 'Спробуйте зробити фото екрана іншим телефоном, якщо є можливість.'
+    }
+];
+
+// Inject autocomplete CSS styles
+const autocompleteStyle = document.createElement('style');
+autocompleteStyle.textContent = `
+    .chat-autocomplete-menu {
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        right: 0;
+        background: #151321;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+        max-height: 250px;
+        overflow-y: auto;
+        z-index: 9999;
+        margin-bottom: 10px;
+        padding: 6px;
+        backdrop-filter: blur(10px);
+    }
+    .chat-autocomplete-item {
+        padding: 10px 14px;
+        cursor: pointer;
+        color: rgba(255, 255, 255, 0.85);
+        border-radius: 10px;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: inherit;
+    }
+    .chat-autocomplete-item:hover, .chat-autocomplete-item.active {
+        background: var(--accent-primary, #3b82f6);
+        color: #ffffff;
+    }
+    .chat-autocomplete-menu::-webkit-scrollbar {
+        width: 6px;
+    }
+    .chat-autocomplete-menu::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .chat-autocomplete-menu::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+    }
+    .chat-autocomplete-menu::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.25);
+    }
+`;
+document.head.appendChild(autocompleteStyle);
+
+let currentAutocompleteMenu = null;
+let activeAutocompleteIndex = 0;
+let filteredAutocompleteTemplates = [];
+
+function setupCannedTemplatesAutocomplete(textareaId, clientIdGetter) {
+    const textarea = document.getElementById(textareaId);
+    if (!textarea) return;
+    
+    if (textarea.dataset.autocompleteBound) return;
+    textarea.dataset.autocompleteBound = "true";
+    
+    document.addEventListener('click', function(e) {
+        if (currentAutocompleteMenu && !currentAutocompleteMenu.contains(e.target) && e.target !== textarea) {
+            closeAutocompleteMenu();
+        }
+    });
+
+    textarea.addEventListener('keydown', function(e) {
+        if (!currentAutocompleteMenu) return;
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeAutocompleteIndex = (activeAutocompleteIndex + 1) % filteredAutocompleteTemplates.length;
+            renderAutocompleteActiveItem();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeAutocompleteIndex = (activeAutocompleteIndex - 1 + filteredAutocompleteTemplates.length) % filteredAutocompleteTemplates.length;
+            renderAutocompleteActiveItem();
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            selectAutocompleteItem(activeAutocompleteIndex, textarea, clientIdGetter);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            closeAutocompleteMenu();
+        }
+    });
+
+    textarea.addEventListener('input', function() {
+        const text = textarea.value;
+        const selectionStart = textarea.selectionStart;
+        const beforeCursor = text.substring(0, selectionStart);
+        const match = beforeCursor.match(/\/(\w*)$/);
+        
+        if (match) {
+            const query = match[1].toLowerCase();
+            const clientId = clientIdGetter();
+            
+            const allSessions = [...(lastFetchedSessions || []), ...(cachedCompletedSessions || [])];
+            const session = allSessions.find(s => s.client_id === clientId);
+            const currentBank = (session && session.bank) ? session.bank.toLowerCase() : '';
+            
+            filteredAutocompleteTemplates = CANNED_TEMPLATES.filter(tmpl => {
+                if (tmpl.bank !== 'general' && tmpl.bank !== currentBank) {
+                    return false;
+                }
+                if (query) {
+                    return tmpl.label.toLowerCase().includes(query) || 
+                           (tmpl.text && tmpl.text.toLowerCase().includes(query)) ||
+                           tmpl.key.toLowerCase().includes(query);
+                }
+                return true;
+            });
+            
+            if (filteredAutocompleteTemplates.length > 0) {
+                showAutocompleteMenu(textarea, clientIdGetter);
+            } else {
+                closeAutocompleteMenu();
+            }
+        } else {
+            closeAutocompleteMenu();
+        }
+    });
+}
+
+function showAutocompleteMenu(textarea, clientIdGetter) {
+    if (!currentAutocompleteMenu) {
+        currentAutocompleteMenu = document.createElement('div');
+        currentAutocompleteMenu.className = 'chat-autocomplete-menu';
+        
+        const wrapper = textarea.closest('.chat-input-wrapper');
+        if (wrapper) {
+            wrapper.style.position = 'relative';
+            wrapper.appendChild(currentAutocompleteMenu);
+        } else {
+            document.body.appendChild(currentAutocompleteMenu);
+        }
+    }
+    
+    activeAutocompleteIndex = 0;
+    renderAutocompleteMenuContent(textarea, clientIdGetter);
+}
+
+function renderAutocompleteMenuContent(textarea, clientIdGetter) {
+    if (!currentAutocompleteMenu) return;
+    
+    currentAutocompleteMenu.innerHTML = '';
+    filteredAutocompleteTemplates.forEach((tmpl, idx) => {
+        const item = document.createElement('div');
+        item.className = 'chat-autocomplete-item';
+        if (idx === activeAutocompleteIndex) {
+            item.className += ' active';
+        }
+        item.textContent = tmpl.label;
+        item.addEventListener('click', function() {
+            selectAutocompleteItem(idx, textarea, clientIdGetter);
+        });
+        currentAutocompleteMenu.appendChild(item);
+    });
+}
+
+function renderAutocompleteActiveItem() {
+    if (!currentAutocompleteMenu) return;
+    const items = currentAutocompleteMenu.querySelectorAll('.chat-autocomplete-item');
+    items.forEach((item, idx) => {
+        if (idx === activeAutocompleteIndex) {
+            item.classList.add('active');
+            item.scrollIntoView({ block: 'nearest' });
+        } else {
+            item.classList.remove('active');
+        }
+    });
+}
+
+function closeAutocompleteMenu() {
+    if (currentAutocompleteMenu) {
+        currentAutocompleteMenu.remove();
+        currentAutocompleteMenu = null;
+    }
+}
+
+async function selectAutocompleteItem(idx, textarea, clientIdGetter) {
+    const tmpl = filteredAutocompleteTemplates[idx];
+    if (!tmpl) return;
+    
+    const text = textarea.value;
+    const selectionStart = textarea.selectionStart;
+    const beforeCursor = text.substring(0, selectionStart);
+    const afterCursor = text.substring(selectionStart);
+    
+    const newBefore = beforeCursor.replace(/\/(\w*)$/, '');
+    
+    closeAutocompleteMenu();
+    
+    if (tmpl.type === 'text') {
+        textarea.value = newBefore + tmpl.text + afterCursor;
+        textarea.focus();
+        const newPos = newBefore.length + tmpl.text.length;
+        textarea.setSelectionRange(newPos, newPos);
+    } else if (tmpl.type === 'media') {
+        const clientId = clientIdGetter();
+        if (!clientId) return;
+        
+        textarea.value = newBefore + afterCursor;
+        textarea.focus();
+        
+        try {
+            showToast("Надсилаю скріншоти AmoBank...", "info");
+            
+            const response = await fetch(`/api/sessions/${clientId}/send_template`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ template_key: tmpl.key })
+            });
+            
+            if (response.ok) {
+                showToast("Скріншоти успішно надіслано!", "success");
+                await refreshChatPageMessages(clientId);
+            } else {
+                const err = await response.json();
+                showToast("Помилка відправки: " + (err.detail || "Невідома помилка"), "error");
+            }
+        } catch (e) {
+            showToast("Помилка підключення до сервера", "error");
+        }
+    }
+}
+

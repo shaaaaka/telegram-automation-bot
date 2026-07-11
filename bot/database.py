@@ -507,16 +507,24 @@ async def assign_line_to_session(client_id: int, line_id: int):
             if row and row['line_id'] and row['line_id'] != line_id:
                 await db.execute("UPDATE lines SET status = 'available' WHERE id = ?", (row['line_id'],))
 
+        # Отримуємо назву банку лінії
+        bank_name = None
+        async with db.execute("SELECT bank FROM lines WHERE id = ?", (line_id,)) as cursor:
+            l_row = await cursor.fetchone()
+            if l_row:
+                bank_name = l_row['bank']
+
         # Встановлюємо статус сесії та очищуємо верифікаційні дані від попереднього банку
         await db.execute("""
             UPDATE sessions 
             SET line_id = ?, status = 'number_assigned',
+                bank = ?,
                 success_photo_id = NULL,
                 card_photo_id = NULL,
                 card_first4 = NULL,
                 card_last4 = NULL
             WHERE client_id = ?
-        """, (line_id, client_id))
+        """, (line_id, bank_name, client_id))
         # Маркуємо лінію як зайняту
         await db.execute("UPDATE lines SET status = 'busy' WHERE id = ?", (line_id,))
         await db.commit()
