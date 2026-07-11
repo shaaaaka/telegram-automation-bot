@@ -2159,18 +2159,18 @@ input[type=number] {
     /* Centered Bottom Navigation Tab Bar on Mobile */
     .tabs-nav {
         position: fixed !important;
-        bottom: 10px !important;
-        left: 10px !important;
-        right: 10px !important;
-        width: calc(100% - 20px) !important;
-        height: 50px !important;
-        background: rgba(13, 16, 32, 0.92) !important;
+        bottom: calc(env(safe-area-inset-bottom) + 12px) !important;
+        left: 12px !important;
+        right: 12px !important;
+        width: calc(100% - 24px) !important;
+        height: 60px !important;
+        background: rgba(13, 16, 32, 0.94) !important;
         backdrop-filter: blur(20px) !important;
         -webkit-backdrop-filter: blur(20px) !important;
         border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 14px !important;
+        border-radius: 16px !important;
         margin: 0 !important;
-        padding: 0 12px !important;
+        padding: 0 16px !important;
         box-sizing: border-box !important;
         z-index: 99999 !important;
         display: flex !important;
@@ -2179,7 +2179,7 @@ input[type=number] {
         align-items: center !important;
         gap: 0 !important;
         overflow: visible !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+        box-shadow: 0 10px 35px rgba(0, 0, 0, 0.55) !important;
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s !important;
     }
     .tabs-nav::-webkit-scrollbar {
