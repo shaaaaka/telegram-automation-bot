@@ -2733,7 +2733,7 @@ input[type=number] {
         z-index: 10 !important;
     }
     body.hide-nav-bar .chat-window-footer {
-        padding: 8px 12px calc(env(safe-area-inset-bottom) + 6px) 12px !important;
+        padding: 6px 12px calc(max(env(safe-area-inset-bottom), 16px) - 10px) 12px !important;
         background: #0f1326 !important;
         border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
         box-shadow: 0 100px 0 0 #0f1326 !important; /* Fills safe area bottom completely, resolving any sub-pixel border gaps */
@@ -2751,17 +2751,25 @@ input[type=number] {
         font-size: 0.85rem !important;
     }
     body.hide-nav-bar .btn-send-message {
-        width: 42px !important;
-        height: 42px !important;
+        width: 38px !important;
+        height: 38px !important;
+        border-radius: 50% !important;
+        background: rgba(139, 92, 246, 0.16) !important;
+        border: 1px solid rgba(139, 92, 246, 0.35) !important;
+        color: #c084fc !important;
     }
     body.hide-nav-bar .btn-toggle-ai-bottom {
-        width: 42px !important;
-        height: 42px !important;
+        width: 44px !important;
+        height: 44px !important;
+        border-radius: 50% !important;
     }
     body.hide-nav-bar .chat-input-wrapper {
-        min-height: 42px !important;
-        padding: 6px 10px 6px 12px !important;
-        border-radius: 12px !important;
+        min-height: 44px !important;
+        padding: 3px 3px 3px 16px !important;
+        border-radius: 24px !important;
+        background: rgba(255, 255, 255, 0.04) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.2) !important;
     }
 
     /* Unified, premium typography and alignment for table elements on mobile */
