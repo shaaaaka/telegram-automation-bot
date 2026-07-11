@@ -2908,6 +2908,31 @@ input[type=number] {
     #settings-save-btn-container {
         justify-content: center !important;
     }
+    .settings-banks-header {
+        flex-direction: column !important;
+        gap: 12px !important;
+        align-items: center !important;
+        text-align: center !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+        padding-bottom: 16px !important;
+    }
+    .settings-sound-toggle-row {
+        flex-direction: column !important;
+        gap: 12px !important;
+        align-items: center !important;
+        text-align: center !important;
+        padding-bottom: 16px !important;
+    }
+    .settings-volume-header {
+        flex-direction: column !important;
+        gap: 4px !important;
+        align-items: center !important;
+        text-align: center !important;
+    }
+    .settings-volume-header .form-label {
+        width: auto !important;
+        display: inline-block !important;
+    }
 
     /* Premium compact chat bubbles and layout for mobile */
     body.hide-nav-bar .chat-logs-container {
