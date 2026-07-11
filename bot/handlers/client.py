@@ -404,18 +404,21 @@ async def process_pib_dob(message: Message, state: FSMContext):
         client_data = f"ПІБ: {saved_pib}\nДата: {saved_dob}"
         await state.update_data(client_data=client_data)
         
-        ipn_msg = await message.answer(
-            "Будь ласка, напишіть Ваш ІПН (10 цифр):\n\n"
+        ipn_msg1 = await message.answer(
+            "Будь ласка, напишіть Ваш ІПН (10 цифр):",
+            reply_markup=get_cancel_keyboard()
+        )
+        ipn_msg2 = await message.answer(
             "Ми запитуємо ІПН, ПІБ та дату народження виключно для перевірки через офіційні державні реєстри:\n"
             "• щоб переконатися, що немає відкритих проваджень\n"
             "• щоб перевірити, чи не було раніше співпраці з нашою компанією\n\n"
             "*Важливо:*\n"
             "Ці дані використовуються тільки для внутрішньої перевірки і не передаються третім особам.",
-            reply_markup=get_cancel_keyboard(),
             parse_mode="Markdown"
         )
-        await register_reg_msg(state, ipn_msg.message_id)
-        await state.update_data(ipn_prompt_msg_ids=[ipn_msg.message_id])
+        await register_reg_msg(state, ipn_msg1.message_id)
+        await register_reg_msg(state, ipn_msg2.message_id)
+        await state.update_data(ipn_prompt_msg_ids=[ipn_msg1.message_id, ipn_msg2.message_id])
         await state.set_state(RegistrationStates.waiting_ipn)
     elif saved_pib:
         err_msg = await message.answer(
@@ -1009,6 +1012,10 @@ def is_question_or_objection(text: str) -> bool:
     ]
     for starter in question_starters:
         if t.startswith(starter) or f" {starter}" in t:
+            if starter in ["як ", "как "]:
+                words = text.strip().split()
+                if len(words) >= 2 and all(w[0].isupper() for w in words if w):
+                    continue
             return True
     return False
 
