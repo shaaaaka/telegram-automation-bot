@@ -2657,6 +2657,7 @@ input[type=number] {
         left: 0 !important;
         padding-top: 0 !important;
         padding-bottom: 0 !important;
+        background-color: #0f1326 !important; /* Matches footer background to make bottom safe area transition seamless */
     }
     body.hide-nav-bar .chat-page-layout,
     body:has(.chat-page-layout.chat-selected) .chat-page-layout {
