@@ -2093,7 +2093,7 @@ input[type=number] {
 /* --- Mobile Responsive Enhancements --- */
 @media (max-width: 768px) {
     html {
-        font-size: 15px !important; /* Scales up the entire mobile layout (text, inputs, paddings) for optimal readability, mimicking user zoom-in */
+        font-size: 14px !important; /* Keep mobile layout clean and compact */
     }
     header {
         padding: 12px 16px !important;
@@ -2869,7 +2869,7 @@ input[type=number] {
 /* Extra small screens scale down */
 @media (max-width: 480px) {
     html {
-        font-size: 16.5px !important; /* Keep it comfortably large on small phones too! */
+        font-size: 13px !important;
     }
 }
 
