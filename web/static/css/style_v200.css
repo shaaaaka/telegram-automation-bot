@@ -2639,7 +2639,7 @@ input[type=number] {
         box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5) !important;
     }
 
-    /* Prevent iOS auto-zoom on input/textarea focus by forcing min-size of 17px */
+    /* Prevent iOS auto-zoom on input/textarea focus by forcing min-size of 17px with high specificity */
     body input[type="text"],
     body input[type="search"],
     body input[type="tel"],
@@ -2648,7 +2648,11 @@ input[type=number] {
     body input[type="email"],
     body textarea,
     body select,
-    body .chat-input-wrapper textarea {
+    body .chat-input-wrapper textarea,
+    body .add-line-form input,
+    body .add-line-form input:focus,
+    body input:focus,
+    body textarea:focus {
         font-size: 17px !important;
     }
 
