@@ -822,8 +822,7 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
     if not remaining:
         kbd = ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="🔄 Розпочати знову")],
-                [KeyboardButton(text="📋 Мої дані")]
+                [KeyboardButton(text="🔄 Розпочати знову")]
             ],
             resize_keyboard=True,
             one_time_keyboard=False,
@@ -1093,8 +1092,7 @@ async def mark_bank_as_failed(client_id: int, bot: Bot):
         # Всі банки пройдені! Завершуємо роботу
         kbd = ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="🔄 Розпочати знову")],
-                [KeyboardButton(text="📋 Мої дані")]
+                [KeyboardButton(text="🔄 Розпочати знову")]
             ],
             resize_keyboard=True,
             one_time_keyboard=False,
@@ -1268,85 +1266,7 @@ async def handle_request_code_text(message: Message, state: FSMContext, bot: Bot
         
     await trigger_sms_code_request(client_id, bot, state, notify)
 
-@router.message(F.chat.type == "private", F.text == "📋 Мої дані")
-async def handle_view_my_data(message: Message, state: FSMContext):
-    client_id = message.from_user.id
-    session = await db.get_session(client_id)
-    
-    if not session or not session['client_data']:
-        await message.answer("Ваші дані не знайдено. Напишіть /start, щоб розпочати.")
-        return
-        
-    client_data = session['client_data']
-    
-    # Парсимо дані
-    ipn_match = re.search(r'ІПН:\s*(\d+)', client_data)
-    pib_match = re.search(r'ПІБ:\s*(.+)', client_data)
-    dob_match = re.search(r'Дата:\s*(.+)', client_data)
-    
-    ipn = ipn_match.group(1) if ipn_match else "Невідомо"
-    pib = pib_match.group(1) if pib_match else "Невідомо"
-    dob = dob_match.group(1) if dob_match else "Невідомо"
-    
-    import html
-    text = (
-        f"📋 <b>Ваші дані верифікації:</b>\n\n"
-        f"• <b>ПІБ:</b> {html.escape(pib)}\n"
-        f"• <b>Дата народження:</b> {html.escape(dob)}\n"
-        f"• <b>ІПН:</b> {html.escape(ipn)}"
-    )
-    
-    # Якщо сесія активна (йде верифікація номера), редагувати не можна
-    if session['status'] in ('number_assigned', 'waiting_code'):
-        await message.answer(text, parse_mode="HTML")
-        return
-        
-    # Якщо сесію вже завершено, редагувати дані також заборонено
-    if session['status'] == 'completed':
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Закрити", callback_data="close_my_data")]
-        ])
-        await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
-        return
-        
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔄 Редагувати дані", callback_data="edit_my_data")],
-        [InlineKeyboardButton(text="❌ Закрити", callback_data="close_my_data")]
-    ])
-    
-    await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
 
-
-@router.callback_query(F.data == "close_my_data")
-async def handle_close_my_data(callback: CallbackQuery):
-    try:
-        await callback.message.delete()
-    except Exception:
-        await callback.message.edit_reply_markup(reply_markup=None)
-    await callback.answer()
-
-
-@router.callback_query(F.data == "edit_my_data")
-async def handle_edit_my_data(callback: CallbackQuery, state: FSMContext):
-    client_id = callback.from_user.id
-    session = await db.get_session(client_id)
-    if session and session['status'] == 'completed':
-        await callback.answer("Сесію завершено. Ви не можете редагувати дані.", show_alert=True)
-        return
-
-    await state.clear()
-    try:
-        await callback.message.delete()
-    except Exception:
-        await callback.message.edit_reply_markup(reply_markup=None)
-        
-    pib_msg = await callback.message.answer(
-        "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
-        reply_markup=ReplyKeyboardRemove()
-    )
-    await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
-    await state.set_state(RegistrationStates.waiting_pib_dob)
-    await callback.answer()
 
 
 async def simulate_typing(bot: Bot, chat_id: int, duration: float):
@@ -1534,6 +1454,21 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
                     await state.update_data(lviv_template_photo_id=file_id)
                 except Exception as e:
                     logger.error(f"Error sending lviv success template photo: {e}")
+
+        # Якщо в відповіді ШІ згадується мультивалютна карта для bank.kd, додатково надсилаємо фото-інструкцію
+        is_bank_kd = current_bank_name and "bank.kd" in current_bank_name.lower()
+        if is_bank_kd and any(word in response.lower() for word in ["мультивалютн"]):
+            import os
+            from aiogram.types import FSInputFile
+            cards_photo_path = os.path.join(os.path.dirname(__file__), "..", "resources", "images", "bank.kd_cards_instruction.png")
+            if os.path.exists(cards_photo_path):
+                try:
+                    await bot.send_photo(
+                        chat_id=client_id,
+                        photo=FSInputFile(cards_photo_path)
+                    )
+                except Exception as e:
+                    logger.error(f"Error sending bank.kd card choice instruction photo in text: {e}")
         return
 
     # Якщо користувач не у стані анкетування, пропонуємо йому почати з команди /start
@@ -1759,6 +1694,20 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
                         await state.update_data(lviv_template_photo_id=file_id)
                     except Exception as e:
                         logger.error(f"Error sending lviv success template photo: {e}")
+
+            # Якщо в відповіді ШІ згадується мультивалютна карта для bank.kd, додатково надсилаємо фото-інструкцію
+            if is_bank_kd and any(word in response.lower() for word in ["мультивалютн"]):
+                import os
+                from aiogram.types import FSInputFile
+                cards_photo_path = os.path.join(os.path.dirname(__file__), "..", "resources", "images", "bank.kd_cards_instruction.png")
+                if os.path.exists(cards_photo_path):
+                    try:
+                        await bot.send_photo(
+                            chat_id=client_id,
+                            photo=FSInputFile(cards_photo_path)
+                        )
+                    except Exception as e:
+                        logger.error(f"Error sending bank.kd card choice instruction photo in photo: {e}")
             return
         
     await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")

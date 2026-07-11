@@ -911,6 +911,13 @@ async def handle_route_code(callback: CallbackQuery, bot: Bot, state: FSMContext
     # 2. Повертаємо статус сесії на 'number_assigned'
     await db.set_session_status(client_id, 'number_assigned')
 
+    # Перевіряємо чи це перший надісланий код
+    updated_session = await db.get_session(client_id)
+    if updated_session and updated_session.get('sent_codes_count') == 1:
+        from bot.handlers.giver import send_first_code_helper_delayed
+        import asyncio
+        asyncio.create_task(send_first_code_helper_delayed(bot, client_id, line_id, bank_name))
+
     # Видаляємо з веб-списку нерозподілених кодів
     try:
         from web.app import unrouted_codes
@@ -1004,8 +1011,7 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot, state: FSMC
             try:
                 kbd = ReplyKeyboardMarkup(
                     keyboard=[
-                        [KeyboardButton(text="🔄 Розпочати знову")],
-                        [KeyboardButton(text="📋 Мої дані")]
+                        [KeyboardButton(text="🔄 Розпочати знову")]
                     ],
                     resize_keyboard=True,
                     one_time_keyboard=False,
@@ -1077,8 +1083,7 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot, state: FSMC
             try:
                 kbd = ReplyKeyboardMarkup(
                     keyboard=[
-                        [KeyboardButton(text="🔄 Розпочати знову")],
-                        [KeyboardButton(text="📋 Мої дані")]
+                        [KeyboardButton(text="🔄 Розпочати знову")]
                     ],
                     resize_keyboard=True,
                     one_time_keyboard=False,
@@ -1140,8 +1145,7 @@ async def handle_terminate_session(callback: CallbackQuery, bot: Bot, state: FSM
     try:
         kbd = ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="🔄 Розпочати знову")],
-                [KeyboardButton(text="📋 Мої дані")]
+                [KeyboardButton(text="🔄 Розпочати знову")]
             ],
             resize_keyboard=True,
             one_time_keyboard=False,
@@ -1332,8 +1336,7 @@ async def handle_complete_session_manually(callback: CallbackQuery, bot: Bot, st
     try:
         kbd = ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="🔄 Розпочати знову")],
-                [KeyboardButton(text="📋 Мої дані")]
+                [KeyboardButton(text="🔄 Розпочати знову")]
             ],
             resize_keyboard=True,
             one_time_keyboard=False,

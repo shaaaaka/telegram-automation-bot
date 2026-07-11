@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=163.5">
+    <link rel="stylesheet" href="/static/css/style.css?v=163.8">
 </head>
 <body>
     <div class="container">
@@ -149,7 +149,11 @@
                 <!-- Права колонка: Чат-вікно -->
                 <div class="chat-window" id="chat-window-container">
                     <div class="chat-no-selection">
-                        <div class="chat-no-selection-icon">💬</div>
+                        <div class="chat-no-selection-icon" style="color: rgba(139, 92, 246, 0.25); display: flex; justify-content: center; align-items: center; margin-bottom: 8px;">
+                            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                        </div>
                         <p>Оберіть чат зі списку ліворуч, щоб розпочати листування</p>
                     </div>
                 </div>
@@ -161,7 +165,13 @@
             <div class="panel">
                 <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <h2 class="panel-title">Загальна статистика</h2>
-                    <button class="btn btn-danger btn-sm" onclick="clearStats()" style="padding: 6px 14px; font-size: 0.8rem; border-radius: 8px;">Очистити статистику</button>
+                    <button class="btn btn-danger btn-sm" onclick="clearStats()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        <span>Очистити статистику</span>
+                    </button>
                 </div>
                 <div class="stats-summary-grid">
                     <div class="stats-card">
@@ -814,10 +824,10 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=8.3"></script>
-    <script src="/static/js/control.js?v=8.3"></script>
-    <script src="/static/js/chat.js?v=8.3"></script>
-    <script src="/static/js/stats.js?v=8.3"></script>
-    <script src="/static/js/settings.js?v=8.3"></script>
+    <script src="/static/js/main.js?v=8.4"></script>
+    <script src="/static/js/control.js?v=8.4"></script>
+    <script src="/static/js/chat.js?v=8.4"></script>
+    <script src="/static/js/stats.js?v=8.4"></script>
+    <script src="/static/js/settings.js?v=8.4"></script>
 </body>
 </html>

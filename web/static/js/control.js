@@ -607,7 +607,11 @@ function renderSessions(sessions) {
                     <div class="header-right" onclick="event.stopPropagation()">
                         <span class="sla-timer" data-client-id="${session.client_id}" data-status="${session.status}">⏳ Запуск...</span>
                         <span class="session-status status-${session.status}">${statusText}</span>
-                        <button class="btn-chat-modal-circle" onclick="event.stopPropagation(); openChatModal(${session.client_id}, event)" title="Відкрити чат">💬</button>
+                        <button class="btn-chat-modal-circle" onclick="event.stopPropagation(); openChatModal(${session.client_id}, event)" title="Відкрити чат">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                        </button>
                         <svg class="chevron-icon" width="20" height="20" viewBox="0 0 24 24" onclick="toggleExpand(${session.client_id}); event.stopPropagation();" style="margin-left: 4px; cursor: pointer;"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
                     </div>
                 </div>
@@ -854,7 +858,11 @@ async function banUser(clientId) {
                 if (windowContainer) {
                     windowContainer.innerHTML = `
                         <div class="chat-no-selection">
-                            <div class="chat-no-selection-icon">💬</div>
+                            <div class="chat-no-selection-icon" style="color: rgba(139, 92, 246, 0.25); display: flex; justify-content: center; align-items: center; margin-bottom: 8px;">
+                                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                            </div>
                             <p>Оберіть чат зі списку ліворуч, щоб розпочати листування</p>
                         </div>
                     `;
@@ -905,7 +913,11 @@ async function terminateSession(clientId) {
                 if (windowContainer) {
                     windowContainer.innerHTML = `
                         <div class="chat-no-selection">
-                            <div class="chat-no-selection-icon">💬</div>
+                            <div class="chat-no-selection-icon" style="color: rgba(139, 92, 246, 0.25); display: flex; justify-content: center; align-items: center; margin-bottom: 8px;">
+                                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                            </div>
                             <p>Оберіть чат зі списку ліворуч, щоб розпочати листування</p>
                         </div>
                     `;

@@ -231,16 +231,21 @@ async def get_sessions():
                 
                 # Запит на отримання останніх завершених спроб верифікації
                 async with conn.execute("""
-                    SELECT bank, status FROM bank_verifications 
+                    SELECT bank, status, assigned_at FROM bank_verifications 
                     WHERE client_id = ? AND status != 'pending'
                     ORDER BY id ASC
                 """, (client_id,)) as v_cursor:
                     v_rows = await v_cursor.fetchall()
                     bank_statuses = {}
+                    created_at = session_dict.get('created_at')
                     for v_row in v_rows:
                         status = v_row['status']
+                        assigned_at = v_row['assigned_at']
                         if status == 'failure':
                             status = 'banned'
+                        # Якщо банк був повернутий у минулій сесії, ігноруємо його
+                        if status == 'release' and created_at and assigned_at and assigned_at < created_at:
+                            continue
                         bank_statuses[v_row['bank']] = status
                     session_dict['bank_statuses'] = bank_statuses
                 
@@ -733,8 +738,7 @@ async def terminate_session(client_id: int):
         from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
         kbd = ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="🔄 Розпочати знову")],
-                [KeyboardButton(text="📋 Мої дані")]
+                [KeyboardButton(text="🔄 Розпочати знову")]
             ],
             resize_keyboard=True,
             one_time_keyboard=False,
@@ -1002,16 +1006,21 @@ async def get_completed_sessions():
                 
                 # Запит на отримання завершених спроб верифікації
                 async with conn.execute("""
-                    SELECT bank, status FROM bank_verifications 
+                    SELECT bank, status, assigned_at FROM bank_verifications 
                     WHERE client_id = ? AND status != 'pending'
                     ORDER BY id ASC
                 """, (client_id,)) as v_cursor:
                     v_rows = await v_cursor.fetchall()
                     bank_statuses = {}
+                    created_at = session_dict.get('created_at')
                     for v_row in v_rows:
                         status = v_row['status']
+                        assigned_at = v_row['assigned_at']
                         if status == 'failure':
                             status = 'banned'
+                        # Якщо банк був повернутий у минулій сесії, ігноруємо його
+                        if status == 'release' and created_at and assigned_at and assigned_at < created_at:
+                            continue
                         bank_statuses[v_row['bank']] = status
                     session_dict['bank_statuses'] = bank_statuses
                 

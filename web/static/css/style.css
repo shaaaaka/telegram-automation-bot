@@ -869,13 +869,15 @@ textarea:focus {
 }
 
 .btn-danger {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    color: white;
-    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.25);
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: #f87171;
 }
 .btn-danger:hover {
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.7);
+    color: #fca5a5;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
 }
 
 .btn-secondary {
@@ -2189,30 +2191,26 @@ input[type=number] {
     
     /* Session Card Responsive Layout */
     .card-header-bar {
-        padding: 16px;
-        display: grid;
-        grid-template-areas: 
-            "left right"
-            "center center";
-        grid-template-columns: 1fr auto;
-        gap: 12px;
+        padding: 12px 16px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
     }
     .header-left {
-        grid-area: left;
-        margin-right: 0;
+        margin-right: 0 !important;
     }
     .header-right {
-        grid-area: right;
-        align-self: center;
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: flex-start !important;
+        align-items: center !important;
+        width: 100% !important;
+        margin-left: 0 !important;
+        gap: 8px !important;
     }
-    .header-center {
-        grid-area: center;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 4px;
-        margin-left: 0;
-        margin-right: 0;
-        justify-content: flex-start;
+    .btn-chat-modal-circle {
+        margin-left: auto !important;
     }
     .session-card.expanded .card-body-details {
         padding: 14px 12px !important;
@@ -2904,7 +2902,7 @@ input[type=number] {
 .sidebar-tab {
     flex: 1;
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
     color: rgba(255, 255, 255, 0.5);
     padding: 8px;
     font-size: 0.85rem;
@@ -2914,10 +2912,22 @@ input[type=number] {
     transition: all 0.2s ease;
 }
 
+.sidebar-tab:hover:not(.active) {
+    color: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.03);
+}
+
 .sidebar-tab.active {
-    background: linear-gradient(135deg, #8b5cf6, #8b5cf6);
+    background: rgba(139, 92, 246, 0.12);
+    border-color: rgba(139, 92, 246, 0.35);
     color: #ffffff;
-    box-shadow: 0 4px 10px rgba(139, 92, 246, 0.2);
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.2);
+}
+
+.sidebar-tab.active:hover {
+    background: rgba(139, 92, 246, 0.18);
+    border-color: rgba(139, 92, 246, 0.6);
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.35);
 }
 
 #chat-search-input {

@@ -251,7 +251,11 @@ async function deleteChatCompletely(clientId) {
                 if (windowContainer) {
                     windowContainer.innerHTML = `
                         <div class="chat-no-selection">
-                            <div class="chat-no-selection-icon">💬</div>
+                            <div class="chat-no-selection-icon" style="color: rgba(139, 92, 246, 0.25); display: flex; justify-content: center; align-items: center; margin-bottom: 8px;">
+                                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                            </div>
                             <p>Оберіть чат зі списку ліворуч, щоб розпочати листування</p>
                         </div>
                     `;
@@ -404,7 +408,11 @@ function backToChatList() {
     if (windowContainer) {
         windowContainer.innerHTML = `
             <div class="chat-no-selection">
-                <div class="chat-no-selection-icon">💬</div>
+                <div class="chat-no-selection-icon" style="color: rgba(139, 92, 246, 0.25); display: flex; justify-content: center; align-items: center; margin-bottom: 8px;">
+                    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </div>
                 <p>Оберіть чат зі списку ліворуч, щоб розпочати листування</p>
             </div>
         `;
@@ -615,7 +623,11 @@ function connectChatWebSocket() {
                     if (windowContainer) {
                         windowContainer.innerHTML = `
                             <div class="chat-no-selection">
-                                <div class="chat-no-selection-icon">💬</div>
+                                <div class="chat-no-selection-icon" style="color: rgba(139, 92, 246, 0.25); display: flex; justify-content: center; align-items: center; margin-bottom: 8px;">
+                                    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                    </svg>
+                                </div>
                                 <p>Оберіть чат зі списку ліворуч, щоб розпочати листування</p>
                             </div>
                         `;

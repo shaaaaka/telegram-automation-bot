@@ -181,6 +181,12 @@ async def send_code_to_client(bot: Bot, session: dict, line_info: dict, code: st
     # Оновлюємо статус сесії назад на 'number_assigned' (щоб клієнт міг зробити запит знову)
     await db.set_session_status(client_id, 'number_assigned')
 
+    # Перевіряємо чи це перший надісланий код
+    import asyncio
+    updated_session = await db.get_session(client_id)
+    if updated_session and updated_session.get('sent_codes_count') == 1:
+        asyncio.create_task(send_first_code_helper_delayed(bot, client_id, line_id, bank_name))
+
     # Звітуємо адміну
     phone_str = f" (+{line_info['phone_number']})" if line_info else ""
     await bot.send_message(
@@ -221,3 +227,62 @@ async def handle_giver_refusal(bot: Bot, session: dict, line_info: dict):
         ),
         parse_mode="Markdown"
     )
+
+async def send_first_code_helper_delayed(bot: Bot, client_id: int, line_id: int, bank_name: str):
+    """Надсилає допоміжне повідомлення та шаблони через 1 хвилину після відправки першого коду"""
+    import asyncio
+    await asyncio.sleep(60)
+    try:
+        # Перевіряємо чи сесія все ще активна та не була змінена
+        session = await db.get_session(client_id)
+        if not session or session.get('status') == 'completed' or session.get('line_id') != line_id:
+            return
+            
+        is_amobank = bank_name.lower().strip() == "amobank"
+        is_bank_kd = bank_name and "bank.kd" in bank_name.lower()
+
+        if is_bank_kd:
+            import os
+            from aiogram.types import FSInputFile
+            cards_photo_path = os.path.join(os.path.dirname(__file__), "..", "resources", "images", "bank.kd_cards_instruction.png")
+            if os.path.exists(cards_photo_path):
+                try:
+                    await bot.send_photo(
+                        chat_id=client_id,
+                        photo=FSInputFile(cards_photo_path),
+                        caption='В кінці при виборі картки, обирайте "Мультивалютна"'
+                    )
+                except Exception as e:
+                    import logging
+                    logging.error(f"Error sending bank.kd card choice instruction photo: {e}")
+            return
+
+        text = "Реєструйте як наче під себе робите"
+        if is_amobank:
+            text += ", або якщо що, то ось готовий шаблон реєстрації:"
+            
+        # Надсилаємо текст клієнту
+        await bot.send_message(chat_id=client_id, text=text)
+        
+        # Якщо це AmoBank, надсилаємо 4 скріншоти
+        if is_amobank:
+            from aiogram.types import InputMediaPhoto, FSInputFile
+            import os
+            
+            images_dir = os.path.join(os.path.dirname(__file__), "..", "resources", "images")
+            media = []
+            for i in range(1, 5):
+                img_path = os.path.join(images_dir, f"amobank_step{i}.png")
+                if os.path.exists(img_path):
+                    media.append(InputMediaPhoto(media=FSInputFile(img_path)))
+            
+            if media:
+                sent_messages = await bot.send_media_group(chat_id=client_id, media=media)
+                for i, msg in enumerate(sent_messages):
+                    photo_id = msg.photo[-1].file_id if msg.photo else None
+                    # Логуємо фотографії в чат-історію
+                    await db.log_chat_message(client_id, 'bot', None, photo_id)
+                    
+    except Exception as e:
+        import logging
+        logging.error(f"Error in send_first_code_helper_delayed: {e}")
