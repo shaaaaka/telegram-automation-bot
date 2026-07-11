@@ -14,7 +14,7 @@ async function loadBannedUsers() {
         tbody.innerHTML = '';
         
         if (users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: rgba(255,255,255,0.4); padding: 20px;">Немає заблокованих користувачів</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-state" style="text-align: center; color: rgba(255,255,255,0.4); padding: 20px;">Немає заблокованих користувачів</td></tr>';
             return;
         }
         

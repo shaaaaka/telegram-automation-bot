@@ -611,6 +611,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.body.classList.contains('hide-nav-bar') || document.querySelector('.chat-page-layout.chat-selected')) {
             return;
         }
+        // Handle iOS rubber-band scroll bounce at the top (keep navbar visible)
+        if (currentScrollTop <= 0) {
+            document.body.classList.remove('nav-hidden');
+            return;
+        }
+        // Handle iOS rubber-band scroll bounce at the bottom (keep navbar hidden)
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+        if (currentScrollTop + 30 >= maxScroll) {
+            document.body.classList.add('nav-hidden');
+            return;
+        }
         if (Math.abs(lastScrollTop - currentScrollTop) <= scrollThreshold) {
             return;
         }

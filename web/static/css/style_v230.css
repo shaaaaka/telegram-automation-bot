@@ -2658,7 +2658,7 @@ input[type=number] {
 
     /* Scroll auto-hide for bottom navigation bar */
     body.nav-hidden .tabs-nav {
-        transform: translateY(calc(100% + 24px)) !important;
+        transform: translateY(200px) !important;
     }
 
     /* Always hide bottom tab bar when active chat is open */
