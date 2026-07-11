@@ -176,7 +176,24 @@ function toggleChatActionsMenu(event) {
     }
 }
 
+function closeChatActionsMenu() {
+    const dropdown = document.getElementById('chat-actions-dropdown');
+    if (dropdown) {
+        dropdown.classList.remove('active');
+    }
+}
+
+// Close actions dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    const btn = document.querySelector('.chat-actions-btn');
+    const dropdown = document.getElementById('chat-actions-dropdown');
+    if (dropdown && dropdown.classList.contains('active') && !dropdown.contains(e.target) && e.target !== btn) {
+        dropdown.classList.remove('active');
+    }
+});
+
 async function clearChatHistory(clientId) {
+    closeChatActionsMenu();
     const confirmed = await showConfirm("Ви впевнені, що хочете очистити всю історію повідомлень для цього клієнта?", "danger");
     if (!confirmed) return;
     
@@ -199,6 +216,7 @@ async function clearChatHistory(clientId) {
 }
 
 async function deleteChatCompletely(clientId) {
+    closeChatActionsMenu();
     const confirmed = await showConfirm("Ви впевнені, що хочете ПОВНІСТЮ видалити цей чат, всю його історію та сесію з сайту?", "danger");
     if (!confirmed) return;
     
