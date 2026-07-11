@@ -323,6 +323,7 @@ async function selectChatClient(clientId) {
     if (layout) {
         layout.classList.add('chat-selected');
     }
+    document.body.classList.add('hide-nav-bar');
     
     const windowContainer = document.getElementById('chat-window-container');
     if (!windowContainer) return;
@@ -401,6 +402,7 @@ function backToChatList() {
     if (layout) {
         layout.classList.remove('chat-selected');
     }
+    document.body.classList.remove('hide-nav-bar');
     const activeItems = document.querySelectorAll('.chat-item.active');
     activeItems.forEach(item => item.classList.remove('active'));
     

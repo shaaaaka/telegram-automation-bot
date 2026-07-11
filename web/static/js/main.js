@@ -308,6 +308,9 @@ function getBankClass(bankName) {
 
 // Tab Switching Routing
 function switchTab(tabId) {
+    // Show bottom navigation bar when switching tabs
+    document.body.classList.remove('nav-hidden');
+    
     if (tabId === 'ai') {
         tabId = 'settings';
     }
@@ -602,6 +605,41 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof connectChatWebSocket === 'function') {
         connectChatWebSocket();
     }
+
+    // --- Scroll tracking to auto-hide navigation bar on mobile ---
+    let lastScrollTop = 0;
+    const scrollThreshold = 10;
+    
+    function handleScroll(currentScrollTop) {
+        if (window.innerWidth > 900) return;
+        if (document.body.classList.contains('hide-nav-bar') || document.querySelector('.chat-page-layout.chat-selected')) {
+            return;
+        }
+        if (Math.abs(lastScrollTop - currentScrollTop) <= scrollThreshold) {
+            return;
+        }
+        if (currentScrollTop > lastScrollTop && currentScrollTop > 50) {
+            document.body.classList.add('nav-hidden');
+        } else {
+            document.body.classList.remove('nav-hidden');
+        }
+        lastScrollTop = currentScrollTop;
+    }
+
+    window.addEventListener('scroll', () => {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        handleScroll(scrollTop);
+    }, { passive: true });
+
+    // Also listen inside CRM client list scroll
+    setTimeout(() => {
+        const chatListContainer = document.getElementById('chat-sidebar-list-container');
+        if (chatListContainer) {
+            chatListContainer.addEventListener('scroll', () => {
+                handleScroll(chatListContainer.scrollTop);
+            }, { passive: true });
+        }
+    }, 1000);
 });
 
 function updateVolume(val) {

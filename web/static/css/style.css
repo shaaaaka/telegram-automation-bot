@@ -2176,6 +2176,7 @@ input[type=number] {
         gap: 16px !important;
         overflow: visible !important;
         box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4) !important;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s !important;
     }
     .tabs-nav::-webkit-scrollbar {
         display: none !important;
@@ -2628,6 +2629,26 @@ input[type=number] {
     body select,
     body .chat-input-wrapper textarea {
         font-size: 16px !important;
+    }
+
+    /* Scroll auto-hide for bottom navigation bar */
+    body.nav-hidden .tabs-nav {
+        transform: translateY(calc(100% + 24px)) !important;
+    }
+
+    /* Always hide bottom tab bar when active chat is open */
+    body.hide-nav-bar .tabs-nav,
+    body:has(.chat-page-layout.chat-selected) .tabs-nav {
+        display: none !important;
+        transform: none !important;
+    }
+    body.hide-nav-bar,
+    body:has(.chat-page-layout.chat-selected) {
+        padding-bottom: env(safe-area-inset-bottom) !important;
+    }
+    body.hide-nav-bar .chat-page-layout,
+    body:has(.chat-page-layout.chat-selected) .chat-page-layout {
+        height: calc(100vh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
     }
 }
 
