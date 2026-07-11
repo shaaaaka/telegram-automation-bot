@@ -2217,32 +2217,194 @@ input[type=number] {
     }
     
     /* Table Responsive Scrollable Layout */
+    /* Table Responsive Card Layout */
     .lines-list-container {
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch !important;
+        overflow-x: visible !important;
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
     }
     .lines-table {
-        display: table !important;
-        width: 600px !important; /* Force min table width to overflow container and scroll */
-        min-width: 600px !important;
-        table-layout: fixed !important;
-        font-size: 0.85rem !important;
+        display: block !important;
+        width: 100% !important;
+        min-width: 100% !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
     }
     .lines-table thead {
-        display: table-header-group !important;
+        display: none !important;
     }
     .lines-table tbody {
-        display: table-row-group !important;
+        display: block !important;
+        width: 100% !important;
     }
     .lines-table tr {
-        display: table-row !important;
+        display: block !important;
+        width: 100% !important;
+        background: rgba(255, 255, 255, 0.02) !important;
+        border: 1px solid rgba(255, 255, 255, 0.06) !important;
+        border-radius: 12px !important;
+        padding: 12px 16px !important;
+        margin-bottom: 12px !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
     }
-    .lines-table th, .lines-table td {
-        display: table-cell !important;
-        padding: 8px 10px !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
+    .lines-table td {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+        padding: 6px 0 !important;
+        border: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+        box-sizing: border-box !important;
+        font-size: 0.92rem !important;
+        color: rgba(255, 255, 255, 0.85) !important;
+        text-align: left !important;
+    }
+    .lines-table td:last-child {
+        border-bottom: none !important;
+        margin-bottom: 0 !important;
+    }
+
+    /* Labels before values for Table 1: Telephone Lines */
+    #lines-table-body td:nth-of-type(1):not(.empty-state):not([colspan])::before {
+        content: "Лінія:" !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.03em !important;
+    }
+    #lines-table-body td:nth-of-type(2)::before {
+        content: "Телефон:" !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.03em !important;
+    }
+    #lines-table-body td:nth-of-type(3)::before {
+        content: "Банк:" !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.03em !important;
+    }
+    #lines-table-body td:nth-of-type(4)::before {
+        content: "Статус:" !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.03em !important;
+    }
+    #lines-table-body td:nth-of-type(5) {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+        border: none !important;
+        padding: 6px 0 !important;
+    }
+    #lines-table-body td:nth-of-type(5)::before {
+        content: "Дія:" !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.03em !important;
+    }
+
+    /* Labels before values for Table 2: Bank Statistics */
+    #stats-banks-table-body td:nth-of-type(1):not(.empty-state):not([colspan])::before {
+        content: "Банк:" !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.03em !important;
+    }
+    #stats-banks-table-body td:nth-of-type(2)::before {
+        content: "Запитів:" !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.03em !important;
+    }
+    #stats-banks-table-body td:nth-of-type(3)::before {
+        content: "Успішно:" !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.03em !important;
+    }
+    #stats-banks-table-body td:nth-of-type(4)::before {
+        content: "Відмов:" !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.03em !important;
+    }
+    #stats-banks-table-body td:nth-of-type(5)::before {
+        content: "CR:" !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.03em !important;
+    }
+    #stats-banks-table-body td:nth-of-type(6)::before {
+        content: "Сер. час:" !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.03em !important;
+    }
+
+    /* Labels before values for Table 3: Banned Users */
+    #banned-users-table-body td {
+        padding: 6px 0 !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+    }
+    #banned-users-table-body td:nth-of-type(1):not([colspan])::before {
+        content: "ID Клієнта:" !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.03em !important;
+    }
+    #banned-users-table-body td:nth-of-type(2)::before {
+        content: "Юзернейм:" !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.03em !important;
+    }
+    #banned-users-table-body td:nth-of-type(3)::before {
+        content: "Забанений о:" !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.03em !important;
+    }
+    #banned-users-table-body td:nth-of-type(4) {
+        border-bottom: none !important;
+        justify-content: flex-end !important;
+        padding-top: 10px !important;
+    }
+    #banned-users-table-body td:nth-of-type(4)::before {
+        content: "" !important;
     }
 
     /* Wrap line filters on mobile */
@@ -2331,17 +2493,127 @@ input[type=number] {
 
     /* Wrap and optimize action buttons in session cards on mobile */
     .action-footer {
-        flex-wrap: wrap !important;
-        justify-content: flex-start !important;
+        display: flex !important;
+        flex-direction: column !important;
         gap: 8px !important;
         padding-top: 12px !important;
         margin-top: 12px !important;
     }
-    .action-footer button {
-        flex-grow: 1 !important;
+    .action-footer-left,
+    .action-footer-right {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+        width: 100% !important;
+    }
+    .action-footer button,
+    .action-footer .btn {
+        width: 100% !important;
+        height: 38px !important;
+        font-size: 0.88rem !important;
         padding: 8px 12px !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Action Tray (Success/Failure tags) on Mobile */
+    .action-tray-container {
+        display: flex !important;
+        width: 100% !important;
+        height: auto !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .action-tray-toggle {
+        display: none !important;
+    }
+    .action-tray-content {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    .action-tray-content button {
+        width: 100% !important;
+        height: 38px !important;
+        font-size: 0.88rem !important;
+        margin: 0 !important;
+        padding: 8px 12px !important;
+        box-sizing: border-box !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    /* Client is filling registration info box on mobile */
+    .assignment-box {
+        padding: 10px 12px !important;
+        margin-bottom: 14px !important;
+        border-radius: 8px !important;
+    }
+    .assignment-box span {
         font-size: 0.8rem !important;
-        min-width: calc(50% - 8px) !important; /* Stack into 2x2 layout */
+    }
+
+    /* Add Line Form optimization on Mobile */
+    body .add-line-form {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+    body .add-line-form input,
+    body .add-line-form .add-bank-select-trigger,
+    body .add-line-form button[type="submit"],
+    body .add-line-form .btn-primary {
+        height: 44px !important;
+        font-size: 0.95rem !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Modal overlay mobile dimensions */
+    .modal-overlay {
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    /* Toast notifications mobile layout override to prevent zoom-out viewport bug */
+    .toast-container.inside-panel,
+    .toast-container {
+        position: fixed !important;
+        top: 20px !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+        align-items: center !important;
+        width: calc(100% - 32px) !important;
+        max-width: 340px !important;
+        z-index: 99999 !important;
+    }
+    .toast {
+        min-width: 100% !important;
+        box-sizing: border-box !important;
+        font-size: 0.9rem !important;
+    }
+
+    /* Prevent iOS auto-zoom on input/textarea focus by forcing min-size of 16px */
+    body input[type="text"],
+    body input[type="search"],
+    body input[type="tel"],
+    body input[type="number"],
+    body input[type="password"],
+    body input[type="email"],
+    body textarea,
+    body select,
+    body .chat-input-wrapper textarea {
+        font-size: 16px !important;
     }
 }
 
