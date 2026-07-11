@@ -524,6 +524,22 @@
                                         <span class="status-dot-inline" style="background:#f59e0b;box-shadow:0 0 10px #f59e0b;display:inline-block;width:10px;height:10px;border-radius:50%;"></span><span style="margin-left:10px;">Синхронізація</span>
                                     </div>
                                 </div>
+
+                                <!-- Обмеження частоти SMS -->
+                                <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 16px;">
+                                    <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                        <svg class="subtab-svg" style="color: var(--accent-primary); width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <polyline points="12 6 12 12 16 14"></polyline>
+                                        </svg>
+                                        Частота запиту коду
+                                    </h4>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label for="settings-sms-cooldown" class="form-label">Затримка між запитами SMS-коду (секунд)</label>
+                                        <input type="number" id="settings-sms-cooldown" class="form-control" required min="5" max="3600" style="width: 100%; max-width: 200px;">
+                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">Мінімальний час у секундах, який клієнт повинен зачекати перед повторним запитом коду. Рекомендовано: 30-60 сек.</div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Вкладка 5: Нагадування -->
@@ -798,10 +814,10 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=7.5"></script>
-    <script src="/static/js/control.js?v=7.5"></script>
-    <script src="/static/js/chat.js?v=7.5"></script>
-    <script src="/static/js/stats.js?v=7.5"></script>
-    <script src="/static/js/settings.js?v=7.5"></script>
+    <script src="/static/js/main.js?v=7.6"></script>
+    <script src="/static/js/control.js?v=7.6"></script>
+    <script src="/static/js/chat.js?v=7.6"></script>
+    <script src="/static/js/stats.js?v=7.6"></script>
+    <script src="/static/js/settings.js?v=7.6"></script>
 </body>
 </html>

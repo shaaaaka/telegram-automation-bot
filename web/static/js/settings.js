@@ -57,6 +57,7 @@ async function loadSettings() {
         document.getElementById('settings-giver-format').value = data.settings.giver_request_format || 'Запрос {line_id} {bank_name}';
         document.getElementById('settings-giver-retry-format').value = data.settings.giver_request_retry_format || 'Запрос {line_id} {bank_name} (ПОВТОРНО)';
         document.getElementById('settings-client-assign-format').value = data.settings.client_number_assigned_format || 'Банк: *{bank_name}*\nНомер телефону:\n\n`+{phone_number}`\n\nКоли надішлете SMS і вам знадобиться код, тисніть кнопку нижче.';
+        document.getElementById('settings-sms-cooldown').value = data.settings.sms_cooldown_seconds || 30;
         
         document.getElementById('settings-admin-id').value = data.settings.admin_id || '';
         document.getElementById('settings-anketa-chat-id').value = data.settings.anketa_chat_id || '';
@@ -134,6 +135,7 @@ async function saveGeneralSettings(event) {
     const anketaChatId = document.getElementById('settings-anketa-chat-id').value.trim();
     const giverChatId = document.getElementById('settings-giver-chat-id').value.trim();
     const archiveGroupId = document.getElementById('settings-archive-group-id').value.trim();
+    const smsCooldown = document.getElementById('settings-sms-cooldown').value;
 
     try {
         const res = await fetch('/api/settings', {
@@ -149,7 +151,8 @@ async function saveGeneralSettings(event) {
                 admin_id: adminId,
                 anketa_chat_id: anketaChatId,
                 giver_chat_id: giverChatId,
-                archive_group_id: archiveGroupId
+                archive_group_id: archiveGroupId,
+                sms_cooldown_seconds: String(smsCooldown)
             })
         });
         if (res.ok) {

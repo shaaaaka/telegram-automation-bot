@@ -974,6 +974,7 @@ class AppSettingsUpdate(BaseModel):
     anketa_chat_id: Optional[str] = None
     giver_chat_id: Optional[str] = None
     archive_group_id: Optional[str] = None
+    sms_cooldown_seconds: Optional[str] = None
 
 class BankTemplateUpdate(BaseModel):
     key: str
@@ -1038,6 +1039,9 @@ async def update_settings_endpoint(body: AppSettingsUpdate):
         if body.client_number_assigned_format is not None:
             await db.set_setting("client_number_assigned_format", body.client_number_assigned_format)
         
+        if body.sms_cooldown_seconds is not None:
+            await db.set_setting("sms_cooldown_seconds", body.sms_cooldown_seconds)
+            
         from bot.config import set_cached_setting
         if body.admin_id is not None:
             await db.set_setting("admin_id", body.admin_id)

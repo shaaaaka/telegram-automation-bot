@@ -1772,7 +1772,12 @@ async def trigger_sms_code_request(client_id: int, bot: Bot, state: FSMContext, 
     last_request_time = state_data.get("last_code_request_time", 0)
     current_time = time.time()
     
-    cooldown = 30
+    cooldown_str = await db.get_setting("sms_cooldown_seconds", "30")
+    try:
+        cooldown = int(cooldown_str)
+    except (ValueError, TypeError):
+        cooldown = 30
+        
     elapsed = current_time - last_request_time
     if elapsed < cooldown:
         remaining = int(cooldown - elapsed)
