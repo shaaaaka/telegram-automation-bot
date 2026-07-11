@@ -604,6 +604,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function handleScroll(currentScrollTop) {
         if (window.innerWidth > 900) return;
+        // Prevent layout thrashing and Safari browser freezes by bypassing body class toggles when inputs are active
+        if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'SELECT')) {
+            return;
+        }
         if (document.body.classList.contains('hide-nav-bar') || document.querySelector('.chat-page-layout.chat-selected')) {
             return;
         }
