@@ -905,7 +905,13 @@ function setupCannedTemplatesAutocomplete(textareaId, clientIdGetter) {
             
             const allSessions = [...(lastFetchedSessions || []), ...(cachedCompletedSessions || [])];
             const session = allSessions.find(s => s.client_id === clientId);
-            const currentBank = (session && session.bank) ? session.bank.toLowerCase() : '';
+            let currentBank = (session && session.bank) ? session.bank.toLowerCase() : '';
+            if (!currentBank && session && session.line_id && typeof allLines !== 'undefined' && allLines) {
+                const line = allLines.find(l => l.id === session.line_id || l.line_id === session.line_id);
+                if (line && line.bank) {
+                    currentBank = line.bank.toLowerCase();
+                }
+            }
             
             filteredAutocompleteTemplates = CANNED_TEMPLATES.filter(tmpl => {
                 if (tmpl.bank !== 'general' && tmpl.bank !== currentBank) {
