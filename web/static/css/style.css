@@ -2137,7 +2137,7 @@ input[type=number] {
         overflow: auto;
         min-height: 100vh !important;
         padding-top: env(safe-area-inset-top) !important;
-        padding-bottom: env(safe-area-inset-bottom) !important;
+        padding-bottom: calc(75px + env(safe-area-inset-bottom)) !important;
     }
     .container {
         flex-direction: column;
@@ -2152,39 +2152,47 @@ input[type=number] {
         border-radius: 12px !important;
     }
     
-    /* Horizontal Scrollable Tabs Navigation on Mobile */
+    /* Centered Bottom Navigation Tab Bar on Mobile */
     .tabs-nav {
-        flex-direction: row !important;
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
         width: 100% !important;
-        border-right: none !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-        padding-right: 0 !important;
-        padding-bottom: 12px !important;
-        margin-bottom: 20px !important;
-        position: static !important;
-        gap: 8px !important;
-        justify-content: flex-start !important; /* Align left to allow scrolling */
-        height: auto !important;
-        overflow-x: auto !important;
-        white-space: nowrap !important;
-        -webkit-overflow-scrolling: touch !important;
-        scrollbar-width: none !important; /* Hide scrollbar for Firefox */
+        height: calc(60px + env(safe-area-inset-bottom)) !important;
+        background: rgba(8, 10, 20, 0.92) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-bottom: none !important;
+        margin: 0 !important;
+        padding: 6px 16px calc(6px + env(safe-area-inset-bottom)) 16px !important;
+        box-sizing: border-box !important;
+        z-index: 99999 !important;
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 16px !important;
+        overflow: visible !important;
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4) !important;
     }
     .tabs-nav::-webkit-scrollbar {
-        display: none !important; /* Hide scrollbar for Chrome/Safari/Webkit */
+        display: none !important;
     }
     .tab-btn {
         padding: 0 !important;
-        width: 44px !important;
-        height: 44px !important;
+        width: 46px !important;
+        height: 46px !important;
         flex-grow: 0 !important;
-        flex-shrink: 0 !important; /* Do not shrink buttons */
+        flex-shrink: 0 !important;
         justify-content: center !important;
         display: inline-flex !important;
         align-items: center !important;
+        border-radius: 12px !important;
     }
     .tab-btn-settings {
-        margin-top: 0;
+        margin-top: 0 !important;
     }
     .tab-content.active {
         display: block;
@@ -2419,7 +2427,7 @@ input[type=number] {
     /* CRM Chat page mobile responsiveness */
     .chat-page-layout {
         flex-direction: column !important;
-        height: calc(100vh - 110px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+        height: calc(100vh - 80px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
         max-height: none !important;
         border-radius: 12px !important;
     }
