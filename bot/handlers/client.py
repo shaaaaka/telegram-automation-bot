@@ -213,6 +213,7 @@ async def cmd_start(message: Message, state: FSMContext):
             return
 
     # Крок 1: Запитуємо ПІБ та Дату народження
+    await db.update_session_client_phone(client_id, None)
     pib_msg = await message.answer(
         "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
         reply_markup=get_cancel_keyboard()
@@ -269,6 +270,7 @@ async def handle_autofill_new(callback: CallbackQuery, state: FSMContext):
     state_data = await state.get_data()
     welcome_msg_ids = state_data.get('welcome_msg_ids', [])
     await state.clear()
+    await db.update_session_client_phone(callback.from_user.id, None)
     for msg_id in welcome_msg_ids:
         try:
             await callback.bot.delete_message(chat_id=callback.message.chat.id, message_id=msg_id)
