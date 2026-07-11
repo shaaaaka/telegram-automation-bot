@@ -127,6 +127,22 @@ function renderChatSidebar() {
         `;
         container.appendChild(item);
     });
+
+    // Оновлюємо ім'я та аватар в шапці активного вікна чату, якщо дані змінились у фоні
+    if (selectedChatClientId !== null && list) {
+        const activeSession = list.find(s => s.client_id === selectedChatClientId);
+        if (activeSession) {
+            const currentDisplayName = extractDisplayName(activeSession.client_data, activeSession.username);
+            const windowNameEl = document.querySelector('.chat-window-name');
+            if (windowNameEl && windowNameEl.textContent !== currentDisplayName) {
+                windowNameEl.textContent = currentDisplayName;
+            }
+            const avatarPlaceholder = document.getElementById(`avatar-placeholder-${selectedChatClientId}`);
+            if (avatarPlaceholder) {
+                avatarPlaceholder.textContent = currentDisplayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К';
+            }
+        }
+    }
 }
 
 function parseUtcToLocal(dateStr) {
