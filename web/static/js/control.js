@@ -306,23 +306,25 @@ function renderVerifierActionsHTML(session) {
         // Якщо банки не обрані, не показуємо кнопки перевірки в футері
         return '';
     }
+
+    const isRegistering = session.status === 'registering' || !session.client_data || session.client_data.includes('Невідомо');
     
     if (session.status === 'waiting_verification') {
         return `
             <span style="color: #f59e0b; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">
                 Очікує перевірки
             </span>
-            <button class="btn btn-secondary btn-sm" onclick="verifyManually(${session.client_id})">
+            <button class="btn btn-secondary btn-sm" onclick="verifyManually(${session.client_id})" ${isRegistering ? 'disabled title="Анкету ще не заповнено клієнтом"' : ''}>
                 Схвалити вручну
             </button>
         `;
     }
     
     return `
-        <button class="btn btn-primary btn-sm" onclick="sendToVerifier(${session.client_id})">
+        <button class="btn btn-primary btn-sm" onclick="sendToVerifier(${session.client_id})" ${isRegistering ? 'disabled title="Анкету ще не заповнено клієнтом"' : ''}>
             Надіслати
         </button>
-        <button class="btn btn-secondary btn-sm" onclick="verifyManually(${session.client_id})">
+        <button class="btn btn-secondary btn-sm" onclick="verifyManually(${session.client_id})" ${isRegistering ? 'disabled title="Анкету ще не заповнено клієнтом"' : ''}>
             Схвалити вручну
         </button>
     `;

@@ -503,6 +503,11 @@ h1 {
     color: #9ca3af;
     border: 1px solid rgba(156, 163, 175, 0.15);
 }
+.status-new {
+    background: rgba(255, 255, 255, 0.05);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
 
 @keyframes statusPulse {
     0% { opacity: 0.8; }
@@ -2218,7 +2223,8 @@ input[type=number] {
     
     /* Session Card Responsive Layout */
     .card-header-bar {
-        padding: 14px 16px !important;
+        position: relative !important;
+        padding: 14px 90px 14px 16px !important; /* Made room on the right for top-right actions */
         display: flex !important;
         flex-direction: column !important;
         align-items: stretch !important;
@@ -2251,7 +2257,10 @@ input[type=number] {
         line-height: 1 !important;
     }
     .btn-chat-modal-circle {
-        margin-left: auto !important;
+        position: absolute !important;
+        right: 48px !important;
+        top: 14px !important;
+        margin-left: 0 !important;
         width: 36px !important;
         height: 36px !important;
         border-radius: 50% !important;
@@ -2267,10 +2276,13 @@ input[type=number] {
         height: 17px !important;
     }
     .chevron-icon {
+        position: absolute !important;
+        right: 16px !important;
+        top: 22px !important;
         width: 22px !important;
         height: 22px !important;
         color: rgba(255, 255, 255, 0.4) !important;
-        margin-left: 2px !important;
+        margin-left: 0 !important;
     }
     .session-card.expanded .card-body-details {
         padding: 14px 12px !important;
