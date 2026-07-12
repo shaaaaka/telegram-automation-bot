@@ -311,7 +311,7 @@ function renderVerifierActionsHTML(session) {
     
     if (session.status === 'waiting_verification') {
         return `
-            <span style="color: #f59e0b; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">
+            <span class="session-status status-waiting_verification">
                 Очікує перевірки
             </span>
             <button class="btn btn-secondary btn-sm" onclick="verifyManually(${session.client_id})" ${isRegistering ? 'disabled title="Анкету ще не заповнено клієнтом"' : ''}>
@@ -414,8 +414,11 @@ function renderSessions(sessions) {
 
             let statusText = 'Новий';
             if (session.status === 'registering') statusText = 'В анкеті';
+            if (session.status === 'registered') statusText = 'Новий';
             if (session.status === 'number_assigned') statusText = 'Номер видано';
             if (session.status === 'waiting_code') statusText = 'Очікує код';
+            if (session.status === 'waiting_verification') statusText = 'Перевірка';
+            if (session.status === 'completed') statusText = 'Завершено';
 
             let bankChipsHTML = '';
             let selectedList;

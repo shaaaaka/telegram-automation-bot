@@ -508,6 +508,16 @@ h1 {
     color: #e2e8f0;
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
+.status-waiting_verification {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--accent-warning);
+    border: 1px solid rgba(245, 158, 11, 0.15);
+}
+.status-completed {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--accent-success);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+}
 
 @keyframes statusPulse {
     0% { opacity: 0.8; }
