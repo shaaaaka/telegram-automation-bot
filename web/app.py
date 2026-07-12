@@ -6,7 +6,7 @@ mimetypes.add_type("text/css", ".css", True)
 mimetypes.add_type("application/javascript", ".js", True)
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Depends, status, BackgroundTasks, File, UploadFile, Form
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 import io
 from pydantic import BaseModel
@@ -337,18 +337,40 @@ async def get_client_history(client_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Local file cache for Telegram static files (photos, avatars) to optimize loading speed
+CACHE_DIR = os.path.join(os.path.dirname(__file__), "cache")
+PHOTOS_CACHE_DIR = os.path.join(CACHE_DIR, "photos")
+AVATARS_CACHE_DIR = os.path.join(CACHE_DIR, "avatars")
+
+os.makedirs(PHOTOS_CACHE_DIR, exist_ok=True)
+os.makedirs(AVATARS_CACHE_DIR, exist_ok=True)
+
 @app.get("/api/photos/{file_id}")
 async def get_telegram_photo(file_id: str):
-    """Стрімінг фотографії з Telegram по її file_id"""
+    """Стрімінг фотографії з Telegram по її file_id з локальним кешуванням на диску"""
     if not bot:
         raise HTTPException(status_code=500, detail="Bot is not configured")
+    
+    cache_path = os.path.join(PHOTOS_CACHE_DIR, file_id)
+    if os.path.exists(cache_path):
+        return FileResponse(
+            cache_path,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=31536000, immutable"}
+        )
+        
     try:
         file_info = await bot.get_file(file_id)
         photo_bytes = io.BytesIO()
         await bot.download_file(file_info.file_path, photo_bytes)
         photo_bytes.seek(0)
-        return StreamingResponse(
-            photo_bytes, 
+        
+        # Save to disk cache
+        with open(cache_path, "wb") as f:
+            f.write(photo_bytes.getbuffer())
+            
+        return FileResponse(
+            cache_path,
             media_type="image/jpeg",
             headers={"Cache-Control": "public, max-age=31536000, immutable"}
         )
@@ -357,26 +379,57 @@ async def get_telegram_photo(file_id: str):
 
 @app.get("/api/avatar/{client_id}")
 async def get_client_avatar(client_id: int):
-    """Повертає аватарку користувача з Telegram або 404, якщо її немає"""
+    """Повертає аватарку користувача з Telegram або 404, якщо її немає. Кешує на 24 години."""
     if not bot:
         raise HTTPException(status_code=500, detail="Bot is not configured")
+    
+    import time
+    
+    # 1. Check if we cached a 404 (no avatar) recently
+    no_avatar_path = os.path.join(AVATARS_CACHE_DIR, f"{client_id}.no_avatar")
+    if os.path.exists(no_avatar_path) and (time.time() - os.path.getmtime(no_avatar_path) < 86400):
+        raise HTTPException(status_code=404, detail="No profile photos found (cached)")
+        
+    # 2. Check if we have a cached avatar on disk and it is fresh (< 24 hours)
+    cache_path = os.path.join(AVATARS_CACHE_DIR, f"{client_id}.jpg")
+    if os.path.exists(cache_path) and (time.time() - os.path.getmtime(cache_path) < 86400):
+        return FileResponse(
+            cache_path,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=86400"}
+        )
+        
     try:
         photos = await bot.get_user_profile_photos(user_id=client_id, limit=1)
         if photos and photos.total_count > 0:
-            # photos.photos is List[List[PhotoSize]], where photos[0][0] is the first photo, smallest size
             file_id = photos.photos[0][0].file_id
             file_info = await bot.get_file(file_id)
             photo_bytes = io.BytesIO()
             await bot.download_file(file_info.file_path, photo_bytes)
             photo_bytes.seek(0)
-            return StreamingResponse(
-                photo_bytes, 
+            
+            # Save to disk cache
+            with open(cache_path, "wb") as f:
+                f.write(photo_bytes.getbuffer())
+                
+            return FileResponse(
+                cache_path,
                 media_type="image/jpeg",
                 headers={"Cache-Control": "public, max-age=86400"}
             )
         else:
+            # Cache the fact that user has no avatar (negative cache)
+            with open(no_avatar_path, "w") as f:
+                f.write("")
             raise HTTPException(status_code=404, detail="No profile photos found")
     except Exception as e:
+        # Cache the failed avatar fetch to avoid constant API hammering
+        if not os.path.exists(no_avatar_path):
+            try:
+                with open(no_avatar_path, "w") as f:
+                    f.write("")
+            except Exception:
+                pass
         raise HTTPException(status_code=404, detail=f"Failed to fetch avatar: {e}")
 
 @app.get("/api/banks")

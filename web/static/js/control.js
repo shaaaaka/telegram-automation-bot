@@ -372,6 +372,10 @@ function renderSessions(sessions) {
     const container = document.getElementById('sessions-container');
     if (!container) return;
 
+    if (container.querySelector('.session-card-placeholder')) {
+        container.innerHTML = '';
+    }
+
     const existingCards = {};
     Array.from(container.children).forEach(child => {
         if (child.classList.contains('session-card')) {
@@ -381,6 +385,8 @@ function renderSessions(sessions) {
     });
 
     const activeClientIds = new Set();
+
+
 
     if (filtered.length === 0) {
         container.innerHTML = `

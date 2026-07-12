@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style_v330.css">
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
     <div class="container">
@@ -64,7 +64,8 @@
                     </div>
 
                     <div class="sessions-list" id="sessions-container">
-                        <!-- Заповнюється динамічно JS -->
+                        <div class="session-card-placeholder"></div>
+                        <div class="session-card-placeholder"></div>
                     </div>
                 </div>
 
@@ -94,7 +95,9 @@
                                 </tr>
                             </thead>
                             <tbody id="lines-table-body">
-                                <!-- Заповнюється динамічно JS -->
+                                <tr class="line-row-placeholder"><td colspan="5"></td></tr>
+                                <tr class="line-row-placeholder"><td colspan="5"></td></tr>
+                                <tr class="line-row-placeholder"><td colspan="5"></td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -828,11 +831,11 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=9.4"></script>
-    <script src="/static/js/control.js?v=9.4"></script>
-    <script src="/static/js/chat.js?v=9.4"></script>
-    <script src="/static/js/stats.js?v=9.4"></script>
-    <script src="/static/js/settings.js?v=9.4"></script>
+    <script src="/static/js/main.js?v=9.11"></script>
+    <script src="/static/js/control.js?v=9.11"></script>
+    <script src="/static/js/chat.js?v=9.11"></script>
+    <script src="/static/js/stats.js?v=9.11"></script>
+    <script src="/static/js/settings.js?v=9.11"></script>
     <script>
         // Force reset iOS Safari viewport zoom to 1.0 on navigation events
         window.resetViewportScale = function() {

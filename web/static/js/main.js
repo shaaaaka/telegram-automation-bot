@@ -309,6 +309,8 @@ function switchTab(tabId) {
     currentTab = tabId;
     localStorage.setItem('activeTab', tabId);
     
+
+    
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     const activeBtn = document.getElementById(`tab-btn-${tabId}`);
     if (activeBtn) activeBtn.classList.add('active');

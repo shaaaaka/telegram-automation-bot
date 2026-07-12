@@ -2792,7 +2792,7 @@ input[type=number] {
         padding: 12px 14px 24px 14px !important;
     }
     body.hide-nav-bar .chat-window-footer {
-        padding: 6px 12px calc(max(env(safe-area-inset-bottom), 16px) - 10px) 12px !important;
+        padding: 6px 12px 0px 12px !important;
         background: #0f1326 !important;
         border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
         box-shadow: 0 100px 0 0 #0f1326 !important; /* Fills safe area bottom completely, resolving any sub-pixel border gaps */
@@ -4625,14 +4625,12 @@ body.sidebar-hidden .tab-content {
     background: rgba(16, 185, 129, 0.08);
     border: 1px solid rgba(16, 185, 129, 0.35);
     color: #34d399;
-    box-shadow: 0 0 12px rgba(16, 185, 129, 0.12);
 }
 
 .btn-toggle-ai-bottom.active:hover {
     background: rgba(16, 185, 129, 0.16);
     border-color: #34d399;
     color: #10b981;
-    box-shadow: 0 0 16px rgba(16, 185, 129, 0.35);
     transform: translateY(-1px);
 }
 
@@ -4839,5 +4837,38 @@ div.empty-state span:first-child {
     opacity: 0.6;
     filter: drop-shadow(0 4px 10px rgba(255, 255, 255, 0.05));
 }
+
+/* Placeholders for first startup to prevent layout shifts */
+.session-card-placeholder {
+    height: 72px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    margin-bottom: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    position: relative;
+    overflow: hidden;
+}
+.session-card-placeholder::after {
+    content: "";
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+    animation: placeholder-shimmer 1.5s infinite;
+}
+@keyframes placeholder-shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+.line-row-placeholder {
+    height: 48px;
+    position: relative;
+}
+.line-row-placeholder td {
+    background: rgba(255, 255, 255, 0.01) !important;
+    border: none !important;
+}
+
+
+
 
 

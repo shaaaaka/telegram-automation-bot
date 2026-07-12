@@ -11,6 +11,7 @@ let cachedCompletedSessions = [];
 let chatUnreadCounts = {};
 let selectedChatClientId = null;
 let chatWs = null;
+const chatLogsCache = {};
 
 function setChatSidebarTab(type) {
     chatSidebarTab = type;
@@ -389,6 +390,12 @@ async function selectChatClient(clientId) {
         </div>
     `;
     
+    // Render from cache instantly if available to prevent black screen transition
+    const bodyContainer = document.getElementById('chat-window-body-container');
+    if (bodyContainer && chatLogsCache[clientId]) {
+        renderChatLogsFromArray(bodyContainer, chatLogsCache[clientId]);
+    }
+    
     await refreshChatPageMessages(clientId);
     
     // Auto-focus the input textarea
@@ -430,6 +437,29 @@ function backToChatList() {
 }
 
 
+function renderChatLogsFromArray(container, logs) {
+    container.innerHTML = '';
+    if (!logs || logs.length === 0) {
+        container.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.2);padding:40px;">Історія повідомлень порожня</div>';
+        return;
+    }
+    
+    const getSenderGroup = (sender) => {
+        if (sender === 'client') return 'client';
+        if (sender === 'bot') return 'bot';
+        return 'support'; // admin or operator
+    };
+
+    const groupedLogs = groupPhotoLogs(logs);
+    groupedLogs.forEach((log, index) => {
+        const nextLog = groupedLogs[index + 1];
+        const hideAvatar = nextLog && getSenderGroup(nextLog.sender) === getSenderGroup(log.sender);
+        renderSingleChatMessage(container, log, hideAvatar);
+    });
+    
+    scrollToBottom('chat-window-body-container');
+}
+
 async function refreshChatPageMessages(clientId) {
     try {
         const res = await fetch(`/api/sessions/${clientId}/chat`);
@@ -438,26 +468,14 @@ async function refreshChatPageMessages(clientId) {
         const bodyContainer = document.getElementById('chat-window-body-container');
         if (!bodyContainer || selectedChatClientId !== clientId) return;
         
-        bodyContainer.innerHTML = '';
-        if (!logs || logs.length === 0) {
-            bodyContainer.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.2);padding:40px;">Історія повідомлень порожня</div>';
-            return;
+        const prevLogsStr = chatLogsCache[clientId] ? JSON.stringify(chatLogsCache[clientId]) : '';
+        const newLogsStr = JSON.stringify(logs);
+        
+        chatLogsCache[clientId] = logs;
+        
+        if (prevLogsStr !== newLogsStr || !bodyContainer.firstElementChild || bodyContainer.innerHTML.includes('Завантаження повідомлень...')) {
+            renderChatLogsFromArray(bodyContainer, logs);
         }
-        
-        const getSenderGroup = (sender) => {
-            if (sender === 'client') return 'client';
-            if (sender === 'bot') return 'bot';
-            return 'support'; // admin or operator
-        };
-
-        const groupedLogs = groupPhotoLogs(logs);
-        groupedLogs.forEach((log, index) => {
-            const nextLog = groupedLogs[index + 1];
-            const hideAvatar = nextLog && getSenderGroup(nextLog.sender) === getSenderGroup(log.sender);
-            renderSingleChatMessage(bodyContainer, log, hideAvatar);
-        });
-        
-        scrollToBottom('chat-window-body-container');
     } catch (err) {
         console.error("Failed to load messages:", err);
     }
@@ -1265,4 +1283,6 @@ async function selectAutocompleteItem(idx, textarea, clientIdGetter) {
         }
     }
 }
+
+
 
