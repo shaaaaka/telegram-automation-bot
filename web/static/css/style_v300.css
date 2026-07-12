@@ -2732,6 +2732,9 @@ input[type=number] {
         top: calc(env(safe-area-inset-top) + 13px) !important;
         z-index: 10 !important;
     }
+    body.hide-nav-bar .chat-window-body {
+        padding: 12px 14px 24px 14px !important;
+    }
     body.hide-nav-bar .chat-window-footer {
         padding: 6px 12px calc(max(env(safe-area-inset-bottom), 16px) - 10px) 12px !important;
         background: #0f1326 !important;

@@ -575,6 +575,13 @@ function scrollToBottom(containerId) {
     const container = document.getElementById(containerId);
     if (container) {
         container.scrollTop = container.scrollHeight;
+        // Schedule delayed scrolls to bypass dynamic layout recalculation lag
+        setTimeout(() => {
+            container.scrollTop = container.scrollHeight;
+        }, 50);
+        setTimeout(() => {
+            container.scrollTop = container.scrollHeight;
+        }, 150);
     }
 }
 
