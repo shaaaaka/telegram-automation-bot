@@ -2218,14 +2218,17 @@ input[type=number] {
     
     /* Session Card Responsive Layout */
     .card-header-bar {
-        padding: 12px 16px !important;
+        padding: 14px 16px !important;
         display: flex !important;
         flex-direction: column !important;
         align-items: stretch !important;
-        gap: 10px !important;
+        gap: 12px !important;
     }
     .header-left {
         margin-right: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 2px !important;
     }
     .header-right {
         display: flex !important;
@@ -2234,10 +2237,40 @@ input[type=number] {
         align-items: center !important;
         width: 100% !important;
         margin-left: 0 !important;
-        gap: 8px !important;
+        gap: 6px !important;
+    }
+    .header-right .sla-timer,
+    .header-right .session-status {
+        height: 28px !important;
+        border-radius: 14px !important;
+        font-size: 0.74rem !important;
+        padding: 0 10px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        line-height: 1 !important;
     }
     .btn-chat-modal-circle {
         margin-left: auto !important;
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 50% !important;
+        background: rgba(139, 92, 246, 0.15) !important;
+        border: 1px solid rgba(139, 92, 246, 0.3) !important;
+        color: #c084fc !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    .btn-chat-modal-circle svg {
+        width: 17px !important;
+        height: 17px !important;
+    }
+    .chevron-icon {
+        width: 22px !important;
+        height: 22px !important;
+        color: rgba(255, 255, 255, 0.4) !important;
+        margin-left: 2px !important;
     }
     .session-card.expanded .card-body-details {
         padding: 14px 12px !important;
@@ -2648,6 +2681,7 @@ input[type=number] {
         -webkit-backdrop-filter: blur(12px) !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
         box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5) !important;
+        text-align: center !important;
     }
 
     /* Prevent iOS auto-zoom on input/textarea focus by forcing min-size of 17px with high specificity */

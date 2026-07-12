@@ -604,7 +604,7 @@ function renderSessions(sessions) {
                         <span class="client-name-formatted">${displayName}</span>
                         ${usernameHTML}
                     </div>
-                    <div class="header-right" onclick="event.stopPropagation()">
+                    <div class="header-right">
                         <span class="sla-timer" data-client-id="${session.client_id}" data-status="${session.status}">⏳ Запуск...</span>
                         <span class="session-status status-${session.status}">${statusText}</span>
                         <button class="btn-chat-modal-circle" onclick="event.stopPropagation(); openChatModal(${session.client_id}, event)" title="Відкрити чат">
