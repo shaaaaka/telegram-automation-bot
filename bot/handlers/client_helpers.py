@@ -35,13 +35,8 @@ async def delete_reg_messages(chat_id: int, state: FSMContext, bot: Bot):
         except Exception:
             pass
     await state.update_data(registration_msg_ids=[])
-def get_cancel_keyboard() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="❌ Скасувати")]],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-        is_persistent=True
-    )
+def get_cancel_keyboard() -> ReplyKeyboardRemove:
+    return ReplyKeyboardRemove()
 def get_waiting_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text="⏳ Очікування номера...")]],

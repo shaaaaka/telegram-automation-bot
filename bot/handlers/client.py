@@ -16,28 +16,7 @@ router = Router()
 @router.message(F.text == "/id")
 async def cmd_get_chat_id(message: Message):
     await message.answer(f"ID цього чату: <code>{message.chat.id}</code>", parse_mode="HTML")
-@router.message(F.chat.type == "private", F.text == "❌ Скасувати")
-async def handle_cancel_registration(message: Message, state: FSMContext):
-    """Обробник скасування процесу введення анкетних даних"""
-    client_id = message.from_user.id
-    session = await db.get_session(client_id)
-    if session and session['status'] in ('number_assigned', 'waiting_code'):
-        return
-        
-    # Видаляємо всі повідомлення реєстрації
-    await delete_reg_messages(message.chat.id, state, message.bot)
-    try:
-        await message.delete()
-    except Exception:
-        pass
 
-    await state.clear()
-    if session and session['status'] == 'registering':
-        await db.set_session_status(client_id, 'completed')
-    await message.answer(
-        "Введення даних скасовано. Напишіть /start, щоб почати спочатку.",
-        reply_markup=ReplyKeyboardRemove()
-    )
 @router.message(F.chat.type == "private", F.text == "⏳ Очікування номера...")
 async def handle_waiting_number_text(message: Message):
     """Обробник натискання кнопки очікування номера"""
