@@ -1,6 +1,12 @@
 let isDraggingBank = false;
 let dragSourceEl = null;
 
+function autoGrowTextarea(element) {
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = (element.scrollHeight) + "px";
+}
+
 function getBankIcon(key, logoPath = null) {
     if (logoPath) {
         return `<img src="${logoPath}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">`;
@@ -139,7 +145,14 @@ function renderBankAccordion(templates, activeKey) {
         const item = document.createElement('div');
         item.className = 'bank-accordion-item';
         item.id = `bank-accordion-item-${key}`;
-        if (key === activeKey) item.classList.add('active');
+        if (key === activeKey) {
+            item.classList.add('active');
+            setTimeout(() => {
+                item.querySelectorAll('textarea').forEach(ta => {
+                    autoGrowTextarea(ta);
+                });
+            }, 250);
+        }
 
         item.innerHTML = `
             <div class="bank-accordion-header" onclick="toggleBankAccordion('${key}')">
@@ -240,6 +253,13 @@ function renderBankAccordion(templates, activeKey) {
         `;
         container.appendChild(item);
         addDragAndDropListeners(item);
+
+        // Add auto-grow input listeners
+        item.querySelectorAll('textarea').forEach(ta => {
+            ta.addEventListener('input', function() {
+                autoGrowTextarea(this);
+            });
+        });
     });
 }
 function toggleBankAccordion(key) {
@@ -257,6 +277,11 @@ function toggleBankAccordion(key) {
     if (!isActive) {
         el.classList.add('active');
         localStorage.setItem('active_bank_accordion', key);
+        setTimeout(() => {
+            el.querySelectorAll('textarea').forEach(ta => {
+                autoGrowTextarea(ta);
+            });
+        }, 150);
     } else {
         localStorage.removeItem('active_bank_accordion');
     }
