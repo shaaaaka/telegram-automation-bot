@@ -1,14 +1,18 @@
 import os
 import re
+import logging
 from aiogram import Router, F, Bot
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, FSInputFile
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
-from bot.config import get_template_photo, get_bank_template_with_key
+from bot.config import DEFAULT_BANK_ORDER
+from bot.services.line_assignment import send_line_assignment_messages, get_all_banks_for_selection, build_bank_selection_rows
+from bot.services.session_completion import send_completion_client_messages
 import bot.database as db
 
 router = Router()
+logger = logging.getLogger(__name__)
 
 class AddLineStates(StatesGroup):
     waiting_id = State()
@@ -615,39 +619,22 @@ async def handle_toggle_bank(callback: CallbackQuery, bot: Bot, state: FSMContex
         await db_conn.commit()
 
     # Отримуємо унікальні назви банків з бази для перемальовування
-    unique_banks_db = await db.get_unique_banks()
-    custom_order = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"]
-    all_banks = list(dict.fromkeys(custom_order + unique_banks_db))
-    
+    all_banks = await get_all_banks_for_selection()
+
     # Отримуємо історію верифікацій клієнта
     history = await db.get_client_verification_history(client_id)
     passed_banks = {h['bank'] for h in history if h['status'] == 'success'}
     banned_banks = {h['bank'] for h in history if h['status'] in ('banned', 'failure')}
 
-    keyboard_buttons = []
-    row = []
-    for b in all_banks:
-        suffix = ""
-        if b in passed_banks:
-            suffix = " (✅ Пройдено)"
-        elif b in banned_banks:
-            suffix = " (❌ Бан)"
-        checkbox = "[x]" if b in selected else "[ ]"
-        button_text = f"{checkbox} {b}{suffix}"
-        callback_data = f"toggle_{client_id}_{b}"
-        row.append(InlineKeyboardButton(text=button_text, callback_data=callback_data))
-        if len(row) == 2:
-            keyboard_buttons.append(row)
-            row = []
-    if row:
-        keyboard_buttons.append(row)
-        
+    keyboard_buttons = build_bank_selection_rows(
+        all_banks, client_id, selected=selected, passed_banks=passed_banks, banned_banks=banned_banks
+    )
     keyboard_buttons.append([
         InlineKeyboardButton(text="Назад", callback_data=f"backtosession_{client_id}"),
         InlineKeyboardButton(text="Зберегти", callback_data=f"savebanks_{client_id}")
     ])
     keyboard_buttons.append([InlineKeyboardButton(text="Відхилити запит", callback_data=f"reject_{client_id}")])
-    
+
     markup = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
     # Оновлюємо клавіатуру на повідомленні
@@ -745,10 +732,8 @@ async def handle_assign_line(callback: CallbackQuery, bot: Bot, state: FSMContex
         await callback.answer("Ця лінія вже зайнята або не існує!", show_alert=True)
         return
 
-    # Призначаємо лінію сесії
+    # Призначаємо лінію сесії та логуємо старт верифікації
     await db.assign_line_to_session(client_id, line_id)
-
-    # Логуємо старт верифікації в статистиці
     session = await db.get_session(client_id)
     if session:
         await db.log_verification_start(
@@ -758,81 +743,19 @@ async def handle_assign_line(callback: CallbackQuery, bot: Bot, state: FSMContex
             line_info['phone_number']
         )
 
-    # Редагуємо повідомлення призначення назад у картку сесії
+    # Відправляємо клієнту інструкцію та номер
+    result = await send_line_assignment_messages(client_id, line_id, bot)
+    if not result:
+        await callback.answer("Помилка при відправці повідомлень клієнту.", show_alert=True)
+        return
+
+    # Редагуємо повідомлення призначення у картку сесії
     await show_session_card(callback.message, client_id, edit=True)
 
-    # Сповіщаємо клієнта: спочатку надсилаємо інструкцію завантаження банку
-    bank_name = line_info['bank']
-    
-    # Перевіряємо чи банк вже був сповіщений
-    session = await db.get_session(client_id)
-    notified_banks_str = session.get('notified_banks') or ''
-    notified_list = [b.strip() for b in notified_banks_str.split(",") if b.strip()]
-    is_already_notified = bank_name in notified_list
-
-    if is_already_notified:
-        # Вже сповіщали про цей банк, надсилаємо лише новий номер телефону
-        await bot.send_message(
-            chat_id=client_id,
-            text="Ось новий номер телефону по якому робити реєстрацію:"
-        )
-    else:
-        # Перший запуск: надсилаємо повну інструкцію
-        key, template = get_bank_template_with_key(bank_name)
-        if template:
-            photo_path = get_template_photo(key)
-            instruction_msg = None
-            if photo_path:
-                try:
-                    instruction_msg = await bot.send_photo(
-                        chat_id=client_id,
-                        photo=FSInputFile(photo_path),
-                        caption=template['text']
-                    )
-                except Exception as e:
-                    print(f"Помилка надсилання фото шаблону банку: {e}")
-                    try:
-                        instruction_msg = await bot.send_message(chat_id=client_id, text=template['text'])
-                    except Exception:
-                        pass
-            else:
-                try:
-                    instruction_msg = await bot.send_message(chat_id=client_id, text=template['text'])
-                except Exception as e:
-                    print(f"Помилка надсилання тексту шаблону банку: {e}")
-            if instruction_msg:
-                try:
-                    await db.update_session_instruction_message_id(client_id, instruction_msg.message_id)
-                except Exception as e:
-                    print(f"Помилка оновлення instruction_message_id в БД: {e}")
-
-        await bot.send_message(
-            chat_id=client_id,
-            text="Реєстрація робиться за моїм номером телефону, скажете коли потрібен буде СМС код"
-        )
-        # Додаємо банк у список сповіщених
-        await db.add_notified_bank(client_id, bank_name)
-
-    client_msg = await bot.send_message(
-        chat_id=client_id,
-        text=f"`+{line_info['phone_number']}`",
-        parse_mode="Markdown",
-        reply_markup=ReplyKeyboardRemove()
-    )
-
-    # Зберігаємо ID повідомлення з кнопкою у клієнта
-    await db.update_session_message_id(client_id, client_msg.message_id)
-
-    # Отримуємо інформацію про клієнта
-    session_info = await db.get_session(client_id)
-    if session_info and session_info.get('waiting_message_id'):
-        try:
-            await bot.delete_message(chat_id=client_id, message_id=session_info['waiting_message_id'])
-        except Exception as e:
-            print(f"Помилка видалення повідомлення очікування у клієнта: {e}")
-    username = session_info['username'] if session_info else "Невідомий"
-
     # Відправляємо адміну повідомлення з кнопкою завершення сесії
+    session_info = result['session']
+    line_info = result['line_info']
+    username = session_info.get('username') or "Невідомий"
     complete_markup = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="🔄 Завершити реєстрацію банку", callback_data=f"complete_release_{client_id}")
@@ -925,7 +848,7 @@ async def handle_route_code(callback: CallbackQuery, bot: Bot, state: FSMContext
             if c['code'] == code:
                 unrouted_codes.remove(c)
     except Exception as e:
-        print(f"Помилка видалення коду з веб-панелі: {e}")
+        logger.error("Помилка видалення коду з веб-панелі: %s", e)
 
     # 3. Оновлюємо повідомлення для адміна
     await callback.message.edit_reply_markup(reply_markup=None)
@@ -963,38 +886,11 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot, state: FSMC
     line_info = await db.get_line(line_id)
     bank_name = line_info['bank'] if line_info else "Банк"
 
-    # 1. Видаляємо кнопку запиту коду у клієнта
-    if session['client_message_id']:
-        try:
-            await bot.edit_message_reply_markup(
-                chat_id=client_id,
-                message_id=session['client_message_id'],
-                reply_markup=None
-            )
-        except Exception as e:
-            print(f"Помилка видалення кнопки у клієнта: {e}")
-
     if result in ("success", "release"):
-        # 2. Позначаємо лінію відповідно та логуємо завершення
-        line_status = 'success' if result == 'success' else 'available'
-        await db.set_line_status(line_id, line_status)
-        await db.log_verification_end(client_id, bank_name, result)
-
-        # Оновлюємо статус сесії в БД на 'registered' (без лінії)
-        import aiosqlite
-        from bot.config import DB_FILE
-        async with aiosqlite.connect(DB_FILE) as db_conn:
-            await db_conn.execute("UPDATE sessions SET line_id = NULL, client_message_id = NULL, status = 'registered' WHERE client_id = ?", (client_id,))
-            await db_conn.commit()
-
-        # 3. Вилучаємо пройдений bank зі списку залишкових банків
-        remaining_banks_str = session['remaining_banks']
-        remaining = remaining_banks_str.split(",") if remaining_banks_str else []
-        if bank_name in remaining:
-            remaining.remove(bank_name)
-
-        new_remaining_str = ",".join(remaining)
-        await db.update_session_banks(client_id, session['selected_banks'], new_remaining_str)
+        completed = await db.complete_current_bank(client_id, result)
+        if not completed:
+            return
+        remaining = completed['remaining']
 
         # Прибираємо кнопки з повідомлення завершення
         await callback.message.edit_reply_markup(reply_markup=None)
@@ -1006,69 +902,28 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot, state: FSMC
             parse_mode="Markdown"
         )
 
-        # 4. Перевіряємо чи залишилися ще банки для проходження
-        if not remaining:
-            try:
-                kbd = ReplyKeyboardMarkup(
-                    keyboard=[
-                        [KeyboardButton(text="🔄 Розпочати знову")]
-                    ],
-                    resize_keyboard=True,
-                    one_time_keyboard=False,
-                    is_persistent=True
-                )
-                await bot.send_message(
-                    chat_id=client_id,
-                    text="Роботу завершили, дякуємо за співпрацю.",
-                    parse_mode="Markdown",
-                    reply_markup=kbd
-                )
-            except Exception as e:
-                print(f"Не вдалося надіслати клієнту повідомлення про завершення: {e}")
+        await send_completion_client_messages(
+            client_id=client_id,
+            bank_name=bank_name,
+            result=result,
+            remaining=bool(remaining),
+            bot=bot,
+            session=session,
+            is_admin_mode=True,
+        )
 
+        if not remaining:
             await db.close_session(client_id)
             await callback.message.answer(
                 f"Верифікацію для клієнта @{session['username']} успішно завершено по всіх обраних банках! Сесію закрито."
             )
         else:
-            try:
-                kbd = ReplyKeyboardMarkup(
-                    keyboard=[[KeyboardButton(text="⏳ Очікування номера...")]],
-                    resize_keyboard=True,
-                    one_time_keyboard=False,
-                    is_persistent=True
-                )
-                await bot.send_message(
-                    chat_id=client_id,
-                    text=f"Верифікацію для банку {bank_name} завершено. Очікуйте наступний номер.",
-                    parse_mode="Markdown",
-                    reply_markup=kbd
-                )
-            except Exception as e:
-                print(f"Не вдалося надіслати клієнту повідомлення: {e}")
-
             await show_next_assignment_menu(callback.message, client_id, edit=False, state=state)
     else:
-        # Відмова (Failure)
-        # 2. Позначаємо лінію як заблоковану (banned) та логуємо
-        await db.set_line_status(line_id, 'banned')
-        await db.log_verification_end(client_id, bank_name, 'banned')
-
-        # Оновлюємо статус сесії в БД на 'registered'
-        import aiosqlite
-        from bot.config import DB_FILE
-        async with aiosqlite.connect(DB_FILE) as db_conn:
-            await db_conn.execute("UPDATE sessions SET line_id = NULL, client_message_id = NULL, status = 'registered' WHERE client_id = ?", (client_id,))
-            await db_conn.commit()
-
-        # 3. Вилучаємо пройдений bank зі списку залишкових банків
-        remaining_banks_str = session['remaining_banks']
-        remaining = remaining_banks_str.split(",") if remaining_banks_str else []
-        if bank_name in remaining:
-            remaining.remove(bank_name)
-
-        new_remaining_str = ",".join(remaining)
-        await db.update_session_banks(client_id, session['selected_banks'], new_remaining_str)
+        completed = await db.complete_current_bank(client_id, 'banned')
+        if not completed:
+            return
+        remaining = completed['remaining']
 
         # Прибираємо кнопки з повідомлення завершення
         await callback.message.edit_reply_markup(reply_markup=None)
@@ -1078,49 +933,22 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot, state: FSMC
             parse_mode="Markdown"
         )
 
-        # 4. Перевіряємо чи залишилися ще банки для проходження
-        if not remaining:
-            try:
-                kbd = ReplyKeyboardMarkup(
-                    keyboard=[
-                        [KeyboardButton(text="🔄 Розпочати знову")]
-                    ],
-                    resize_keyboard=True,
-                    one_time_keyboard=False,
-                    is_persistent=True
-                )
-                await bot.send_message(
-                    chat_id=client_id,
-                    text="Роботу завершили, дякуємо за співпрацю.",
-                    parse_mode="Markdown",
-                    reply_markup=kbd
-                )
-            except Exception as e:
-                print(f"Помилка надсилання клієнту повідомлення про завершення: {e}")
+        await send_completion_client_messages(
+            client_id=client_id,
+            bank_name=bank_name,
+            result="failure",
+            remaining=bool(remaining),
+            bot=bot,
+            session=session,
+            is_admin_mode=True,
+        )
 
+        if not remaining:
             await db.close_session(client_id)
             await callback.message.answer(
                 f"Верифікацію для клієнта @{session['username']} завершено по всіх банках після відмови в останньому. Сесію закрито."
             )
         else:
-            # Повідомляємо клієнта про заміну номера
-            try:
-                kbd = ReplyKeyboardMarkup(
-                    keyboard=[[KeyboardButton(text="⏳ Очікування номера...")]],
-                    resize_keyboard=True,
-                    one_time_keyboard=False,
-                    is_persistent=True
-                )
-                await bot.send_message(
-                    chat_id=client_id,
-                    text=f"На жаль, виникла помилка з цим номером (відмова банку {bank_name}). Будь ласка, зачекайте, ми призначимо вам новий номер для цього банку.",
-                    parse_mode="Markdown",
-                    reply_markup=kbd
-                )
-            except Exception as e:
-                print(f"Не вдалося надіслати клієнту повідомлення про відмову: {e}")
-
-            # Показуємо меню вибору лінії знову
             await show_next_assignment_menu(callback.message, client_id, edit=False, state=state)
 
     await callback.answer("Виконано!")
@@ -1158,7 +986,7 @@ async def handle_terminate_session(callback: CallbackQuery, bot: Bot, state: FSM
             reply_markup=kbd
         )
     except Exception as e:
-        print(f"Не вдалося надіслати клієнту повідомлення: {e}")
+        logger.error("Не вдалося надіслати клієнту повідомлення: %s", e)
 
     # 2. Повністю закриваємо сесію (статус completed)
     await db.close_session(client_id)
@@ -1196,31 +1024,17 @@ async def handle_manage_banks(callback: CallbackQuery, bot: Bot, state: FSMConte
     selected_banks = session['selected_banks']
     selected = selected_banks.split(",") if selected_banks else []
     
-    unique_banks_db = await db.get_unique_banks()
-    custom_order = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"]
-    all_banks = list(dict.fromkeys(custom_order + unique_banks_db))
-    
-    keyboard_buttons = []
-    row = []
-    for b in all_banks:
-        checkbox = "[x]" if b in selected else "[ ]"
-        button_text = f"{checkbox} {b}"
-        callback_data = f"toggle_{client_id}_{b}"
-        row.append(InlineKeyboardButton(text=button_text, callback_data=callback_data))
-        if len(row) == 2:
-            keyboard_buttons.append(row)
-            row = []
-    if row:
-        keyboard_buttons.append(row)
-        
+    all_banks = await get_all_banks_for_selection()
+
+    keyboard_buttons = build_bank_selection_rows(all_banks, client_id, selected=selected)
     keyboard_buttons.append([
         InlineKeyboardButton(text="Назад", callback_data=f"backtosession_{client_id}"),
         InlineKeyboardButton(text="Зберегти", callback_data=f"savebanks_{client_id}")
     ])
     keyboard_buttons.append([InlineKeyboardButton(text="Відхилити запит", callback_data=f"reject_{client_id}")])
-    
+
     markup = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-    
+
     await callback.message.edit_text(
         f"Оберіть банки для клієнта @{session['username']}:",
         reply_markup=markup
@@ -1271,7 +1085,7 @@ async def handle_unassign_line(callback: CallbackQuery, bot: Bot, state: FSMCont
                 reply_markup=None
             )
         except Exception as e:
-            print(f"Помилка видалення кнопки у клієнта: {e}")
+            logger.error("Помилка видалення кнопки у клієнта: %s", e)
             
     try:
         kbd = ReplyKeyboardMarkup(
@@ -1286,7 +1100,7 @@ async def handle_unassign_line(callback: CallbackQuery, bot: Bot, state: FSMCont
             reply_markup=kbd
         )
     except Exception as e:
-        print(f"Помилка надсилання повідомлення про відкріплення клієнту: {e}")
+        logger.error("Помилка надсилання повідомлення про відкріплення клієнту: %s", e)
             
     # Видаляємо лише повідомлення-підтвердження призначення лінії для цього клієнта
     state_data = await state.get_data()
@@ -1348,7 +1162,7 @@ async def handle_complete_session_manually(callback: CallbackQuery, bot: Bot, st
             reply_markup=kbd
         )
     except Exception as e:
-        print(f"Не вдалося надіслати клієнту повідомлення: {e}")
+        logger.error("Не вдалося надіслати клієнту повідомлення: %s", e)
         
     await db.close_session(client_id)
     
@@ -1586,7 +1400,7 @@ async def handle_getlog_callback(callback: CallbackQuery, bot: Bot, state: FSMCo
                 try:
                     send_bot = Bot(token=LOG_BOT_TOKEN)
                 except Exception as e:
-                    print(f"Помилка створення log_bot з LOG_BOT_TOKEN: {e}")
+                    logger.error("Помилка створення log_bot з LOG_BOT_TOKEN: %s", e)
 
             sent_via_log_bot = False
             if send_bot:
@@ -1599,7 +1413,7 @@ async def handle_getlog_callback(callback: CallbackQuery, bot: Bot, state: FSMCo
                     )
                     sent_via_log_bot = True
                 except Exception as e:
-                    print(f"Помилка відправки через log_bot: {e}. Спробуємо через основного бота.")
+                    logger.error("Помилка відправки через log_bot: %s. Спробуємо через основного бота.", e)
                 finally:
                     try:
                         await send_bot.session.close()

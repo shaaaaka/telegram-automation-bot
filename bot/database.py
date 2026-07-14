@@ -2,7 +2,7 @@ import aiosqlite
 import contextvars
 import asyncio
 import logging
-from bot.config import DB_FILE
+from bot.config import DB_FILE, DEFAULT_BANK_ORDER
 
 current_sender = contextvars.ContextVar("current_sender", default="bot")
 chat_message_callbacks = []
@@ -227,6 +227,11 @@ async def init_db():
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('giver_request_format', 'Запрос {line_id} {bank_name}')")
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('giver_request_retry_format', 'Запрос {line_id} {bank_name} (ПОВТОРНО)')")
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('client_number_assigned_format', 'Банк: *{bank_name}*\nНомер телефону:\n\n`+{phone_number}`\n\nКоли надішлете SMS і вам знадобиться код, тисніть кнопку нижче.')")
+        await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sleep_mode_enabled', '0')")
+        await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sleep_mode_start', '22:00')")
+        await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sleep_mode_end', '08:00')")
+        await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sleep_mode_timezone', 'Europe/Kyiv')")
+        await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sleep_mode_reply', 'На жаль, зараз не робочий час. Поверніться пізніше.')")
 
         # Заповнюємо базові правила ШІ за замовчуванням
         async with db.execute("SELECT COUNT(*) FROM ai_rules") as cursor:
@@ -318,16 +323,15 @@ async def get_unique_banks():
             banks = [row[0] for row in rows if row[0] and row[0].lower() not in ('ecobank', 'pumb')]
             
             # Сортування за послідовністю користувача
-            custom_order = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"]
             def get_sort_key(bank):
                 try:
-                    return custom_order.index(bank)
+                    return DEFAULT_BANK_ORDER.index(bank)
                 except ValueError:
                     # Регістронезалежне співпадіння
-                    for i, item in enumerate(custom_order):
+                    for i, item in enumerate(DEFAULT_BANK_ORDER):
                         if item.lower() == bank.lower():
                             return i
-                    return len(custom_order)  # Всі інші в кінець
+                    return len(DEFAULT_BANK_ORDER)  # Всі інші в кінець
             
             return sorted(banks, key=get_sort_key)
 
@@ -568,6 +572,55 @@ async def set_session_status(client_id: int, status: str):
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("UPDATE sessions SET status = ? WHERE client_id = ?", (status, client_id))
         await db.commit()
+
+async def complete_current_bank(client_id: int, result: str) -> dict | None:
+    """Завершення верифікації поточного банку: звільняє лінію, логує, оновлює сесію.
+
+    result: 'success' | 'release' | 'failure' | 'banned'
+    """
+    session = await get_session(client_id)
+    if not session or not session.get('line_id'):
+        return None
+
+    line_id = session['line_id']
+    line_info = await get_line(line_id)
+    bank_name = line_info['bank'] if line_info else "Банк"
+
+    if result in ('success', 'release'):
+        line_status = 'success' if result == 'success' else 'available'
+        log_status = 'success' if result == 'success' else 'released'
+    else:
+        line_status = 'banned'
+        log_status = 'banned'
+
+    await set_line_status(line_id, line_status)
+    await log_verification_end(client_id, bank_name, log_status)
+
+    async with aiosqlite.connect(DB_FILE) as db_conn:
+        await db_conn.execute("""
+            UPDATE sessions
+            SET line_id = NULL, client_message_id = NULL, status = 'registered'
+            WHERE client_id = ?
+        """, (client_id,))
+        await db_conn.commit()
+
+    remaining = session['remaining_banks'].split(",") if session.get('remaining_banks') else []
+    if bank_name in remaining:
+        remaining.remove(bank_name)
+    new_remaining = ",".join(remaining)
+    await update_session_banks(client_id, session.get('selected_banks', ''), new_remaining)
+
+    session['remaining_banks'] = new_remaining
+    return {
+        "session": session,
+        "line_id": line_id,
+        "bank_name": bank_name,
+        "line_status": line_status,
+        "log_status": log_status,
+        "remaining": remaining,
+        "remaining_banks": new_remaining,
+        "selected_banks": session.get('selected_banks', ''),
+    }
 
 async def send_archive_report(client_id: int, bot):
     """Генерує текстовий звіт про сесію та надсилає його в архівну групу"""

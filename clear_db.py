@@ -1,4 +1,11 @@
 import sqlite3
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 def main():
     conn = sqlite3.connect("bot.db")
@@ -12,7 +19,7 @@ def main():
     
     conn.commit()
     conn.close()
-    print("Database cleared successfully!")
+    logger.info("Database cleared successfully!")
 
 if __name__ == "__main__":
     main()

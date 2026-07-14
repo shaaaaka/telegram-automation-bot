@@ -171,16 +171,6 @@ function formatChatTime(dateStr) {
     return `${hours}:${minutes}`;
 }
 
-function getSessionStatusTextLocal(status) {
-    switch (status) {
-        case 'registered': return 'Зареєстрований';
-        case 'number_assigned': return 'Номер видано';
-        case 'waiting_code': return 'Очікує код ⏳';
-        case 'completed': return 'Завершено';
-        default: return status;
-    }
-}
-
 function filterChatSidebar() {
     renderChatSidebar();
 }

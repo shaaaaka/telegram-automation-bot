@@ -3,6 +3,7 @@ import logging
 import aiosqlite
 from aiogram import Bot
 from bot.config import DB_FILE
+from bot.sleep_mode import is_in_sleep_mode
 import bot.database as db
 
 logger = logging.getLogger(__name__)
@@ -12,6 +13,12 @@ async def auto_reminder_loop(bot: Bot):
     logger.info("Запуск фонового планувальника нагадувань...")
     while True:
         try:
+            # Пропускаємо нагадування, якщо активний режим сну
+            if is_in_sleep_mode():
+                logger.info("Режим сну активний. Нагадування відкладено.")
+                await asyncio.sleep(60)
+                continue
+
             # Перевіряємо, чи ввімкнені нагадування взагалі
             enabled_str = await db.get_setting("reminders_enabled", "1")
             if enabled_str != "1":

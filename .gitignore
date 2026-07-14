@@ -23,3 +23,6 @@ database.db
 
 # Scratch scripts
 scratch/
+
+# Generated web cache
+web/cache/

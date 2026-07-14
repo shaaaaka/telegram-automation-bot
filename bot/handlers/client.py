@@ -4,6 +4,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 from bot.config import ADMIN_ID, BANK_TEMPLATES, get_template_photo
+from bot.services.line_assignment import get_all_banks_for_selection, build_bank_selection_rows
 import bot.database as db
 import re
 import asyncio
@@ -19,9 +20,7 @@ class RegistrationStates(StatesGroup):
     waiting_confirm = State()
     waiting_phone = State()
     waiting_password = State()
-    waiting_card_number = State()
     waiting_wrong_code_confirm = State()
-    waiting_card_screenshot = State()
     waiting_own_number_confirm = State()
     waiting_amobank_instruction_confirm = State()
     waiting_lviv_success_confirm = State()
@@ -42,9 +41,6 @@ async def delete_reg_messages(chat_id: int, state: FSMContext, bot: Bot):
         except Exception:
             pass
     await state.update_data(registration_msg_ids=[])
-
-def get_sms_request_keyboard() -> ReplyKeyboardRemove:
-    return ReplyKeyboardRemove()
 
 def get_cancel_keyboard() -> ReplyKeyboardRemove:
     return ReplyKeyboardRemove()
@@ -96,51 +92,6 @@ def clean_pib(pib: str) -> str:
     pib = re.sub(r'\s+', ' ', pib)
     return pib.strip().title()
 
-def is_image_completely_black(image_bytes: bytes) -> bool:
-    try:
-        from PIL import Image
-        import io
-        img = Image.open(io.BytesIO(image_bytes)).convert("L")
-        extrema = img.getextrema()
-        if extrema and len(extrema) == 2 and extrema[1] < 12:
-            return True
-    except Exception:
-        pass
-    return False
-
-def is_no_screenshot_text(text: str) -> bool:
-    if not text:
-        return False
-    t = text.lower().strip()
-    
-    phrases = [
-        "не дає зробити скрін", "не дає скрін", "не робить скрін",
-        "не можу зробити скрін", "не можу скрін", "не робить скрин",
-        "заборонено зробити скрін", "заборонено скрін", "чорний скрін",
-        "чорний екран", "не дає зробити скрин", "не дає скрин",
-        "не можу зробити скрин", "не можу скрин", "не дає зробити фото",
-        "не можу зробити фото", "не дає сфоткати", "не дозволяє зробити скрін",
-        "не дозволяє зробити скрин", "блокує скрін", "блокує скрин",
-        "не робить фото", "заборона скрін", "не можу скріншот", "не можу зробити скріншот",
-        "не дає скріншот", "не дає зробити скріншот", "не дозволяє скріншот"
-    ]
-    
-    for p in phrases:
-        if p in t:
-            return True
-            
-    no_words = ["не дає", "не можу", "не робить", "заборонено", "захист", "чорний", "не дозволяє", "блокує"]
-    screen_words = ["скрін", "скрин", "фото", "знімок", "екран"]
-    
-    has_no = any(w in t for w in no_words)
-    has_screen = any(w in t for w in screen_words)
-    
-    if has_no and has_screen:
-        if "?" not in t:
-            return True
-            
-    return False
-
 @router.message(CommandStart(), F.chat.type == "private")
 @router.message(F.chat.type == "private", F.text.in_({"Розпочати знову", "🔄 Розпочати знову"}))
 async def cmd_start(message: Message, state: FSMContext):
@@ -159,6 +110,14 @@ async def cmd_start(message: Message, state: FSMContext):
             except Exception:
                 pass
             await register_admin_message(msg, state)
+        return
+
+    # Перевірка режиму сну
+    from bot.sleep_mode import is_in_sleep_mode, get_sleep_settings
+    if is_in_sleep_mode():
+        from bot.config import get_cached_setting
+        reply_text = get_cached_setting("sleep_mode_reply", "На жаль, зараз не робочий час. Поверніться пізніше.")
+        await message.answer(reply_text, reply_markup=ReplyKeyboardRemove())
         return
 
     client_id = message.from_user.id
@@ -560,12 +519,10 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
     await callback.answer("Дані підтверджено!")
 
     # Отримуємо унікальні назви банків для вибору адміном
-    unique_banks_db = await db.get_unique_banks()
-    custom_order = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"]
-    all_banks = list(dict.fromkeys(custom_order + unique_banks_db))
+    all_banks = await get_all_banks_for_selection()
     
     warning_text = ""
-    if not unique_banks_db:
+    if not all_banks:
         warning_text = "\n\n⚠️ *Попередження:* немає доступних ліній/номерів у базі! Додайте номери через сайт або в чат."
         
     # Отримуємо історію верифікацій клієнта
@@ -574,23 +531,10 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
     banned_banks = {h['bank'] for h in history if h['status'] in ('banned', 'failure')}
 
     # Створюємо кнопки вибору банків
-    keyboard_buttons = []
-    row = []
-    for bank in all_banks:
-        suffix = ""
-        if bank in passed_banks:
-            suffix = " (✅ Пройдено)"
-        elif bank in banned_banks:
-            suffix = " (❌ Бан)"
-        button_text = f"[ ] {bank}{suffix}"
-        callback_data = f"toggle_{client_id}_{bank}"
-        row.append(InlineKeyboardButton(text=button_text, callback_data=callback_data))
-        if len(row) == 2:
-            keyboard_buttons.append(row)
-            row = []
-    if row:
-        keyboard_buttons.append(row)
-        
+    keyboard_buttons = build_bank_selection_rows(
+        all_banks, client_id, passed_banks=passed_banks, banned_banks=banned_banks
+    )
+    
     # Додаємо керівні кнопки
     keyboard_buttons.append([InlineKeyboardButton(text="Зберегти та продовжити", callback_data=f"savebanks_{client_id}")])
     keyboard_buttons.append([InlineKeyboardButton(text="Відхилити запит", callback_data=f"reject_{client_id}")])
@@ -634,30 +578,16 @@ async def handle_restart_reg(callback: CallbackQuery, state: FSMContext):
 async def process_client_password(message: Message, state: FSMContext):
     password = message.text.strip()
     await state.update_data(client_password=password)
-    
-    # Перевіряємо поточний банк у сесії
     client_id = message.from_user.id
     session = await db.get_session(client_id)
-    bank_name = ""
-    if session and session['line_id']:
-        line_info = await db.get_line(session['line_id'])
-        if line_info:
-            bank_name = line_info['bank'].strip().lower()
 
     if session and session.get('client_phone'):
         # Якщо в базі вже є збережений номер, просто використовуємо його
         await continue_after_phone(message, state, message.bot, client_id)
         return
 
-    if bank_name == "bank.kd":
-        # Для bank.kd не просимо скріншот з меню картки та повний номер картки
-        # Після пароля запитуємо номер телефону
-        await message.answer("Будь ласка, напишіть Ваш номер телефону?")
-        await state.set_state(RegistrationStates.waiting_phone)
-    else:
-        # Для інших банків теж запитуємо номер телефону після пароля
-        await message.answer("Будь ласка, напишіть Ваш номер телефону?")
-        await state.set_state(RegistrationStates.waiting_phone)
+    await message.answer("Будь ласка, напишіть Ваш номер телефону?")
+    await state.set_state(RegistrationStates.waiting_phone)
 
 
 @router.message(RegistrationStates.waiting_phone, F.chat.type == "private")
@@ -791,7 +721,7 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
                 text=anketa_text
             )
     except Exception as e:
-        print(f"Помилка відправки анкети: {e}")
+        logger.error("Помилка відправки анкети: %s", e)
         try:
             await bot.send_message(
                 chat_id=ADMIN_ID,
@@ -801,23 +731,10 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
             pass
 
     # Закриваємо поточний банк у сесії
-    if line_id:
-        await db.set_line_status(line_id, 'success')
-        await db.log_verification_end(client_id, bank_name, 'success')
-        
-        import aiosqlite
-        from bot.config import DB_FILE
-        async with aiosqlite.connect(DB_FILE) as db_conn:
-            await db_conn.execute("UPDATE sessions SET line_id = NULL, client_message_id = NULL, status = 'registered' WHERE client_id = ?", (client_id,))
-            await db_conn.commit()
-
-    remaining_banks_str = session['remaining_banks']
-    remaining = remaining_banks_str.split(",") if remaining_banks_str else []
-    if bank_name in remaining:
-        remaining.remove(bank_name)
-
-    new_remaining_str = ",".join(remaining)
-    await db.update_session_banks(client_id, session['selected_banks'], new_remaining_str)
+    result = await db.complete_current_bank(client_id, 'success')
+    if not result:
+        return
+    remaining = result['remaining']
 
     if not remaining:
         kbd = ReplyKeyboardMarkup(
@@ -1050,15 +967,11 @@ def is_claim_registration_text(text: str) -> bool:
 
 async def mark_bank_as_failed(client_id: int, bot: Bot):
     session = await db.get_session(client_id)
-    if not session or not session['line_id']:
+    if not session or not session.get('line_id'):
         return
-        
-    line_id = session['line_id']
-    line_info = await db.get_line(line_id)
-    bank_name = line_info['bank'] if line_info else "Банк"
-    
-    # 1. Прибираємо кнопку запиту коду в Telegram
-    if session['client_message_id']:
+
+    # Прибираємо кнопку запиту коду в Telegram
+    if session.get('client_message_id'):
         try:
             await bot.edit_message_reply_markup(
                 chat_id=client_id,
@@ -1068,26 +981,11 @@ async def mark_bank_as_failed(client_id: int, bot: Bot):
         except Exception:
             pass
 
-    # 2. Звільняємо лінію як banned
-    await db.set_line_status(line_id, 'banned')
-    await db.log_verification_end(client_id, bank_name, 'banned')
+    result = await db.complete_current_bank(client_id, 'banned')
+    if not result:
+        return
 
-    # Оновлюємо статус сесії на 'registered' та скидаємо line_id
-    import aiosqlite
-    from bot.database import DB_FILE
-    async with aiosqlite.connect(DB_FILE) as db_conn:
-        await db_conn.execute("UPDATE sessions SET line_id = NULL, client_message_id = NULL, status = 'registered' WHERE client_id = ?", (client_id,))
-        await db_conn.commit()
-
-    # 3. Видаляємо пройдений/відкинутий банк з решти
-    remaining_banks_str = session['remaining_banks']
-    remaining = remaining_banks_str.split(",") if remaining_banks_str else []
-    if bank_name in remaining:
-        remaining.remove(bank_name)
-    
-    new_remaining_str = ",".join(remaining)
-    await db.update_session_banks(client_id, session['selected_banks'], new_remaining_str)
-
+    remaining = result['remaining']
     if not remaining:
         # Всі банки пройдені! Завершуємо роботу
         kbd = ReplyKeyboardMarkup(
@@ -1252,22 +1150,6 @@ async def handle_universal_no_code(message: Message, state: FSMContext, bot: Bot
     """Універсальний обробник повідомлень про відсутність коду (працює в будь-якому FSM стані)"""
     # Завжди відповідаємо клієнту шаблонною фразою, не змінюючи статус сесії в БД та не сповіщаючи адміна
     await message.answer("Ще не надійшов, ще чекаємо")
-
-@router.message(F.chat.type == "private", F.text == "Запросити SMS-код")
-async def handle_request_code_text(message: Message, state: FSMContext, bot: Bot):
-    """Обробник текстового повідомлення 'Запросити SMS-код' від клієнта"""
-    client_id = message.from_user.id
-    
-    # Показуємо статус "typing"
-    await bot.send_chat_action(chat_id=client_id, action="typing")
-    
-    async def notify(msg: str, is_error: bool = False, is_retry: bool = False):
-        await message.answer(msg, reply_markup=get_sms_request_keyboard())
-        
-    await trigger_sms_code_request(client_id, bot, state, notify)
-
-
-
 
 async def simulate_typing(bot: Bot, chat_id: int, duration: float):
     """Імітує процес друку повідомлення в Telegram протягом вказаного часу"""
@@ -1440,7 +1322,7 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
             await asyncio.sleep(delay)
             
             is_last = (i == len(clean_parts) - 1)
-            reply_markup = get_sms_request_keyboard() if is_last else None
+            reply_markup = ReplyKeyboardRemove() if is_last else None
             await message.answer(part, reply_markup=reply_markup)
 
         if "[OFFER_LVIV_SUCCESS_SCREEN]" in response:
@@ -1723,10 +1605,10 @@ async def schedule_waiting_code_reminder(client_id: int, bot: Bot):
             await bot.send_message(
                 chat_id=client_id,
                 text="Ще очікую поки нададуть код",
-                reply_markup=get_sms_request_keyboard()
+                reply_markup=ReplyKeyboardRemove()
             )
         except Exception as e:
-            print(f"Помилка надсилання автоматичного нагадування клієнту {client_id}: {e}")
+            logger.error("Помилка надсилання автоматичного нагадування клієнту %s: %s", client_id, e)
 
 async def trigger_sms_code_request(client_id: int, bot: Bot, state: FSMContext, notify_fn) -> bool:
     """
@@ -1829,31 +1711,14 @@ async def trigger_sms_code_request(client_id: int, bot: Bot, state: FSMContext, 
         )
     return True
 
-@router.callback_query(F.data == "request_code")
-async def process_request_code(callback: CallbackQuery, bot: Bot, state: FSMContext):
-    """Обробник натискання кнопки 'Запросити SMS-код' клієнтом"""
-    client_id = callback.from_user.id
-    
-    async def notify(msg: str, is_error: bool = False, is_retry: bool = False):
-        if is_error:
-            await callback.answer(msg, show_alert=True)
-        else:
-            await callback.message.answer(msg, reply_markup=get_sms_request_keyboard())
-            await callback.answer("Запит відправлено!")
-            
-    await trigger_sms_code_request(client_id, bot, state, notify)
-
 @router.callback_query(F.data == "wrongcode_yes")
 async def handle_wrongcode_yes(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.edit_reply_markup(reply_markup=None)
     
-    client_kbd = get_sms_request_keyboard()
-    
     await callback.message.answer(
         "Запросіть новий SMS-код у додатку банку. Як тільки зробите це — напишіть мені «новий код» або «потрібен код».",
-        parse_mode="Markdown",
-        reply_markup=client_kbd
+        parse_mode="Markdown"
     )
     await callback.answer()
 
@@ -1885,11 +1750,9 @@ async def process_wrong_code_confirm_text(message: Message, state: FSMContext):
             
     if is_yes:
         await state.clear()
-        client_kbd = get_sms_request_keyboard()
         await message.answer(
             "Запросіть новий SMS-код у додатку банку. Як тільки зробите це — напишіть мені «новий код» або «потрібен код».",
-            parse_mode="Markdown",
-            reply_markup=client_kbd
+            parse_mode="Markdown"
         )
     elif is_no:
         await state.clear()

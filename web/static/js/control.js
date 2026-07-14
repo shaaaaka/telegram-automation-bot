@@ -451,16 +451,18 @@ function renderSessions(sessions) {
                     return a.localeCompare(b);
                 });
 
+            const isRegistering = session.status === 'registering';
+
             allPossibleBanks.forEach(bank => {
                 const isSelected = selectedList.includes(bank);
                 const isRemaining = remainingList.includes(bank);
                 const bankClass = getBankClass(bank);
                 const hasHistory = bankStatuses[bank] !== undefined;
-                
+
                 let chipClasses = `bank-chip ${bankClass}`;
                 let statusIcon = '';
                 let onclickAttr = '';
-                
+
                 if (isRemaining) {
                     chipClasses += ' selected';
                     if (hasHistory) {
@@ -489,6 +491,11 @@ function renderSessions(sessions) {
                     }
                 }
                 
+                if (isRegistering) {
+                    chipClasses += ' disabled';
+                    onclickAttr = '';
+                }
+
                 bankChipsHTML += `
                     <div class="${chipClasses}" ${onclickAttr}>
                         <input type="checkbox" data-bank="${bank}" ${isSelected ? 'checked' : ''} style="display: none;">
@@ -998,59 +1005,6 @@ function closeLightbox() {
     }
 }
 
-// Client Name extractor utilities
-function extractFirstName(clientData, username) {
-    if (!clientData) return username ? `@${username}` : "Клієнт";
-    
-    const lines = clientData.split('\n').map(l => l.trim()).filter(Boolean);
-    let namePart = "";
-    for (let line of lines) {
-        if (line.toUpperCase().startsWith("ПІБ:")) {
-            namePart = line.substring(4).trim();
-            break;
-        }
-    }
-    if (!namePart && lines.length > 0) {
-        for (let line of lines) {
-            if (/^\+?\d+$/.test(line.replace(/\s+/g, ''))) continue;
-            if (/^\d{2}\.\d{2}\.\d{4}$/.test(line)) continue;
-            if (line.toUpperCase().startsWith("ІПН:") || line.toUpperCase().startsWith("ДРОП")) continue;
-            namePart = line;
-            break;
-        }
-    }
-    
-    if (!namePart) return username ? `@${username}` : "Клієнт";
-    
-    const words = namePart.split(/\s+/).filter(w => w.length > 0);
-    if (words.length === 0) return username ? `@${username}` : "Клієнт";
-    
-    const commonNames = new Set([
-        'олександр', 'олександра', 'андрій', 'сергій', 'іван', 'дмитро', 'дмитрій', 'владислав', 
-        'ярослав', 'святослав', 'богдан', 'роман', 'михайло', 'назар', 'захар', 'максим', 
-        'артем', 'володимир', 'віталій', 'євген', 'євгеній', 'олег', 'тарас', 'василь', 
-        'юрій', 'ігор', 'денис', 'антон', 'олексій', 'валерій', 'руслан', 'микита', 
-        'павло', 'данило', 'кирило', 'марія', 'анна', 'анастасія', 'олена', 'ольга', 
-        'наталія', 'наталя', 'тетяна', 'світлана', 'ірина', 'юлія', 'катерина', 
-        'людмила', 'галина', 'надія', 'любов', 'лариса', 'вікторія', 'єлизавета', 
-        'дарія', "дар'я", 'дарина', 'софія', 'соломія', 'христина', 'оксана'
-    ]);
-    
-    for (let word of words) {
-        const cleanWord = word.replace(/[^а-яА-ЯёЁіІїЇєЄґҐa-zA-Z]/g, '').toLowerCase();
-        if (commonNames.has(cleanWord)) {
-            return cleanWord.charAt(0).toUpperCase() + cleanWord.slice(1);
-        }
-    }
-    
-    const firstWord = words[0].replace(/[^а-яА-ЯёЁіІїЇєЄґҐa-zA-Z]/g, '');
-    if (firstWord) {
-        return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
-    }
-    
-    return username ? `@${username}` : "Клієнт";
-}
-
 function extractDisplayName(clientData, username) {
     if (!clientData) return username ? `@${username}` : "Клієнт";
     
@@ -1100,15 +1054,6 @@ function extractDisplayName(clientData, username) {
     }
     
     return username ? `@${username}` : "Клієнт";
-}
-
-// Action templates
-function applyTemplate(clientId, text) {
-    const textarea = document.getElementById(`msg-input-${clientId}`);
-    if (textarea) {
-        textarea.value = text;
-        tempMessageInputs[clientId] = text;
-    }
 }
 
 async function sendClientMessage(clientId) {

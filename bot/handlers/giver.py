@@ -1,10 +1,12 @@
 import re
+import logging
 from aiogram import Router, F, Bot
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from bot.config import get_giver_chat_id, get_admin_id
 import bot.database as db
 
 router = Router()
+logger = logging.getLogger(__name__)
 
 async def giver_chat_filter(message: Message) -> bool:
     if message.chat.id != get_giver_chat_id():
@@ -137,7 +139,7 @@ async def handle_giver_message(message: Message, bot: Bot):
                 "received_at": datetime.datetime.now().strftime("%H:%M:%S")
             })
     except Exception as e:
-        print(f"Помилка додавання коду до веб-панелі: {e}")
+        logger.error("Помилка додавання коду до веб-панелі: %s", e)
 
     keyboard_buttons = []
     for s in valid_sessions:

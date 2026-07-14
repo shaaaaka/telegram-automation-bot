@@ -8,10 +8,11 @@ from aiogram.types import Message
 from aiogram.methods import SendMessage, SendPhoto
 from aiogram.client.session.middlewares.base import BaseRequestMiddleware, NextRequestMiddlewareType
 from aiogram.methods.base import TelegramMethod, Response, TelegramType
-from bot.config import BOT_TOKEN, LOG_BOT_TOKEN
+from bot.config import BOT_TOKEN, LOG_BOT_TOKEN, set_cached_setting
 from bot.database import init_db
 from bot.handlers import client, admin, giver, verifier
 from bot.scheduler import auto_reminder_loop
+from bot.sleep_mode import silence_method_if_sleeping
 from web.app import app as web_app, set_bot, set_dp
 
 # Ініціалізація додаткового бота для логів, якщо вказаний токен
@@ -29,6 +30,8 @@ class OutgoingLoggingMiddleware(BaseRequestMiddleware):
         bot: Bot,
         method: TelegramMethod[TelegramType],
     ) -> TelegramType:
+        # Під час режиму сну відключаємо звук усіх повідомлень, що надсилаються клієнтам
+        silence_method_if_sleeping(method)
         res = await make_request(bot, method)
         try:
             if isinstance(method, SendMessage):
@@ -155,8 +158,13 @@ async def main():
 
     # Завантажуємо налаштування чатів з БД та кешуємо у конфіг
     from bot.database import get_setting
-    from bot.config import set_cached_setting
     for key in ["anketa_chat_id", "giver_chat_id", "archive_group_id", "admin_id"]:
+        val = await get_setting(key)
+        if val:
+            set_cached_setting(key, val)
+
+    # Завантажуємо налаштування режиму сну
+    for key in ["sleep_mode_enabled", "sleep_mode_start", "sleep_mode_end", "sleep_mode_timezone"]:
         val = await get_setting(key)
         if val:
             set_cached_setting(key, val)

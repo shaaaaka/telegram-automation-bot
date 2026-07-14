@@ -149,6 +149,7 @@ h1 {
     letter-spacing: -0.02em;
     background: linear-gradient(135deg, #ffffff 40%, #c7d2fe 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -606,6 +607,12 @@ h1 {
     white-space: nowrap;
 }
 
+.bank-chip.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .bank-chip:hover {
     background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.12);
@@ -846,12 +853,6 @@ textarea:focus {
     align-items: center;
     justify-content: center;
     gap: 8px;
-}
-
-.btn:hover {
-}
-
-.btn:active {
 }
 
 .btn:disabled {
@@ -1521,6 +1522,7 @@ input::-webkit-inner-spin-button {
 }
 input[type=number] {
     -moz-appearance: textfield !important;
+    appearance: textfield !important;
 }
 
 .line-status-success { 
@@ -3404,9 +3406,6 @@ input[type=number] {
     box-shadow: 0 0 10px rgba(139, 92, 246, 0.35);
 }
 
-.btn-send-message:active {
-}
-
 /* Date Dividers */
 .chat-date-divider {
     display: flex;
@@ -3543,9 +3542,6 @@ input[type=number] {
     border-color: rgba(139, 92, 246, 0.6) !important;
     color: #ffffff !important;
     box-shadow: 0 0 12px rgba(139, 92, 246, 0.35) !important;
-}
-
-.btn-chat-modal:active {
 }
 
 /* Back button hidden by default */
@@ -4154,47 +4150,6 @@ input[type=number] {
 
 .panel-header:hover {
     opacity: 0.95;
-}
-
-.panel.collapsed .panel-header {
-    border-bottom-color: transparent;
-    margin-bottom: 0;
-    padding-bottom: 0;
-}
-
-.collapse-chevron {
-    display: inline-block;
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    transition: transform 0.3s ease;
-    margin-left: 8px;
-}
-
-.panel.collapsed .collapse-chevron {
-    transform: rotate(-90deg);
-}
-
-.panel-body-wrapper {
-    max-height: 3000px;
-    opacity: 1;
-    overflow: visible;
-    transition: max-height 0.4s cubic-bezier(0, 1, 0, 1), opacity 0.3s ease, margin-top 0.3s ease;
-    margin-top: 16px;
-}
-
-.panel.collapsed .panel-body-wrapper {
-    max-height: 0 !important;
-    opacity: 0;
-    margin-top: 0 !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    overflow: hidden;
-    pointer-events: none;
-}
-
-/* Hide other header controls when panel is collapsed */
-.panel.collapsed .panel-header > *:not(.panel-title) {
-    display: none !important;
 }
 
 /* Collapsible Panel hover highlight effect */

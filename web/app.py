@@ -18,7 +18,9 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import secrets
 from contextlib import asynccontextmanager
 
-from bot.config import DB_FILE, ADMIN_ID, get_bank_template, get_bank_template_with_key, get_template_photo
+from bot.config import DB_FILE, ADMIN_ID, set_cached_setting
+from bot.services.line_assignment import send_line_assignment_messages
+from bot.services.session_completion import send_completion_client_messages
 import bot.database as db
 from bot.database import current_sender, chat_message_callbacks
 
@@ -116,7 +118,6 @@ bot: Optional[Bot] = None
 # Глобальний список нерозподілених кодів (Сценарій 3)
 unrouted_codes = []
 
-bot = None
 dp = None
 
 def set_bot(bot_instance: Bot):
@@ -522,83 +523,19 @@ async def readd_session_bank(client_id: int, bank: str):
     await db.update_session_banks(client_id, new_selected_str, new_remaining_str)
     return {"status": "success", "remaining_banks": new_remaining_str, "selected_banks": new_selected_str}
 
-async def run_assignment_in_background(client_id: int, line_id: int, session_username: str, phone_number: str, bank_name: str, waiting_message_id: Optional[int]):
+async def run_assignment_in_background(client_id: int, line_id: int):
     """Фонове завдання для надсилання інструкцій та номера в Telegram, щоб не блокувати відповідь сайту"""
-    # 1. Видаляємо повідомлення про очікування номера у клієнта
-    if waiting_message_id:
-        try:
-            await bot.delete_message(chat_id=client_id, message_id=waiting_message_id)
-        except Exception as e:
-            print(f"Помилка видалення повідомлення очікування у клієнта: {e}")
-
-    # 2. Відправляємо клієнту номер та кнопку в Telegram
-    try:
-        # Перевіряємо чи банк вже був сповіщений
-        session = await db.get_session(client_id)
-        notified_banks_str = session.get('notified_banks') or ''
-        notified_list = [b.strip() for b in notified_banks_str.split(",") if b.strip()]
-        is_already_notified = bank_name in notified_list
-
-        if is_already_notified:
-            # Вже сповіщали про цей банк, надсилаємо лише новий номер телефону
-            await bot.send_message(
-                chat_id=client_id,
-                text="Ось новий номер телефону по якому робити реєстрацію:"
-            )
-        else:
-            # Перший запуск: надсилаємо повну інструкцію
-            template = await db.get_bank_template_db(bank_name)
-            if template:
-                key, _ = await db.get_bank_template_with_key_db(bank_name)
-                photo_path = get_template_photo(key) if key else None
-                caption_text = template['text']  # Прибираємо команду /ЗАВАНТАЖ...
-                instruction_msg = None
-                if photo_path:
-                    instruction_msg = await bot.send_photo(
-                        chat_id=client_id,
-                        photo=FSInputFile(photo_path),
-                        caption=caption_text
-                    )
-                else:
-                    instruction_msg = await bot.send_message(
-                        chat_id=client_id,
-                        text=caption_text
-                    )
-                if instruction_msg:
-                    try:
-                        await db.update_session_instruction_message_id(client_id, instruction_msg.message_id)
-                    except Exception as e:
-                        print(f"Помилка оновлення instruction_message_id в БД: {e}")
-                # Затримка 3 секунди перед надсиланням номера телефону
-                await asyncio.sleep(3)
-
-            await bot.send_message(
-                chat_id=client_id,
-                text="Реєстрація робиться за моїм номером телефону, скажете коли потрібен буде СМС код"
-            )
-            # Додаємо банк у список сповіщених
-            await db.add_notified_bank(client_id, bank_name)
-
-        from aiogram.types import ReplyKeyboardRemove
-        # Потім надсилаємо картку з номером телефону
-        client_msg = await bot.send_message(
-            chat_id=client_id,
-            text=f"`+{phone_number}`",
-            reply_markup=ReplyKeyboardRemove(),
-            parse_mode="Markdown"
-        )
-        # Зберігаємо ID повідомлення у клієнта
-        await db.update_session_message_id(client_id, client_msg.message_id)
-    except Exception as e:
-        # У разі помилки відкочуємо призначення
-        print(f"Помилка фонового надсилання повідомлення клієнту: {e}")
-        await db.set_line_status(line_id, 'available')
-        async with aiosqlite.connect(DB_FILE) as db_conn:
-            await db_conn.execute("UPDATE sessions SET line_id = NULL, status = 'registered' WHERE client_id = ?", (client_id,))
-            await db_conn.commit()
+    # 1. Відправляємо клієнту інструкцію та номер
+    result = await send_line_assignment_messages(client_id, line_id, bot, delay_before_phone=3)
+    if not result:
         return
 
-    # 3. Надсилаємо адміну в Telegram сповіщення з кнопкою завершення
+    # 2. Надсилаємо адміну в Telegram сповіщення з кнопкою завершення
+    session = result['session']
+    line_info = result['line_info']
+    username = session.get('username') or "Невідомий"
+    bank_name = line_info['bank']
+    line_num = line_info['line_id']
     complete_markup = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="✅ Зареєстрував", callback_data=f"complete_success_{client_id}"),
@@ -612,7 +549,7 @@ async def run_assignment_in_background(client_id: int, line_id: int, session_use
         await bot.send_message(
             chat_id=ADMIN_ID,
             text=(
-                f"Лінію {line_id} ({bank_name}) призначено клієнту @{session_username} через веб-панель!\n\n"
+                f"Лінію {line_num} ({bank_name}) призначено клієнту @{username} через веб-панель!\n\n"
                 f"Натисніть відповідну кнопку нижче, залежно від результату верифікації."
             ),
             reply_markup=complete_markup,
@@ -640,15 +577,7 @@ async def assign_line(client_id: int, body: LineAssignment, background_tasks: Ba
     await db.log_verification_start(client_id, session['username'], line_info['bank'], line_info['phone_number'])
 
     # 2. Додаємо завдання відправки повідомлень у фоновий потік, щоб не блокувати сайт
-    background_tasks.add_task(
-        run_assignment_in_background,
-        client_id=client_id,
-        line_id=body.line_id,
-        session_username=session['username'],
-        phone_number=line_info['phone_number'],
-        bank_name=line_info['bank'],
-        waiting_message_id=session.get('waiting_message_id')
-    )
+    background_tasks.add_task(run_assignment_in_background, client_id, body.line_id)
 
     return {"status": "success", "line_id": body.line_id}
 
@@ -666,77 +595,30 @@ async def complete_bank(client_id: int, result: str = "success"):
     line_info = await db.get_line(line_id)
     bank_name = line_info['bank'] if line_info else "Банк"
 
-    # 1. Прибираємо кнопку запиту коду в Telegram
-    if session['client_message_id']:
-        try:
-            await bot.edit_message_reply_markup(
-                chat_id=client_id,
-                message_id=session['client_message_id'],
-                reply_markup=None
-            )
-        except Exception:
-            pass
+    completed = await db.complete_current_bank(client_id, result)
+    if not completed:
+        raise HTTPException(status_code=500, detail="Failed to complete bank")
 
-    # 2. Звільняємо лінію відповідно та логуємо
-    if result in ("success", "release"):
-        line_status = 'success' if result == 'success' else 'available'
-        await db.set_line_status(line_id, line_status)
-        await db.log_verification_end(client_id, bank_name, result)
-    else:
-        # Failure / Banned
-        await db.set_line_status(line_id, 'banned')
-        await db.log_verification_end(client_id, bank_name, 'banned')
+    remaining = completed['remaining']
+    new_remaining_str = completed['remaining_banks']
+    bank_name = completed['bank_name']
 
-    # Оновлюємо статус сесії на 'registered' та скидаємо line_id
-    async with aiosqlite.connect(DB_FILE) as db_conn:
-        await db_conn.execute("UPDATE sessions SET line_id = NULL, client_message_id = NULL, status = 'registered' WHERE client_id = ?", (client_id,))
-        await db_conn.commit()
+    await send_completion_client_messages(
+        client_id=client_id,
+        bank_name=bank_name,
+        result=result,
+        remaining=bool(remaining),
+        bot=bot,
+        session=session,
+        is_admin_mode=False,
+    )
 
-    # 3. Видаляємо пройдений/відкинутий банк з решти
-    remaining_banks_str = session['remaining_banks']
-    remaining = remaining_banks_str.split(",") if remaining_banks_str else []
-    if bank_name in remaining:
-        remaining.remove(bank_name)
-    
-    new_remaining_str = ",".join(remaining)
-    await db.update_session_banks(client_id, session['selected_banks'], new_remaining_str)
-
-    # 4. Перевіряємо чи це був останній банк
     if not remaining:
-        # Не закриваємо сесію автоматично, просто інформуємо клієнта і залишаємо сесію активною
-        try:
-            await bot.send_message(
-                chat_id=client_id,
-                text=f"Верифікацію для банку {bank_name} завершено. Всі обрані банки пройдено, очікуйте на рішення адміністратора.",
-                parse_mode="Markdown",
-                reply_markup=ReplyKeyboardRemove()
-            )
-        except Exception:
-            pass
         return {"status": "completed_bank", "remaining_banks": ""}
     else:
-        # Очікування наступного банку або заміна номера після відмови
         if result == "failure":
-            try:
-                await bot.send_message(
-                    chat_id=client_id,
-                    text=f"На жаль, виникла помилка з цим номером (відмова банку {bank_name}). Будь ласка, зачекайте, ми призначимо вам новий номер для цього банку.",
-                    parse_mode="Markdown",
-                    reply_markup=ReplyKeyboardRemove()
-                )
-            except Exception:
-                pass
             return {"status": "line_rejected", "remaining_banks": new_remaining_str}
         else:
-            try:
-                await bot.send_message(
-                    chat_id=client_id,
-                    text=f"Верифікацію для банку {bank_name} завершено. Очікуйте наступний номер.",
-                    parse_mode="Markdown",
-                    reply_markup=ReplyKeyboardRemove()
-                )
-            except Exception:
-                pass
             return {"status": "completed_bank", "remaining_banks": new_remaining_str}
 
 @app.post("/api/sessions/{client_id}/terminate")
@@ -1115,6 +997,11 @@ class AppSettingsUpdate(BaseModel):
     giver_chat_id: Optional[str] = None
     archive_group_id: Optional[str] = None
     sms_cooldown_seconds: Optional[str] = None
+    sleep_mode_enabled: Optional[str] = None
+    sleep_mode_start: Optional[str] = None
+    sleep_mode_end: Optional[str] = None
+    sleep_mode_timezone: Optional[str] = None
+    sleep_mode_reply: Optional[str] = None
 
 class BankTemplateUpdate(BaseModel):
     key: str
@@ -1145,7 +1032,7 @@ async def get_settings_endpoint():
     """Отримання налаштувань та шаблонів банків"""
     try:
         settings = await db.get_all_settings()
-        
+
         # Load environment defaults if database values are missing
         from bot.config import ADMIN_ID, ANKETA_CHAT_ID, GIVER_CHAT_ID, ARCHIVE_GROUP_ID
         if "admin_id" not in settings:
@@ -1156,7 +1043,7 @@ async def get_settings_endpoint():
             settings["giver_chat_id"] = str(GIVER_CHAT_ID) if GIVER_CHAT_ID else ""
         if "archive_group_id" not in settings:
             settings["archive_group_id"] = str(ARCHIVE_GROUP_ID) if ARCHIVE_GROUP_ID else ""
-            
+
         templates = await db.get_all_bank_templates()
         return {
             "settings": settings,
@@ -1181,8 +1068,24 @@ async def update_settings_endpoint(body: AppSettingsUpdate):
         
         if body.sms_cooldown_seconds is not None:
             await db.set_setting("sms_cooldown_seconds", body.sms_cooldown_seconds)
-            
-        from bot.config import set_cached_setting
+            set_cached_setting("sms_cooldown_seconds", body.sms_cooldown_seconds)
+
+        if body.sleep_mode_enabled is not None:
+            await db.set_setting("sleep_mode_enabled", body.sleep_mode_enabled)
+            set_cached_setting("sleep_mode_enabled", body.sleep_mode_enabled)
+        if body.sleep_mode_start is not None:
+            await db.set_setting("sleep_mode_start", body.sleep_mode_start)
+            set_cached_setting("sleep_mode_start", body.sleep_mode_start)
+        if body.sleep_mode_end is not None:
+            await db.set_setting("sleep_mode_end", body.sleep_mode_end)
+            set_cached_setting("sleep_mode_end", body.sleep_mode_end)
+        if body.sleep_mode_timezone is not None:
+            await db.set_setting("sleep_mode_timezone", body.sleep_mode_timezone)
+            set_cached_setting("sleep_mode_timezone", body.sleep_mode_timezone)
+        if body.sleep_mode_reply is not None:
+            await db.set_setting("sleep_mode_reply", body.sleep_mode_reply)
+            set_cached_setting("sleep_mode_reply", body.sleep_mode_reply)
+
         if body.admin_id is not None:
             await db.set_setting("admin_id", body.admin_id)
             set_cached_setting("admin_id", body.admin_id)

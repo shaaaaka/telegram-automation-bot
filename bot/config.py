@@ -1,5 +1,12 @@
 import os
+import logging
 from dotenv import load_dotenv
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 # Завантажуємо змінні з файлу .env, якщо він існує
 load_dotenv()
@@ -33,11 +40,11 @@ except ValueError:
 
 # Валідація основних параметрів
 if not BOT_TOKEN:
-    print("WARNING: BOT_TOKEN is not set in environment or .env file!")
+    logger.warning("BOT_TOKEN is not set in environment or .env file!")
 if not ADMIN_ID:
-    print("WARNING: ADMIN_ID is not set or invalid!")
+    logger.warning("ADMIN_ID is not set or invalid!")
 if not GIVER_CHAT_ID:
-    print("WARNING: GIVER_CHAT_ID is not set or invalid!")
+    logger.warning("GIVER_CHAT_ID is not set or invalid!")
 
 # Шаблони інструкцій завантаження для банків
 BANK_TEMPLATES = {
@@ -67,6 +74,9 @@ BANK_TEMPLATES = {
         "code_length": 4
     }
 }
+
+# Порядок відображення банків за замовчуванням
+DEFAULT_BANK_ORDER = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"]
 
 def get_bank_template(bank_name: str):
     if not bank_name:
@@ -132,6 +142,12 @@ async def get_expected_code_length(bank_name: str) -> int | None:
 # Кеш налаштувань у пам'яті (для гарячого оновлення ID чатів без перезапуску)
 _settings_cache = {}
 
+_INT_SETTINGS = {"anketa_chat_id", "giver_chat_id", "archive_group_id", "admin_id"}
+
+def get_cached_setting(key: str, default=None):
+    """Повертає будь-яке налаштування з кешу, якщо воно там є."""
+    return _settings_cache.get(key, default)
+
 def get_anketa_chat_id() -> int:
     return _settings_cache.get("anketa_chat_id", ANKETA_CHAT_ID)
 
@@ -145,24 +161,12 @@ def get_admin_id() -> int:
     return _settings_cache.get("admin_id", ADMIN_ID)
 
 def set_cached_setting(key: str, value: str):
-    if key == "anketa_chat_id":
+    """Зберігає значення в кеш. ID чатів конвертує в int, інше — зберігає як рядок."""
+    if key in _INT_SETTINGS:
         try:
-            _settings_cache["anketa_chat_id"] = int(value)
-        except ValueError:
+            _settings_cache[key] = int(value)
+        except (ValueError, TypeError):
             pass
-    elif key == "giver_chat_id":
-        try:
-            _settings_cache["giver_chat_id"] = int(value)
-        except ValueError:
-            pass
-    elif key == "archive_group_id":
-        try:
-            _settings_cache["archive_group_id"] = int(value)
-        except ValueError:
-            pass
-    elif key == "admin_id":
-        try:
-            _settings_cache["admin_id"] = int(value)
-        except ValueError:
-            pass
+    else:
+        _settings_cache[key] = value
 

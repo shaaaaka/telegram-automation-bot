@@ -516,6 +516,14 @@
                         </div>
                         <span>Системні чати та ID</span>
                     </button>
+                    <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('sleep')">
+                        <div class="subtab-icon-wrapper">
+                            <svg class="subtab-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                            </svg>
+                        </div>
+                        <span>Режим сну</span>
+                    </button>
                 </div>
 
                 <!-- Правий контент-лейаут -->
@@ -687,6 +695,62 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Вкладка: Режим сну -->
+                            <div id="settings-content-sleep" class="settings-subtab-content">
+                                <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                    <svg class="subtab-svg" style="color: var(--accent-primary); width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                                    </svg>
+                                    Режим сну
+                                </h3>
+
+                                <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 16px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px; margin-bottom: 4px;">
+                                        <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                            <svg class="subtab-svg" style="color: var(--accent-primary); width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                                            </svg>
+                                            Тихі години
+                                        </h4>
+                                        <label class="switch-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                            <div class="switch">
+                                                <input type="checkbox" id="settings-sleep-enabled" onchange="toggleSleepInputs()">
+                                                <span class="slider"></span>
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="form-label">Період режиму сну</label>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                            <div>
+                                                <label for="settings-sleep-start" style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px; display: block;">Початок</label>
+                                                <input type="time" id="settings-sleep-start" class="form-control" style="width: 100%;" required>
+                                            </div>
+                                            <div>
+                                                <label for="settings-sleep-end" style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px; display: block;">Кінець</label>
+                                                <input type="time" id="settings-sleep-end" class="form-control" style="width: 100%;" required>
+                                            </div>
+                                        </div>
+                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">Повідомлення, що надсилаються клієнту, будуть без звуку, а автоматичні нагадування — призупинені.</div>
+                                    </div>
+
+                                    <div class="form-group" style="margin: 0;">
+                                        <label for="settings-sleep-timezone" class="form-label">Часовий пояс</label>
+                                        <select id="settings-sleep-timezone" class="form-control" style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 10px; border-radius: 8px; font-family: inherit;">
+                                            <option value="Europe/Kyiv">Київ (Europe/Kyiv)</option>
+                                            <option value="Europe/Berlin">Європа (Europe/Berlin)</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group" style="margin: 0;">
+                                        <label for="settings-sleep-reply" class="form-label">Повідомлення клієнту</label>
+                                        <textarea id="settings-sleep-reply" class="form-control" style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 10px; border-radius: 8px; font-family: inherit; resize: vertical; min-height: 80px;" rows="3"></textarea>
+                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">Повідомлення, яке отримає клієнт при зверненні в неробочий час.</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Кнопка збереження для вкладки 1, 2, 4 -->
@@ -831,11 +895,11 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=9.11"></script>
-    <script src="/static/js/control.js?v=9.11"></script>
-    <script src="/static/js/chat.js?v=9.11"></script>
-    <script src="/static/js/stats.js?v=9.11"></script>
-    <script src="/static/js/settings.js?v=9.11"></script>
+    <script src="/static/js/main.js?v=9.14"></script>
+    <script src="/static/js/control.js?v=9.14"></script>
+    <script src="/static/js/chat.js?v=9.14"></script>
+    <script src="/static/js/stats.js?v=9.14"></script>
+    <script src="/static/js/settings.js?v=9.14"></script>
     <script>
         // Force reset iOS Safari viewport zoom to 1.0 on navigation events
         window.resetViewportScale = function() {

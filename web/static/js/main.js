@@ -693,14 +693,3 @@ function syncSoundControlsUI() {
     }
 }
 
-function togglePanelCollapse(headerElement, event) {
-    // If the click is inside a switch-container, button, or input, don't toggle collapse
-    if (event && (event.target.closest('.switch-container') || event.target.closest('button') || event.target.closest('input') || event.target.closest('textarea'))) {
-        return;
-    }
-    const panel = headerElement.closest('.panel');
-    if (panel) {
-        panel.classList.toggle('collapsed');
-    }
-}
-

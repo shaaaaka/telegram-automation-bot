@@ -46,7 +46,7 @@ async function loadBannedUsers() {
 
 async function loadSettings() {
     try {
-        const res = await fetch('/api/settings');
+        const res = await fetch('/api/settings?nocache=' + Date.now());
         if (!res.ok) throw new Error("Status code: " + res.status);
         const data = await res.json();
         
@@ -63,7 +63,14 @@ async function loadSettings() {
         document.getElementById('settings-anketa-chat-id').value = data.settings.anketa_chat_id || '';
         document.getElementById('settings-giver-chat-id').value = data.settings.giver_chat_id || '';
         document.getElementById('settings-archive-group-id').value = data.settings.archive_group_id || '';
-        
+
+        document.getElementById('settings-sleep-enabled').checked = data.settings.sleep_mode_enabled === '1';
+        document.getElementById('settings-sleep-start').value = data.settings.sleep_mode_start || '22:00';
+        document.getElementById('settings-sleep-end').value = data.settings.sleep_mode_end || '08:00';
+        document.getElementById('settings-sleep-timezone').value = data.settings.sleep_mode_timezone || 'Europe/Kyiv';
+        document.getElementById('settings-sleep-reply').value = data.settings.sleep_mode_reply || 'На жаль, зараз не робочий час. Поверніться пізніше.';
+        toggleSleepInputs();
+
         toggleReminderInputs();
         if (typeof syncSoundControlsUI === 'function') {
             syncSoundControlsUI();
@@ -123,6 +130,21 @@ async function toggleReminderInputs(isManual = false) {
     }
 }
 
+function toggleSleepInputs() {
+    const enabled = document.getElementById('settings-sleep-enabled').checked;
+    document.getElementById('settings-sleep-start').disabled = !enabled;
+    document.getElementById('settings-sleep-end').disabled = !enabled;
+    document.getElementById('settings-sleep-timezone').disabled = !enabled;
+    document.getElementById('settings-sleep-reply').disabled = !enabled;
+    if (!enabled) {
+        document.getElementById('settings-sleep-start').removeAttribute('required');
+        document.getElementById('settings-sleep-end').removeAttribute('required');
+    } else {
+        document.getElementById('settings-sleep-start').setAttribute('required', '');
+        document.getElementById('settings-sleep-end').setAttribute('required', '');
+    }
+}
+
 async function saveGeneralSettings(event) {
     if (event) event.preventDefault();
     const enabled = document.getElementById('settings-reminders-enabled').checked ? '1' : '0';
@@ -136,6 +158,11 @@ async function saveGeneralSettings(event) {
     const giverChatId = document.getElementById('settings-giver-chat-id').value.trim();
     const archiveGroupId = document.getElementById('settings-archive-group-id').value.trim();
     const smsCooldown = document.getElementById('settings-sms-cooldown').value;
+    const sleepEnabled = document.getElementById('settings-sleep-enabled').checked ? '1' : '0';
+    const sleepStart = document.getElementById('settings-sleep-start').value;
+    const sleepEnd = document.getElementById('settings-sleep-end').value;
+    const sleepTimezone = document.getElementById('settings-sleep-timezone').value;
+    const sleepReply = document.getElementById('settings-sleep-reply').value;
 
     try {
         const res = await fetch('/api/settings', {
@@ -152,11 +179,17 @@ async function saveGeneralSettings(event) {
                 anketa_chat_id: anketaChatId,
                 giver_chat_id: giverChatId,
                 archive_group_id: archiveGroupId,
-                sms_cooldown_seconds: String(smsCooldown)
+                sms_cooldown_seconds: String(smsCooldown),
+                sleep_mode_enabled: sleepEnabled,
+                sleep_mode_start: sleepStart,
+                sleep_mode_end: sleepEnd,
+                sleep_mode_timezone: sleepTimezone,
+                sleep_mode_reply: sleepReply
             })
         });
         if (res.ok) {
             showToast("Налаштування збережено!", "success");
+            await loadSettings();
         } else {
             const err = await res.json();
             showToast("Помилка збереження: " + err.detail, "error");
