@@ -469,6 +469,29 @@
                     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
                 }
 
+                .bank-settings-section-title {
+                    font-size: 0.78rem;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 0.08em;
+                    color: var(--accent-primary);
+                    margin-bottom: 14px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                    padding-bottom: 6px;
+                }
+                .bank-settings-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 16px;
+                    margin-bottom: 20px;
+                }
+                .grid-span-2 {
+                    grid-column: span 2;
+                }
+
                 .bank-accordion-item {
                     background: rgba(255, 255, 255, 0.02);
                     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -1011,7 +1034,7 @@
     <script src="/static/js/chat.js?v=9.15"></script>
     <script src="/static/js/stats.js?v=9.15"></script>
     <script src="/static/js/settings.js?v=9.15"></script>
-    <script src="/static/js/settings-banks.js?v=9.18"></script>
+    <script src="/static/js/settings-banks.js?v=9.19"></script>
 
     <script>
         function updateFileNameLabel(input, labelId) {
