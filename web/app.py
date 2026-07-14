@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from web.core import check_admin_auth, lifespan
 from web.routers import (
-    dashboard, lines, sessions, media, banks, codes, messages, users, settings, ai, stats, websocket
+    dashboard, lines, sessions, media, banks, codes, messages, users, settings, stats, websocket
 )
 
 mimetypes.init()
@@ -26,6 +26,5 @@ app.include_router(codes.router, dependencies=[admin_dependency])
 app.include_router(messages.router, dependencies=[admin_dependency])
 app.include_router(users.router, dependencies=[admin_dependency])
 app.include_router(settings.router, dependencies=[admin_dependency])
-app.include_router(ai.router, dependencies=[admin_dependency])
 app.include_router(stats.router, dependencies=[admin_dependency])
 app.include_router(websocket.router)
