@@ -647,7 +647,6 @@ async def send_archive_report(client_id: int, bot):
             return
             
         import re
-        import os
         from aiogram import Bot
         
         # 1. Отримуємо дані сесії

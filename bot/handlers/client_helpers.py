@@ -1,14 +1,11 @@
-from aiogram import Router, F, Bot
-from aiogram.filters import CommandStart, StateFilter
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove, FSInputFile, ReplyKeyboardMarkup, KeyboardButton, PhotoSize
+from aiogram import Bot
+from aiogram.types import Message, ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton, PhotoSize
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
-from bot.config import ADMIN_ID, BANK_TEMPLATES, get_template_photo, get_admin_id
-from bot.services.line_assignment import get_all_banks_for_selection, build_bank_selection_rows
+from bot.config import get_admin_id
 import bot.database as db
 import re
 import asyncio
-import logging
 
 class RegistrationStates(StatesGroup):
     waiting_pib_dob = State()

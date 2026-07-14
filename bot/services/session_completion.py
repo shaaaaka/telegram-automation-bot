@@ -3,7 +3,6 @@ import logging
 from aiogram import Bot
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 
-import bot.database as db
 
 logger = logging.getLogger(__name__)
 

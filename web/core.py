@@ -4,10 +4,9 @@ from contextlib import asynccontextmanager
 from typing import List, Optional
 
 from aiogram import Bot, Dispatcher
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, status
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi import FastAPI, Request, WebSocket, HTTPException, status
+from fastapi.security import HTTPBasic
 
-from bot import database as db
 from bot.database import chat_message_callbacks
 
 

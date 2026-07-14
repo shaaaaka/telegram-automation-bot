@@ -1,14 +1,8 @@
-import os
 import re
-import logging
-from aiogram import Router, F, Bot
-from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, FSInputFile
+from aiogram import Bot
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
-from bot.config import DEFAULT_BANK_ORDER
-from bot.services.line_assignment import send_line_assignment_messages, get_all_banks_for_selection, build_bank_selection_rows
-from bot.services.session_completion import send_completion_client_messages
 import bot.database as db
 
 class AddLineStates(StatesGroup):

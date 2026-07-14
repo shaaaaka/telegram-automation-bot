@@ -1,30 +1,71 @@
-import os
-import io
-import time
-import datetime
 import logging
-from typing import List, Optional
 
 import aiosqlite
-from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
-from aiogram import Bot
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from aiogram.types import (
-    ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton,
-    FSInputFile, BufferedInputFile, InputMediaPhoto
+    ReplyKeyboardRemove
 )
 
 import bot.database as db
-from bot.config import ADMIN_ID, DB_FILE, set_cached_setting
-from bot.database import current_sender
+from bot.config import DB_FILE
 from bot.services.line_assignment import send_line_assignment_messages
 from bot.services.session_completion import send_completion_client_messages
 from web.models import *
-from web.core import dp, manager, unrouted_codes
+from web.core import dp, manager
 import web.core
 
 
 router = APIRouter()
+
+async def _prepare_session_data(row, conn) -> dict:
+    session_dict = dict(row)
+    client_id = session_dict['client_id']
+    
+    # Заповнення назви банку з lines, якщо колонка порожня (для старих сесій)
+    if not session_dict.get('bank') and session_dict.get('line_id'):
+        async with conn.execute("SELECT bank FROM lines WHERE id = ?", (session_dict['line_id'],)) as l_cursor:
+            l_row = await l_cursor.fetchone()
+            if l_row:
+                session_dict['bank'] = l_row['bank']
+    
+    # Запит на отримання останніх завершених спроб верифікації
+    async with conn.execute("""
+        SELECT bank, status, assigned_at FROM bank_verifications 
+        WHERE client_id = ? AND status != 'pending'
+        ORDER BY id ASC
+    """, (client_id,)) as v_cursor:
+        v_rows = await v_cursor.fetchall()
+        bank_statuses = {}
+        created_at = session_dict.get('created_at')
+        for v_row in v_rows:
+            status = v_row['status']
+            assigned_at = v_row['assigned_at']
+            if status == 'failure':
+                status = 'banned'
+            # Якщо банк був повернутий у минулій сесії, ігноруємо його
+            if status in ('release', 'released') and created_at and assigned_at and assigned_at < created_at:
+                continue
+            bank_statuses[v_row['bank']] = status
+        session_dict['bank_statuses'] = bank_statuses
+    
+    # Запит на отримання останнього повідомлення чату
+    async with conn.execute("""
+        SELECT message_text, photo_id, sender, created_at FROM chat_logs 
+        WHERE client_id = ? 
+        ORDER BY id DESC LIMIT 1
+    """, (client_id,)) as msg_cursor:
+        msg_row = await msg_cursor.fetchone()
+        if msg_row:
+            session_dict['last_message'] = {
+                'text': msg_row['message_text'],
+                'photo': bool(msg_row['photo_id']),
+                'sender': msg_row['sender'],
+                'created_at': msg_row['created_at']
+            }
+        else:
+            session_dict['last_message'] = None
+            
+    return session_dict
 
 @router.get("/api/sessions")
 async def get_sessions():
@@ -36,53 +77,7 @@ async def get_sessions():
             
             sessions_list = []
             for row in rows:
-                session_dict = dict(row)
-                client_id = session_dict['client_id']
-                
-                # Заповнення назви банку з lines, якщо колонка порожня (для старих сесій)
-                if not session_dict.get('bank') and session_dict.get('line_id'):
-                    async with conn.execute("SELECT bank FROM lines WHERE id = ?", (session_dict['line_id'],)) as l_cursor:
-                        l_row = await l_cursor.fetchone()
-                        if l_row:
-                            session_dict['bank'] = l_row['bank']
-                
-                # Запит на отримання останніх завершених спроб верифікації
-                async with conn.execute("""
-                    SELECT bank, status, assigned_at FROM bank_verifications 
-                    WHERE client_id = ? AND status != 'pending'
-                    ORDER BY id ASC
-                """, (client_id,)) as v_cursor:
-                    v_rows = await v_cursor.fetchall()
-                    bank_statuses = {}
-                    created_at = session_dict.get('created_at')
-                    for v_row in v_rows:
-                        status = v_row['status']
-                        assigned_at = v_row['assigned_at']
-                        if status == 'failure':
-                            status = 'banned'
-                        # Якщо банк був повернутий у минулій сесії, ігноруємо його
-                        if status in ('release', 'released') and created_at and assigned_at and assigned_at < created_at:
-                            continue
-                        bank_statuses[v_row['bank']] = status
-                    session_dict['bank_statuses'] = bank_statuses
-                
-                # Запит на отримання останнього повідомлення чату
-                async with conn.execute("""
-                    SELECT message_text, photo_id, sender, created_at FROM chat_logs 
-                    WHERE client_id = ? 
-                    ORDER BY id DESC LIMIT 1
-                """, (client_id,)) as msg_cursor:
-                    msg_row = await msg_cursor.fetchone()
-                    if msg_row:
-                        session_dict['last_message'] = {
-                            'text': msg_row['message_text'],
-                            'photo': bool(msg_row['photo_id']),
-                            'sender': msg_row['sender'],
-                            'created_at': msg_row['created_at']
-                        }
-                    else:
-                        session_dict['last_message'] = None
-                
+                session_dict = await _prepare_session_data(row, conn)
                 sessions_list.append(session_dict)
             
             # Сортуємо сесії за часом останнього повідомлення (або за часом створення, якщо повідомлень немає)
@@ -435,53 +430,7 @@ async def get_completed_sessions():
             
             sessions_list = []
             for row in rows:
-                session_dict = dict(row)
-                client_id = session_dict['client_id']
-                
-                # Заповнення назви банку з lines, якщо колонка порожня (для старих сесій)
-                if not session_dict.get('bank') and session_dict.get('line_id'):
-                    async with conn.execute("SELECT bank FROM lines WHERE id = ?", (session_dict['line_id'],)) as l_cursor:
-                        l_row = await l_cursor.fetchone()
-                        if l_row:
-                            session_dict['bank'] = l_row['bank']
-                
-                # Запит на отримання завершених спроб верифікації
-                async with conn.execute("""
-                    SELECT bank, status, assigned_at FROM bank_verifications 
-                    WHERE client_id = ? AND status != 'pending'
-                    ORDER BY id ASC
-                """, (client_id,)) as v_cursor:
-                    v_rows = await v_cursor.fetchall()
-                    bank_statuses = {}
-                    created_at = session_dict.get('created_at')
-                    for v_row in v_rows:
-                        status = v_row['status']
-                        assigned_at = v_row['assigned_at']
-                        if status == 'failure':
-                            status = 'banned'
-                        # Якщо банк був повернутий у минулій сесії, ігноруємо його
-                        if status in ('release', 'released') and created_at and assigned_at and assigned_at < created_at:
-                            continue
-                        bank_statuses[v_row['bank']] = status
-                    session_dict['bank_statuses'] = bank_statuses
-                
-                # Запит на отримання останнього повідомлення чату
-                async with conn.execute("""
-                    SELECT message_text, photo_id, sender, created_at FROM chat_logs 
-                    WHERE client_id = ? 
-                    ORDER BY id DESC LIMIT 1
-                """, (client_id,)) as msg_cursor:
-                    msg_row = await msg_cursor.fetchone()
-                    if msg_row:
-                        session_dict['last_message'] = {
-                            'text': msg_row['message_text'],
-                            'photo': bool(msg_row['photo_id']),
-                            'sender': msg_row['sender'],
-                            'created_at': msg_row['created_at']
-                        }
-                    else:
-                        session_dict['last_message'] = None
-                
+                session_dict = await _prepare_session_data(row, conn)
                 sessions_list.append(session_dict)
             
             # Сортуємо сесії за часом останнього повідомлення (або за часом створення, якщо повідомлень немає)

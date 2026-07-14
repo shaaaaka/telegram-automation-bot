@@ -1,5 +1,5 @@
 import logging
-from aiogram import Router, Bot, F
+from aiogram import Router, Bot
 from aiogram.types import Message, MessageReactionUpdated, ReplyKeyboardRemove
 from bot.config import get_anketa_chat_id, get_admin_id
 import bot.database as db
@@ -17,7 +17,6 @@ async def process_approval(session: dict, bot: Bot, reply_to_message: Message = 
     await db.set_session_status(client_id, 'registered')
     
     # Відповідь верифікатору відключена за запитом користувача
-    pass
 
     # Сповіщаємо адміна
     try:
@@ -93,7 +92,6 @@ async def process_rejection(session: dict, bot: Bot, ban: bool = True, reply_to_
     await db.close_session(client_id)
     
     # Відповідь верифікатору відключена за запитом користувача
-    pass
 
 async def is_verifier_action(message: Message) -> bool:
     """Визначає, чи є повідомлення дією верифікатора"""

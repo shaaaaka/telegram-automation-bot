@@ -1,9 +1,8 @@
 from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart, StateFilter
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove, FSInputFile, ReplyKeyboardMarkup, KeyboardButton, PhotoSize
-from aiogram.fsm.state import StatesGroup, State
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove, FSInputFile
 from aiogram.fsm.context import FSMContext
-from bot.config import ADMIN_ID, BANK_TEMPLATES, get_template_photo, get_admin_id
+from bot.config import BANK_TEMPLATES, get_template_photo, get_admin_id
 from bot.services.line_assignment import get_all_banks_for_selection, build_bank_selection_rows
 import bot.database as db
 import re
@@ -42,7 +41,7 @@ async def cmd_start(message: Message, state: FSMContext):
         return
 
     # Перевірка режиму сну
-    from bot.sleep_mode import is_in_sleep_mode, get_sleep_settings
+    from bot.sleep_mode import is_in_sleep_mode
     if is_in_sleep_mode():
         from bot.config import get_cached_setting
         reply_text = get_cached_setting("sleep_mode_reply", "На жаль, зараз не робочий час. Поверніться пізніше.")
@@ -579,7 +578,6 @@ async def handle_custom_bank_commands(message: Message):
             else:
                 await message.answer(val['text'])
             return
-from bot.handlers.client_helpers import REFUSAL_KEYWORDS
 @router.message(no_code_message_filter, StateFilter("*"))
 async def handle_universal_no_code(message: Message, state: FSMContext, bot: Bot):
     """Універсальний обробник повідомлень про відсутність коду (працює в будь-якому FSM стані)"""

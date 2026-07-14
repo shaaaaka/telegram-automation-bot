@@ -1,6 +1,6 @@
 import re
 import logging
-from aiogram import Router, F, Bot
+from aiogram import Router, Bot
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from bot.config import get_giver_chat_id, get_admin_id
 import bot.database as db

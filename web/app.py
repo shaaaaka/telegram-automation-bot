@@ -4,7 +4,7 @@ import mimetypes
 from fastapi import FastAPI, Depends
 from fastapi.staticfiles import StaticFiles
 
-from web.core import check_admin_auth, lifespan, set_bot, set_dp, unrouted_codes
+from web.core import check_admin_auth, lifespan
 from web.routers import (
     dashboard, lines, sessions, media, banks, codes, messages, users, settings, ai, stats, websocket
 )
