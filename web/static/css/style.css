@@ -2722,7 +2722,7 @@ input[type=number] {
     body .add-line-form input:focus,
     body input:focus,
     body textarea:focus {
-        font-size: 17px !important;
+        font-size: 16px !important;
     }
 
     /* Scroll auto-hide for bottom navigation bar */
@@ -2920,7 +2920,7 @@ input[type=number] {
     }
     
     body .add-line-form input {
-        font-size: 17px !important;
+        font-size: 16px !important;
     }
 
     /* Centering all panel headers and layout titles on mobile */
