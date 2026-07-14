@@ -24,7 +24,7 @@ async def handle_giver_message(message: Message, bot: Bot):
         return
 
     # Перевіряємо, чи це відмова (мінус або слова про відсутність коду)
-    from bot.handlers.client import is_no_code_text, REFUSAL_KEYWORDS
+    from bot.handlers.client_helpers import is_no_code_text, REFUSAL_KEYWORDS
     is_refusal = (re.search(r'(?:^|\s)-(?:\s|$)', text) is not None) or is_no_code_text(text)
 
     code = None
@@ -77,7 +77,7 @@ async def handle_giver_message(message: Message, bot: Bot):
         else:
             # Декілька сесій і не вдалося розпізнати автоматично, повідомляємо адміна
             await bot.send_message(
-                chat_id=ADMIN_ID,
+                chat_id=get_admin_id(),
                 text=(
                     f"Отримано відмову від гівера (`{text}`), але в черзі очікування декілька клієнтів і лінію не розпізнано.\n"
                     f"Будь ласка, скасуйте очікування коду вручну."
@@ -132,7 +132,7 @@ async def handle_giver_message(message: Message, bot: Bot):
     # --- Сценарій 3: Декілька активних запитів і немає явного співпадіння в тексті ---
     try:
         import datetime
-        from web.app import unrouted_codes
+        from web.core import unrouted_codes
         if not any(c['code'] == code for c in unrouted_codes):
             unrouted_codes.append({
                 "code": code,
@@ -154,7 +154,7 @@ async def handle_giver_message(message: Message, bot: Bot):
     markup = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
     await bot.send_message(
-        chat_id=ADMIN_ID,
+        chat_id=get_admin_id(),
         text=(
             f"Отримано новий код від гівера: `{code}`\n\n"
             f"У черзі очікування декілька клієнтів з відповідною довжиною коду. Будь ласка, оберіть лінію для пересилання:"
@@ -192,7 +192,7 @@ async def send_code_to_client(bot: Bot, session: dict, line_info: dict, code: st
     # Звітуємо адміну
     phone_str = f" (+{line_info['phone_number']})" if line_info else ""
     await bot.send_message(
-        chat_id=ADMIN_ID,
+        chat_id=get_admin_id(),
         text=(
             f"Код {code} автоматично переслано користувачу @{username}{phone_str} ({bank_name}).\n"
             f"Сесія залишається активною для наступних запитів."
@@ -222,7 +222,7 @@ async def handle_giver_refusal(bot: Bot, session: dict, line_info: dict):
     # Звітуємо адміну
     phone_str = f" (+{line_info['phone_number']})" if line_info else ""
     await bot.send_message(
-        chat_id=ADMIN_ID,
+        chat_id=get_admin_id(),
         text=(
             f"Гівер надіслав відмову (`-`) для користувача @{username}{phone_str} ({bank_name}).\n"
             f"Статус сесії скинуто на 'Номер видано'."

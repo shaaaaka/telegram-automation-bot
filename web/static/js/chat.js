@@ -619,8 +619,21 @@ async function sendChatPageMessage() {
     }
 }
 
-// WebSocket handler
 function connectChatWebSocket() {
+    if (chatWs) {
+        if (chatWs.readyState === WebSocket.OPEN || chatWs.readyState === WebSocket.CONNECTING) {
+            console.log("WebSocket connection is already active or connecting. Skipping duplicate initialization.");
+            return;
+        }
+        // Remove event handlers from old socket to prevent ghost reconnect loops
+        chatWs.onmessage = null;
+        chatWs.onerror = null;
+        chatWs.onclose = null;
+        try {
+            chatWs.close();
+        } catch (e) {}
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
     chatWs = new WebSocket(`${protocol}//${host}/ws/chat`);

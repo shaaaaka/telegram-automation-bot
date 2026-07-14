@@ -22,7 +22,7 @@ async def process_approval(session: dict, bot: Bot, reply_to_message: Message = 
     # Сповіщаємо адміна
     try:
         await bot.send_message(
-            chat_id=ADMIN_ID,
+            chat_id=get_admin_id(),
             text=f"🔔 <b>Анкету схвалено верифікатором!</b>\n• Дроп: @{username} (ID: {client_id})",
             parse_mode="HTML"
         )
@@ -51,7 +51,7 @@ async def process_rejection(session: dict, bot: Bot, ban: bool = True, reply_to_
         # Сповіщаємо адміна про бан
         try:
             await bot.send_message(
-                chat_id=ADMIN_ID,
+                chat_id=get_admin_id(),
                 text=f"❌ <b>Анкету відхилено верифікатором!</b>\n• Дроп: @{username} (ID: {client_id}) заблокований.",
                 parse_mode="HTML"
             )
@@ -71,7 +71,7 @@ async def process_rejection(session: dict, bot: Bot, ban: bool = True, reply_to_
         # Сповіщаємо адміна про відхилення без бану
         try:
             await bot.send_message(
-                chat_id=ADMIN_ID,
+                chat_id=get_admin_id(),
                 text=f"⚠️ <b>Анкету відхилено верифікатором (без блокування).</b>\n• Дроп: @{username} (ID: {client_id})",
                 parse_mode="HTML"
             )

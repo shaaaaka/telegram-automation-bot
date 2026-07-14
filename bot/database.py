@@ -505,11 +505,16 @@ async def assign_line_to_session(client_id: int, line_id: int):
         # Відкриваємо транзакцію з негайним блокуванням запису для уникнення race condition
         await db.execute("BEGIN IMMEDIATE")
         
-        # Отримуємо попередньо призначену лінію (якщо вона є) та звільняємо її
-        async with db.execute("SELECT line_id FROM sessions WHERE client_id = ?", (client_id,)) as cursor:
+        # Отримуємо попередньо призначену лінію (якщо вона є), старий банк та список сповіщених банків
+        old_bank = None
+        notified_banks_str = ""
+        async with db.execute("SELECT line_id, bank, notified_banks FROM sessions WHERE client_id = ?", (client_id,)) as cursor:
             row = await cursor.fetchone()
-            if row and row['line_id'] and row['line_id'] != line_id:
-                await db.execute("UPDATE lines SET status = 'available' WHERE id = ?", (row['line_id'],))
+            if row:
+                old_bank = row['bank']
+                notified_banks_str = row['notified_banks'] or ""
+                if row['line_id'] and row['line_id'] != line_id:
+                    await db.execute("UPDATE lines SET status = 'available' WHERE id = ?", (row['line_id'],))
 
         # Отримуємо назву банку лінії
         bank_name = None
@@ -517,6 +522,15 @@ async def assign_line_to_session(client_id: int, line_id: int):
             l_row = await cursor.fetchone()
             if l_row:
                 bank_name = l_row['bank']
+
+        # Якщо банк змінився, видаляємо новий банк зі списку сповіщених банків (notified_banks)
+        if bank_name and old_bank != bank_name:
+            notified_list = [b.strip() for b in notified_banks_str.split(",") if b.strip()]
+            if bank_name in notified_list:
+                notified_list.remove(bank_name)
+            new_notified_banks = ",".join(notified_list)
+        else:
+            new_notified_banks = notified_banks_str
 
         # Встановлюємо статус сесії та очищуємо верифікаційні дані від попереднього банку
         await db.execute("""
@@ -526,9 +540,11 @@ async def assign_line_to_session(client_id: int, line_id: int):
                 success_photo_id = NULL,
                 card_photo_id = NULL,
                 card_first4 = NULL,
-                card_last4 = NULL
+                card_last4 = NULL,
+                sent_codes_count = 0,
+                notified_banks = ?
             WHERE client_id = ?
-        """, (line_id, bank_name, client_id))
+        """, (line_id, bank_name, new_notified_banks, client_id))
         # Маркуємо лінію як зайняту
         await db.execute("UPDATE lines SET status = 'busy' WHERE id = ?", (line_id,))
         await db.commit()
@@ -599,7 +615,7 @@ async def complete_current_bank(client_id: int, result: str) -> dict | None:
     async with aiosqlite.connect(DB_FILE) as db_conn:
         await db_conn.execute("""
             UPDATE sessions
-            SET line_id = NULL, client_message_id = NULL, status = 'registered'
+            SET line_id = NULL, client_message_id = NULL, status = 'registered', sent_codes_count = 0
             WHERE client_id = ?
         """, (client_id,))
         await db_conn.commit()
@@ -737,8 +753,8 @@ async def close_session(client_id: int):
 
     # Відправляємо звіт та лог чату в Telegram групу-архів
     try:
-        import web.app
-        bot = web.app.bot
+        import web.core
+        bot = web.core.bot
         if bot:
             await send_archive_report(client_id, bot)
     except Exception as e:
