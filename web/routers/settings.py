@@ -1,12 +1,20 @@
 
-from fastapi import APIRouter, HTTPException
+import os
+import shutil
+from typing import Optional
+from fastapi import APIRouter, HTTPException, File, UploadFile, Form
 
 import bot.database as db
 from bot.config import set_cached_setting
 from web.models import *
 
-
 router = APIRouter()
+
+UPLOAD_LOGOS_DIR = os.path.join("web", "static", "images", "uploaded", "logos")
+UPLOAD_INSTRUCTIONS_DIR = os.path.join("web", "static", "images", "uploaded", "instructions")
+
+os.makedirs(UPLOAD_LOGOS_DIR, exist_ok=True)
+os.makedirs(UPLOAD_INSTRUCTIONS_DIR, exist_ok=True)
 
 @router.get("/api/settings")
 async def get_settings_endpoint():
@@ -90,10 +98,46 @@ async def update_settings_endpoint(body: AppSettingsUpdate):
         raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")
 
 @router.post("/api/settings/templates")
-async def update_template_endpoint(body: BankTemplateUpdate):
-    """Оновлення або додавання шаблону банку"""
+async def update_template_endpoint(
+    key: str = Form(...),
+    command: str = Form(...),
+    text: str = Form(...),
+    code_length: int = Form(4),
+    ai_rules: str = Form(""),
+    required_screenshots: int = Form(1),
+    logo_file: Optional[UploadFile] = File(None),
+    screenshot_file: Optional[UploadFile] = File(None)
+):
+    """Оновлення або додавання шаблону банку з файлами"""
     try:
-        await db.save_bank_template(body.key, body.command, body.text, body.code_length or 4)
+        logo_path = None
+        if logo_file and logo_file.filename:
+            ext = os.path.splitext(logo_file.filename)[1] or ".png"
+            filename = f"{key}{ext}"
+            file_path = os.path.join(UPLOAD_LOGOS_DIR, filename)
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(logo_file.file, buffer)
+            logo_path = f"/static/images/uploaded/logos/{filename}"
+            
+        screenshot_path = None
+        if screenshot_file and screenshot_file.filename:
+            ext = os.path.splitext(screenshot_file.filename)[1] or ".jpg"
+            filename = f"{key}{ext}"
+            file_path = os.path.join(UPLOAD_INSTRUCTIONS_DIR, filename)
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(screenshot_file.file, buffer)
+            screenshot_path = f"/static/images/uploaded/instructions/{filename}"
+            
+        await db.save_bank_template(
+            key=key,
+            command=command,
+            text=text,
+            code_length=code_length,
+            logo_path=logo_path,
+            screenshot_path=screenshot_path,
+            ai_rules=ai_rules,
+            required_screenshots=required_screenshots
+        )
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save bank template: {str(e)}")

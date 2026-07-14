@@ -170,13 +170,24 @@ async def init_db():
                 key TEXT PRIMARY KEY,
                 command TEXT,
                 text TEXT,
-                code_length INTEGER DEFAULT 4
+                code_length INTEGER DEFAULT 4,
+                logo_path TEXT,
+                screenshot_path TEXT,
+                ai_rules TEXT,
+                required_screenshots INTEGER DEFAULT 1
             )
         """)
-        try:
-            await db.execute("ALTER TABLE bank_templates ADD COLUMN code_length INTEGER DEFAULT 4")
-        except Exception:
-            pass
+        for col, col_def in [
+            ("code_length", "INTEGER DEFAULT 4"),
+            ("logo_path", "TEXT"),
+            ("screenshot_path", "TEXT"),
+            ("ai_rules", "TEXT"),
+            ("required_screenshots", "INTEGER DEFAULT 1")
+        ]:
+            try:
+                await db.execute(f"ALTER TABLE bank_templates ADD COLUMN {col} {col_def}")
+            except Exception:
+                pass
         
         # Таблиця для збереження історії чату з дропом
         await db.execute("""
@@ -821,19 +832,42 @@ async def get_all_bank_templates() -> dict:
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT * FROM bank_templates") as cursor:
             rows = await cursor.fetchall()
-            return {row['key']: {'command': row['command'], 'text': row['text'], 'code_length': row['code_length']} for row in rows}
+            return {
+                row['key']: {
+                    'command': row['command'],
+                    'text': row['text'],
+                    'code_length': row['code_length'],
+                    'logo_path': row['logo_path'] if 'logo_path' in row.keys() else None,
+                    'screenshot_path': row['screenshot_path'] if 'screenshot_path' in row.keys() else None,
+                    'ai_rules': row['ai_rules'] if 'ai_rules' in row.keys() else None,
+                    'required_screenshots': row['required_screenshots'] if 'required_screenshots' in row.keys() else 1
+                } for row in rows
+            }
 
-async def save_bank_template(key: str, command: str, text: str, code_length: int = 4):
+async def save_bank_template(
+    key: str,
+    command: str,
+    text: str,
+    code_length: int = 4,
+    logo_path: str = None,
+    screenshot_path: str = None,
+    ai_rules: str = None,
+    required_screenshots: int = 1
+):
     """Збереження або оновлення шаблону банку"""
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("""
-            INSERT INTO bank_templates (key, command, text, code_length)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO bank_templates (key, command, text, code_length, logo_path, screenshot_path, ai_rules, required_screenshots)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(key) DO UPDATE SET
                 command = excluded.command,
                 text = excluded.text,
-                code_length = excluded.code_length
-        """, (key, command, text, code_length))
+                code_length = excluded.code_length,
+                logo_path = COALESCE(excluded.logo_path, bank_templates.logo_path),
+                screenshot_path = COALESCE(excluded.screenshot_path, bank_templates.screenshot_path),
+                ai_rules = excluded.ai_rules,
+                required_screenshots = excluded.required_screenshots
+        """, (key, command, text, code_length, logo_path, screenshot_path, ai_rules, required_screenshots))
         await db.commit()
 
 async def delete_bank_template(key: str):

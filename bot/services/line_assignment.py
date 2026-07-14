@@ -85,12 +85,21 @@ async def send_line_assignment_messages(client_id: int, line_id: int, bot: Bot, 
                 text="Ось новий номер телефону по якому робити реєстрацію:"
             )
         else:
+            import os
             key, template = await db.get_bank_template_with_key_db(bank_name)
             if template:
-                photo_path = get_template_photo(key) if key else None
+                photo_path = None
+                if template.get('screenshot_path'):
+                    # Convert web URL path (e.g. /static/...) to local filesystem path (e.g. web/static/...)
+                    rel_path = template['screenshot_path'].lstrip('/')
+                    photo_path = os.path.join("web", rel_path)
+                
+                if not photo_path or not os.path.exists(photo_path):
+                    photo_path = get_template_photo(key) if key else None
+                    
                 caption_text = template['text']
                 instruction_msg = None
-                if photo_path:
+                if photo_path and os.path.exists(photo_path):
                     try:
                         instruction_msg = await bot.send_photo(
                             chat_id=client_id,

@@ -46,6 +46,16 @@ async def compile_system_instruction(current_bank_name: str = None, sent_codes_c
     # Отримуємо активні правила з бази
     active_rules = await db.get_active_ai_rules()
     
+    # Отримуємо специфічні правила для поточного банку з bank_templates
+    bank_specific_rules = ""
+    if current_bank_name:
+        try:
+            bank_template = await db.get_bank_template_db(current_bank_name)
+            if bank_template and bank_template.get('ai_rules'):
+                bank_specific_rules = f"\n--- Специфічні правила для банку {current_bank_name.upper()} ---\n{bank_template['ai_rules']}\n"
+        except Exception as e:
+            logger.error(f"Помилка отримання специфічних правил для банку {current_bank_name}: {e}")
+    
     # Групуємо правила по категоріях
     rules_by_category = {}
     for rule in active_rules:
@@ -141,6 +151,7 @@ async def compile_system_instruction(current_bank_name: str = None, sent_codes_c
 ДИНАМІЧНІ ПРАВИЛА ТА ТЕХНІЧНА БАЗА ЗНАНЬ (ДЖЕРЕЛО - БД):
 <rules>
 {rules_text}
+{bank_specific_rules}
 </rules>
 
 ПРАВИЛА ВЕРИФІКАЦІЇ СКРІНШОТІВ ТА ЗІСТАВЛЕННЯ БАНКІВ (КРИТИЧНО):

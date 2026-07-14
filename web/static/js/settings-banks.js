@@ -1,7 +1,10 @@
 let isDraggingBank = false;
 let dragSourceEl = null;
 
-function getBankIcon(key) {
+function getBankIcon(key, logoPath = null) {
+    if (logoPath) {
+        return `<img src="${logoPath}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">`;
+    }
     const k = key.toLowerCase();
     if (k.includes('izi')) return `<img src="/static/images/izibank.png" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">`;
     if (k.includes('amo')) return `<img src="/static/images/amobank.png" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">`;
@@ -13,7 +16,8 @@ function getBankIcon(key) {
     if (k.includes('pumb') || k.includes('пумб')) return '❤️';
     return '🏦';
 }
-function getBankIconGradient(key) {
+function getBankIconGradient(key, logoPath = null) {
+    if (logoPath) return 'transparent';
     const k = key.toLowerCase();
     // For specific banks with image logos, we don't need a gradient background
     if (k.includes('izi') || k.includes('amo') || k.includes('lviv') || k.includes('kd') || k.includes('alliance')) {
@@ -140,7 +144,7 @@ function renderBankAccordion(templates, activeKey) {
         item.innerHTML = `
             <div class="bank-accordion-header" onclick="toggleBankAccordion('${key}')">
                 <div style="display: flex; align-items: center; gap: 14px;">
-                    <div class="bank-icon-badge" style="background: ${getBankIconGradient(key)};">${getBankIcon(key)}</div>
+                    <div class="bank-icon-badge" style="background: ${getBankIconGradient(key, template.logo_path)};">${getBankIcon(key, template.logo_path)}</div>
                     <span class="bank-title" style="font-weight: 600; color: #fff; font-size: 1rem; letter-spacing: 0.3px;">${key}</span>
                 </div>
                 <div style="display: flex; align-items: center;">
@@ -159,9 +163,33 @@ function renderBankAccordion(templates, activeKey) {
                             <input type="number" id="bank-acc-len-${key}" value="${template.code_length || 4}" required min="1" max="10" class="form-control" style="width: 100%;">
                         </div>
                     </div>
-                    <div class="form-group" style="margin: 0;">
-                        <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Текст інструкції для клієнта</label>
-                        <textarea id="bank-acc-text-${key}" required class="form-control" rows="3" style="width: 100%; resize: vertical; min-height: 80px; font-family: inherit;">${template.text || ''}</textarea>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Логотип банку (PNG/JPG)</label>
+                            <input type="file" id="bank-acc-logo-${key}" accept="image/*" class="form-control" style="width: 100%; padding: 6px 10px !important;">
+                            ${template.logo_path ? `<span style="font-size: 0.75rem; color: var(--accent-primary);">Завантажено: <a href="${template.logo_path}" target="_blank" style="color: inherit; text-decoration: underline;">відкрити</a></span>` : ''}
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Скріншот-інструкція (JPG/PNG)</label>
+                            <input type="file" id="bank-acc-screenshot-${key}" accept="image/*" class="form-control" style="width: 100%; padding: 6px 10px !important;">
+                            ${template.screenshot_path ? `<span style="font-size: 0.75rem; color: var(--accent-primary);">Завантажено: <a href="${template.screenshot_path}" target="_blank" style="color: inherit; text-decoration: underline;">відкрити</a></span>` : ''}
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Текст інструкції для клієнта</label>
+                            <textarea id="bank-acc-text-${key}" required class="form-control" rows="3" style="width: 100%; resize: vertical; min-height: 80px; font-family: inherit;">${template.text || ''}</textarea>
+                        </div>
+                        <div class="form-group" style="margin: 0; display: flex; flex-direction: column; gap: 12px;">
+                            <div class="form-group" style="margin: 0;">
+                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Необхідна кількість скріншотів для перевірки</label>
+                                <input type="number" id="bank-acc-req-scr-${key}" value="${template.required_screenshots || 1}" required min="1" max="10" class="form-control" style="width: 100%;">
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Специфічні правила ШІ для банку</label>
+                                <textarea id="bank-acc-airules-${key}" class="form-control" rows="2" style="width: 100%; resize: vertical; min-height: 48px; font-family: inherit;" placeholder="Наприклад: Перевіряти ліміти...">${template.ai_rules || ''}</textarea>
+                            </div>
+                        </div>
                     </div>
                     <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 4px;">
                         <button type="button" class="btn btn-danger btn-sm" onclick="deleteAccordionBank('${key}')" style="padding: 8px 16px; font-size: 0.8rem;">Видалити банк</button>
@@ -213,12 +241,30 @@ async function handleCreateAccordionBank(event) {
     const command = document.getElementById('new-bank-command').value.trim();
     const code_length = parseInt(document.getElementById('new-bank-code-length').value) || 4;
     const text = document.getElementById('new-bank-text').value.trim();
+    const ai_rules = document.getElementById('new-bank-airules').value.trim();
+    const required_screenshots = parseInt(document.getElementById('new-bank-req-scr').value) || 1;
+
+    const formData = new FormData();
+    formData.append('key', key);
+    formData.append('command', command);
+    formData.append('text', text);
+    formData.append('code_length', code_length);
+    formData.append('ai_rules', ai_rules);
+    formData.append('required_screenshots', required_screenshots);
+
+    const logoInput = document.getElementById('new-bank-logo');
+    if (logoInput && logoInput.files.length > 0) {
+        formData.append('logo_file', logoInput.files[0]);
+    }
+    const screenshotInput = document.getElementById('new-bank-screenshot');
+    if (screenshotInput && screenshotInput.files.length > 0) {
+        formData.append('screenshot_file', screenshotInput.files[0]);
+    }
 
     try {
         const res = await fetch('/api/settings/templates', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, command, text, code_length })
+            body: formData
         });
         if (res.ok) {
             showToast(`Банк ${key} успішно створено!`, "success");
@@ -227,7 +273,7 @@ async function handleCreateAccordionBank(event) {
             await loadSettings();
         } else {
             const err = await res.json();
-            showToast("Помилка збереження: " + err.detail, "error");
+            showToast("Помилка збереження: " + (err.detail || err.message), "error");
         }
     } catch (err) {
         showToast("Не вдалося створити банк", "error");
@@ -238,12 +284,30 @@ async function saveAccordionBankSettings(event, key) {
     const command = document.getElementById(`bank-acc-cmd-${key}`).value.trim();
     const code_length = parseInt(document.getElementById(`bank-acc-len-${key}`).value) || 4;
     const text = document.getElementById(`bank-acc-text-${key}`).value.trim();
+    const ai_rules = document.getElementById(`bank-acc-airules-${key}`).value.trim();
+    const required_screenshots = parseInt(document.getElementById(`bank-acc-req-scr-${key}`).value) || 1;
+
+    const formData = new FormData();
+    formData.append('key', key);
+    formData.append('command', command);
+    formData.append('text', text);
+    formData.append('code_length', code_length);
+    formData.append('ai_rules', ai_rules);
+    formData.append('required_screenshots', required_screenshots);
+
+    const logoInput = document.getElementById(`bank-acc-logo-${key}`);
+    if (logoInput && logoInput.files.length > 0) {
+        formData.append('logo_file', logoInput.files[0]);
+    }
+    const screenshotInput = document.getElementById(`bank-acc-screenshot-${key}`);
+    if (screenshotInput && screenshotInput.files.length > 0) {
+        formData.append('screenshot_file', screenshotInput.files[0]);
+    }
 
     try {
         const res = await fetch('/api/settings/templates', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, command, text, code_length })
+            body: formData
         });
         if (res.ok) {
             showToast(`Налаштування банку ${key} збережено!`, "success");
@@ -251,7 +315,7 @@ async function saveAccordionBankSettings(event, key) {
             await loadSettings();
         } else {
             const err = await res.json();
-            showToast("Помилка збереження: " + err.detail, "error");
+            showToast("Помилка збереження: " + (err.detail || err.message), "error");
         }
     } catch (err) {
         showToast("Не вдалося зберегти налаштування банку", "error");
