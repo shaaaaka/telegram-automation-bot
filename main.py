@@ -13,7 +13,8 @@ from bot.database import init_db
 from bot.handlers import client, admin, giver, verifier
 from bot.scheduler import auto_reminder_loop
 from bot.sleep_mode import silence_method_if_sleeping
-from web.app import app as web_app, set_bot, set_dp
+from web.app import app as web_app
+from web.core import set_bot, set_dp
 
 # Ініціалізація додаткового бота для логів, якщо вказаний токен
 log_bot = None
