@@ -185,13 +185,22 @@ function renderBankAccordion(templates, activeKey) {
                         </div>
                         <div class="form-group" style="margin: 0;">
                             <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Необхідно скріншотів</label>
-                            <select id="bank-acc-req-scr-${key}" class="form-control" style="width: 100%;">
-                                <option value="1" ${template.required_screenshots == 1 ? 'selected' : ''}>1 скріншот</option>
-                                <option value="2" ${template.required_screenshots == 2 ? 'selected' : ''}>2 скріншоти</option>
-                                <option value="3" ${template.required_screenshots == 3 ? 'selected' : ''}>3 скріншоти</option>
-                                <option value="4" ${template.required_screenshots == 4 ? 'selected' : ''}>4 скріншоти</option>
-                                <option value="5" ${template.required_screenshots == 5 ? 'selected' : ''}>5 скріншотів</option>
-                            </select>
+                            <div class="custom-select-wrapper" id="custom-select-wrapper-${key}">
+                                <div class="custom-select-trigger" onclick="toggleCustomSelectDropdown('${key}')">
+                                    <span id="custom-select-value-${key}">${template.required_screenshots || 1} скріншот${(template.required_screenshots || 1) == 1 ? '' : (template.required_screenshots || 1) < 5 ? 'и' : 'ів'}</span>
+                                    <svg class="custom-select-arrow" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </div>
+                                <div class="custom-select-options" id="custom-select-options-${key}">
+                                    <div class="custom-select-option ${template.required_screenshots == 1 ? 'selected' : ''}" data-value="1" onclick="selectCustomOption('${key}', 1)">1 скріншот</div>
+                                    <div class="custom-select-option ${template.required_screenshots == 2 ? 'selected' : ''}" data-value="2" onclick="selectCustomOption('${key}', 2)">2 скріншоти</div>
+                                    <div class="custom-select-option ${template.required_screenshots == 3 ? 'selected' : ''}" data-value="3" onclick="selectCustomOption('${key}', 3)">3 скріншоти</div>
+                                    <div class="custom-select-option ${template.required_screenshots == 4 ? 'selected' : ''}" data-value="4" onclick="selectCustomOption('${key}', 4)">4 скріншоти</div>
+                                    <div class="custom-select-option ${template.required_screenshots == 5 ? 'selected' : ''}" data-value="5" onclick="selectCustomOption('${key}', 5)">5 скріншотів</div>
+                                </div>
+                                <input type="hidden" id="bank-acc-req-scr-${key}" value="${template.required_screenshots || 1}">
+                            </div>
                         </div>
                     </div>
 
@@ -309,6 +318,26 @@ function hideAddAccordionBank() {
     if (pane) {
         pane.style.display = 'none';
         document.getElementById('add-bank-form').reset();
+        
+        // Reset custom select display
+        const displayVal = document.getElementById('custom-select-value-new-bank');
+        if (displayVal) displayVal.textContent = '1 скріншот';
+        document.querySelectorAll('#custom-select-options-new-bank .custom-select-option').forEach(el => {
+            if (el.getAttribute('data-value') === '1') el.classList.add('selected');
+            else el.classList.remove('selected');
+        });
+        
+        // Reset file label pills
+        const logoLbl = document.getElementById('new-logo-filename');
+        if (logoLbl) {
+            logoLbl.textContent = 'Файл не обрано';
+            logoLbl.classList.remove('selected');
+        }
+        const scrLbl = document.getElementById('new-screenshot-filename');
+        if (scrLbl) {
+            scrLbl.textContent = 'Файл не обрано';
+            scrLbl.classList.remove('selected');
+        }
     }
 }
 async function handleCreateAccordionBank(event) {

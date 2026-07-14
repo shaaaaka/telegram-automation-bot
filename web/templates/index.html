@@ -508,6 +508,83 @@
                     transition: height 0.08s ease-out;
                 }
 
+                /* Custom Select Dropdown Styling */
+                .custom-select-wrapper {
+                    position: relative;
+                    width: 100%;
+                    user-select: none;
+                }
+                .custom-select-trigger {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    background: rgba(255, 255, 255, 0.03);
+                    border: 1px solid rgba(255, 255, 255, 0.06);
+                    color: #fff;
+                    padding: 10px 14px;
+                    border-radius: 10px;
+                    font-size: 0.9rem;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    box-sizing: border-box;
+                    height: 40px;
+                }
+                .custom-select-trigger:hover {
+                    background: rgba(255, 255, 255, 0.05);
+                    border-color: rgba(255, 255, 255, 0.12);
+                }
+                .custom-select-wrapper.open .custom-select-trigger {
+                    border-color: var(--accent-primary);
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+                    background: rgba(255, 255, 255, 0.04);
+                }
+                .custom-select-arrow {
+                    transition: transform 0.2s ease;
+                    color: var(--text-muted);
+                }
+                .custom-select-wrapper.open .custom-select-arrow {
+                    transform: rotate(180deg);
+                    color: #fff;
+                }
+                .custom-select-options {
+                    position: absolute;
+                    top: calc(100% + 6px);
+                    left: 0;
+                    right: 0;
+                    background: #111827; /* dark slate background matching theme */
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    border-radius: 12px;
+                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+                    z-index: 100;
+                    display: none;
+                    overflow: hidden;
+                    animation: customSelectFadeIn 0.15s ease-out;
+                }
+                @keyframes customSelectFadeIn {
+                    from { opacity: 0; transform: translateY(-4px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .custom-select-wrapper.open .custom-select-options {
+                    display: block;
+                }
+                .custom-select-option {
+                    padding: 10px 14px;
+                    color: #cbd5e1;
+                    font-size: 0.88rem;
+                    cursor: pointer;
+                    transition: all 0.15s ease;
+                    text-align: left;
+                }
+                .custom-select-option:hover {
+                    background: rgba(59, 130, 246, 0.15);
+                    color: #fff;
+                }
+                .custom-select-option.selected {
+                    background: var(--accent-primary);
+                    color: #fff;
+                    font-weight: 600;
+                }
+
                 .bank-accordion-item {
                     background: rgba(255, 255, 255, 0.02);
                     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -931,14 +1008,23 @@
                                         </div>
                                     </div>
                                     <div class="form-group" style="margin: 0;">
-                                        <label for="new-bank-req-scr" class="form-label">Необхідно скріншотів</label>
-                                        <select id="new-bank-req-scr" class="form-control" style="width: 100%;">
-                                            <option value="1" selected>1 скріншот</option>
-                                            <option value="2">2 скріншоти</option>
-                                            <option value="3">3 скріншоти</option>
-                                            <option value="4">4 скріншоти</option>
-                                            <option value="5">5 скріншотів</option>
-                                        </select>
+                                        <label class="form-label">Необхідно скріншотів</label>
+                                        <div class="custom-select-wrapper" id="custom-select-wrapper-new-bank">
+                                            <div class="custom-select-trigger" onclick="toggleCustomSelectDropdown('new-bank')">
+                                                <span id="custom-select-value-new-bank">1 скріншот</span>
+                                                <svg class="custom-select-arrow" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                                </svg>
+                                            </div>
+                                            <div class="custom-select-options" id="custom-select-options-new-bank">
+                                                <div class="custom-select-option selected" data-value="1" onclick="selectCustomOption('new-bank', 1)">1 скріншот</div>
+                                                <div class="custom-select-option" data-value="2" onclick="selectCustomOption('new-bank', 2)">2 скріншоти</div>
+                                                <div class="custom-select-option" data-value="3" onclick="selectCustomOption('new-bank', 3)">3 скріншоти</div>
+                                                <div class="custom-select-option" data-value="4" onclick="selectCustomOption('new-bank', 4)">4 скріншоти</div>
+                                                <div class="custom-select-option" data-value="5" onclick="selectCustomOption('new-bank', 5)">5 скріншотів</div>
+                                            </div>
+                                            <input type="hidden" id="new-bank-req-scr" value="1">
+                                        </div>
                                     </div>
                                 </div>
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
@@ -1050,9 +1136,51 @@
     <script src="/static/js/chat.js?v=9.15"></script>
     <script src="/static/js/stats.js?v=9.15"></script>
     <script src="/static/js/settings.js?v=9.15"></script>
-    <script src="/static/js/settings-banks.js?v=9.21"></script>
+    <script src="/static/js/settings-banks.js?v=9.22"></script>
 
     <script>
+        window.toggleCustomSelectDropdown = function(key) {
+            const wrapper = document.getElementById(`custom-select-wrapper-${key}`);
+            if (!wrapper) return;
+            const isOpen = wrapper.classList.contains('open');
+            document.querySelectorAll('.custom-select-wrapper').forEach(el => {
+                if (el !== wrapper) el.classList.remove('open');
+            });
+            wrapper.classList.toggle('open');
+        };
+
+        window.selectCustomOption = function(key, val) {
+            const wrapper = document.getElementById(`custom-select-wrapper-${key}`);
+            let input = document.getElementById(`bank-acc-req-scr-${key}`);
+            if (!input && key === 'new-bank') {
+                input = document.getElementById('new-bank-req-scr');
+            }
+            const displayVal = document.getElementById(`custom-select-value-${key}`);
+            if (input && displayVal && wrapper) {
+                input.value = val;
+                let labelText = `${val} скріншот`;
+                if (val >= 2 && val <= 4) labelText = `${val} скріншоти`;
+                else if (val >= 5) labelText = `${val} скріншотів`;
+                displayVal.textContent = labelText;
+                wrapper.classList.remove('open');
+                wrapper.querySelectorAll('.custom-select-option').forEach(opt => {
+                    if (parseInt(opt.getAttribute('data-value')) === val) {
+                        opt.classList.add('selected');
+                    } else {
+                        opt.classList.remove('selected');
+                    }
+                });
+            }
+        };
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.custom-select-wrapper')) {
+                document.querySelectorAll('.custom-select-wrapper').forEach(el => {
+                    el.classList.remove('open');
+                });
+            }
+        });
+
         function updateFileNameLabel(input, labelId) {
             const label = document.getElementById(labelId);
             if (!label) return;
