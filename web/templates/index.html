@@ -402,6 +402,73 @@
                     color: var(--accent-danger) !important;
                 }
 
+                /* Premium Custom File Uploads */
+                .custom-file-upload-wrapper {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    background: rgba(255, 255, 255, 0.015);
+                    border: 1px dashed rgba(255, 255, 255, 0.08);
+                    border-radius: 12px;
+                    padding: 8px 12px;
+                    transition: all 0.25s ease;
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+                .custom-file-upload-wrapper:hover {
+                    border-color: rgba(59, 130, 246, 0.5);
+                    background: rgba(255, 255, 255, 0.025);
+                }
+                .custom-file-upload-label {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    background: rgba(255, 255, 255, 0.04);
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    color: #e2e8f0;
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                    padding: 8px 14px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    user-select: none;
+                    white-space: nowrap;
+                }
+                .custom-file-upload-label:hover {
+                    background: rgba(255, 255, 255, 0.08);
+                    border-color: rgba(255, 255, 255, 0.15);
+                    color: #fff;
+                }
+                .file-upload-filename-pill {
+                    font-size: 0.75rem;
+                    color: var(--text-muted);
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    max-width: 180px;
+                }
+                .file-upload-filename-pill.selected {
+                    color: var(--accent-primary);
+                    font-weight: 500;
+                }
+                .bank-accordion-body select.form-control, #bank-add-pane select.form-control {
+                    background-color: rgba(255, 255, 255, 0.03);
+                    border: 1px solid rgba(255, 255, 255, 0.06);
+                    color: #fff;
+                    padding: 10px 14px;
+                    border-radius: 10px;
+                    font-size: 0.9rem;
+                    outline: none;
+                    transition: all 0.2s ease;
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+                .bank-accordion-body select.form-control:focus, #bank-add-pane select.form-control:focus {
+                    border-color: var(--accent-primary);
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+                }
+
                 .bank-accordion-item {
                     background: rgba(255, 255, 255, 0.02);
                     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -797,18 +864,42 @@
                                         <input type="number" id="new-bank-code-length" placeholder="4" value="4" required min="1" max="10" class="form-control" style="width: 100%;">
                                     </div>
                                 </div>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; align-items: end;">
                                     <div class="form-group" style="margin: 0;">
-                                        <label for="new-bank-logo" class="form-label">Логотип банку (PNG/JPG)</label>
-                                        <input type="file" id="new-bank-logo" accept="image/*" class="form-control" style="width: 100%; padding: 6px 10px !important;">
+                                        <label class="form-label">Логотип банку (PNG/JPG)</label>
+                                        <div class="custom-file-upload-wrapper">
+                                            <label for="new-bank-logo" class="custom-file-upload-label">
+                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                                </svg>
+                                                Обрати файл
+                                            </label>
+                                            <input type="file" id="new-bank-logo" accept="image/*" style="display: none;" onchange="updateFileNameLabel(this, 'new-logo-filename')">
+                                            <span id="new-logo-filename" class="file-upload-filename-pill">Файл не обрано</span>
+                                        </div>
                                     </div>
                                     <div class="form-group" style="margin: 0;">
-                                        <label for="new-bank-screenshot" class="form-label">Скріншот-інструкція (JPG/PNG)</label>
-                                        <input type="file" id="new-bank-screenshot" accept="image/*" class="form-control" style="width: 100%; padding: 6px 10px !important;">
+                                        <label class="form-label">Скріншот-інструкція (JPG/PNG)</label>
+                                        <div class="custom-file-upload-wrapper">
+                                            <label for="new-bank-screenshot" class="custom-file-upload-label">
+                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                                </svg>
+                                                Обрати файл
+                                            </label>
+                                            <input type="file" id="new-bank-screenshot" accept="image/*" style="display: none;" onchange="updateFileNameLabel(this, 'new-screenshot-filename')">
+                                            <span id="new-screenshot-filename" class="file-upload-filename-pill">Файл не обрано</span>
+                                        </div>
                                     </div>
                                     <div class="form-group" style="margin: 0;">
-                                        <label for="new-bank-req-scr" class="form-label">Кількість скріншотів</label>
-                                        <input type="number" id="new-bank-req-scr" value="1" required min="1" max="10" class="form-control" style="width: 100%;">
+                                        <label for="new-bank-req-scr" class="form-label">Необхідно скріншотів</label>
+                                        <select id="new-bank-req-scr" class="form-control" style="width: 100%;">
+                                            <option value="1" selected>1 скріншот</option>
+                                            <option value="2">2 скріншоти</option>
+                                            <option value="3">3 скріншоти</option>
+                                            <option value="4">4 скріншоти</option>
+                                            <option value="5">5 скріншотів</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
@@ -920,9 +1011,21 @@
     <script src="/static/js/chat.js?v=9.15"></script>
     <script src="/static/js/stats.js?v=9.15"></script>
     <script src="/static/js/settings.js?v=9.15"></script>
-    <script src="/static/js/settings-banks.js?v=9.17"></script>
+    <script src="/static/js/settings-banks.js?v=9.18"></script>
 
     <script>
+        function updateFileNameLabel(input, labelId) {
+            const label = document.getElementById(labelId);
+            if (!label) return;
+            if (input.files && input.files.length > 0) {
+                label.textContent = input.files[0].name;
+                label.classList.add('selected');
+            } else {
+                label.textContent = 'Файл не обрано';
+                label.classList.remove('selected');
+            }
+        }
+
         // Force reset iOS Safari viewport zoom to 1.0 on navigation events
         window.resetViewportScale = function() {
             // Disabled to prevent iOS Safari layout recalculation deadlocks

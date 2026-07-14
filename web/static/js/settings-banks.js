@@ -163,27 +163,55 @@ function renderBankAccordion(templates, activeKey) {
                             <input type="number" id="bank-acc-len-${key}" value="${template.code_length || 4}" required min="1" max="10" class="form-control" style="width: 100%;">
                         </div>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: end;">
                         <div class="form-group" style="margin: 0;">
-                            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Логотип банку (PNG/JPG)</label>
-                            <input type="file" id="bank-acc-logo-${key}" accept="image/*" class="form-control" style="width: 100%; padding: 6px 10px !important;">
-                            ${template.logo_path ? `<span style="font-size: 0.75rem; color: var(--accent-primary);">Завантажено: <a href="${template.logo_path}" target="_blank" style="color: inherit; text-decoration: underline;">відкрити</a></span>` : ''}
+                            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                <span>Логотип банку (PNG/JPG)</span>
+                                ${template.logo_path ? `<span style="font-size: 0.75rem;"><a href="${template.logo_path}" target="_blank" style="color: var(--accent-primary); text-decoration: underline; font-weight: 500;">Переглянути лого</a></span>` : ''}
+                            </label>
+                            <div class="custom-file-upload-wrapper">
+                                <label for="bank-acc-logo-${key}" class="custom-file-upload-label">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                    </svg>
+                                    Обрати файл
+                                </label>
+                                <input type="file" id="bank-acc-logo-${key}" accept="image/*" style="display: none;" onchange="updateFileNameLabel(this, 'logo-filename-${key}')">
+                                <span id="logo-filename-${key}" class="file-upload-filename-pill">Файл не обрано</span>
+                            </div>
                         </div>
                         <div class="form-group" style="margin: 0;">
-                            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Скріншот-інструкція (JPG/PNG)</label>
-                            <input type="file" id="bank-acc-screenshot-${key}" accept="image/*" class="form-control" style="width: 100%; padding: 6px 10px !important;">
-                            ${template.screenshot_path ? `<span style="font-size: 0.75rem; color: var(--accent-primary);">Завантажено: <a href="${template.screenshot_path}" target="_blank" style="color: inherit; text-decoration: underline;">відкрити</a></span>` : ''}
+                            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                <span>Скріншот-інструкція (JPG/PNG)</span>
+                                ${template.screenshot_path ? `<span style="font-size: 0.75rem;"><a href="${template.screenshot_path}" target="_blank" style="color: var(--accent-primary); text-decoration: underline; font-weight: 500;">Переглянути скрін</a></span>` : ''}
+                            </label>
+                            <div class="custom-file-upload-wrapper">
+                                <label for="bank-acc-screenshot-${key}" class="custom-file-upload-label">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                    </svg>
+                                    Обрати файл
+                                </label>
+                                <input type="file" id="bank-acc-screenshot-${key}" accept="image/*" style="display: none;" onchange="updateFileNameLabel(this, 'screenshot-filename-${key}')">
+                                <span id="screenshot-filename-${key}" class="file-upload-filename-pill">Файл не обрано</span>
+                            </div>
                         </div>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                         <div class="form-group" style="margin: 0;">
                             <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Текст інструкції для клієнта</label>
-                            <textarea id="bank-acc-text-${key}" required class="form-control" rows="3" style="width: 100%; resize: vertical; min-height: 80px; font-family: inherit;">${template.text || ''}</textarea>
+                            <textarea id="bank-acc-text-${key}" required class="form-control" rows="4" style="width: 100%; resize: vertical; min-height: 110px; font-family: inherit;">${template.text || ''}</textarea>
                         </div>
                         <div class="form-group" style="margin: 0; display: flex; flex-direction: column; gap: 12px;">
                             <div class="form-group" style="margin: 0;">
                                 <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Необхідна кількість скріншотів для перевірки</label>
-                                <input type="number" id="bank-acc-req-scr-${key}" value="${template.required_screenshots || 1}" required min="1" max="10" class="form-control" style="width: 100%;">
+                                <select id="bank-acc-req-scr-${key}" class="form-control" style="width: 100%;">
+                                    <option value="1" ${template.required_screenshots == 1 ? 'selected' : ''}>1 скріншот</option>
+                                    <option value="2" ${template.required_screenshots == 2 ? 'selected' : ''}>2 скріншоти</option>
+                                    <option value="3" ${template.required_screenshots == 3 ? 'selected' : ''}>3 скріншоти</option>
+                                    <option value="4" ${template.required_screenshots == 4 ? 'selected' : ''}>4 скріншоти</option>
+                                    <option value="5" ${template.required_screenshots == 5 ? 'selected' : ''}>5 скріншотів</option>
+                                </select>
                             </div>
                             <div class="form-group" style="margin: 0;">
                                 <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Специфічні правила ШІ для банку</label>
