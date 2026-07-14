@@ -32,6 +32,10 @@ async def get_telegram_photo(file_id: str):
     if not web.core.bot:
         raise HTTPException(status_code=500, detail="Bot is not configured")
     
+    import re
+    if not file_id or not re.match(r'^[\w-]+$', file_id):
+        raise HTTPException(status_code=400, detail="Invalid file_id format")
+
     cache_path = os.path.join(PHOTOS_CACHE_DIR, file_id)
     if os.path.exists(cache_path):
         return FileResponse(

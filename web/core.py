@@ -38,16 +38,25 @@ async def check_admin_auth(request: Request = None, websocket: WebSocket = None)
     if not username_env or not password_env:
         return True
 
-    if websocket is not None or (request and request.scope.get("type") == "websocket"):
-        return True
-
+    auth_header = None
     if request is not None:
-        credentials = await security(request)
-        if credentials:
-            is_username_correct = secrets.compare_digest(credentials.username, username_env)
-            is_password_correct = secrets.compare_digest(credentials.password, password_env)
-            if is_username_correct and is_password_correct:
-                return True
+        auth_header = request.headers.get("authorization")
+    elif websocket is not None:
+        auth_header = websocket.headers.get("authorization")
+
+    if auth_header:
+        import base64
+        try:
+            if auth_header.startswith("Basic "):
+                encoded = auth_header.split(" ", 1)[1]
+                decoded = base64.b64decode(encoded).decode("utf-8")
+                username, password = decoded.split(":", 1)
+                is_username_correct = secrets.compare_digest(username, username_env)
+                is_password_correct = secrets.compare_digest(password, password_env)
+                if is_username_correct and is_password_correct:
+                    return True
+        except Exception:
+            pass
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

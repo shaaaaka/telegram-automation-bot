@@ -47,7 +47,7 @@ async def ban_user_endpoint(client_id: int):
     # Якщо є активна сесія, примусово закриваємо її
     if session:
         # Прибираємо кнопку у клієнта, якщо вона є
-        if session['client_message_id'] and bot:
+        if session['client_message_id'] and web.core.bot:
             try:
                 await web.core.bot.edit_message_reply_markup(
                     chat_id=client_id,

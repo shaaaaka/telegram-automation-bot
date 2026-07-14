@@ -20,7 +20,7 @@ from bot.database import current_sender
 from bot.services.line_assignment import send_line_assignment_messages
 from bot.services.session_completion import send_completion_client_messages
 from web.models import *
-from web.core import dp, manager, unrouted_codes
+from web.core import dp, manager, unrouted_codes, check_admin_auth
 import web.core
 
 
@@ -28,6 +28,7 @@ router = APIRouter()
 
 @router.websocket("/ws/chat")
 async def websocket_endpoint(websocket: WebSocket):
+    await check_admin_auth(websocket=websocket)
     await manager.connect(websocket)
     try:
         while True:
