@@ -491,6 +491,22 @@
                 .grid-span-2 {
                     grid-column: span 2;
                 }
+                .bank-settings-grid-3 {
+                    display: grid;
+                    grid-template-columns: 2fr 1fr 1fr;
+                    gap: 16px;
+                    margin-bottom: 20px;
+                }
+                @media (max-width: 768px) {
+                    .bank-settings-grid-3 {
+                        grid-template-columns: 1fr;
+                    }
+                }
+                .auto-grow-textarea {
+                    overflow-y: hidden;
+                    resize: none !important;
+                    transition: height 0.08s ease-out;
+                }
 
                 .bank-accordion-item {
                     background: rgba(255, 255, 255, 0.02);
@@ -1034,7 +1050,7 @@
     <script src="/static/js/chat.js?v=9.15"></script>
     <script src="/static/js/stats.js?v=9.15"></script>
     <script src="/static/js/settings.js?v=9.15"></script>
-    <script src="/static/js/settings-banks.js?v=9.20"></script>
+    <script src="/static/js/settings-banks.js?v=9.21"></script>
 
     <script>
         function updateFileNameLabel(input, labelId) {

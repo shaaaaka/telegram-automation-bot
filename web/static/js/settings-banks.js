@@ -172,17 +172,38 @@ function renderBankAccordion(templates, activeKey) {
                             <circle cx="12" cy="12" r="3"></circle>
                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                         </svg>
-                        Основні параметри & Медіа
+                        Основні параметри
                     </div>
-                    <div class="bank-settings-grid">
+                    <div class="bank-settings-grid-3">
                         <div class="form-group" style="margin: 0;">
                             <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Команда в Telegram</label>
                             <input type="text" id="bank-acc-cmd-${key}" value="${template.command || ''}" required class="form-control" style="width: 100%;">
                         </div>
                         <div class="form-group" style="margin: 0;">
-                            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Довжина SMS-коду (цифр)</label>
+                            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Довжина коду (цифр)</label>
                             <input type="number" id="bank-acc-len-${key}" value="${template.code_length || 4}" required min="1" max="10" class="form-control" style="width: 100%;">
                         </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Необхідно скріншотів</label>
+                            <select id="bank-acc-req-scr-${key}" class="form-control" style="width: 100%;">
+                                <option value="1" ${template.required_screenshots == 1 ? 'selected' : ''}>1 скріншот</option>
+                                <option value="2" ${template.required_screenshots == 2 ? 'selected' : ''}>2 скріншоти</option>
+                                <option value="3" ${template.required_screenshots == 3 ? 'selected' : ''}>3 скріншоти</option>
+                                <option value="4" ${template.required_screenshots == 4 ? 'selected' : ''}>4 скріншоти</option>
+                                <option value="5" ${template.required_screenshots == 5 ? 'selected' : ''}>5 скріншотів</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="bank-settings-section-title" style="margin-top: 8px;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-primary);">
+                            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path>
+                            <path d="M8 12h8"></path>
+                            <path d="M12 8v8"></path>
+                        </svg>
+                        Медіа-файли
+                    </div>
+                    <div class="bank-settings-grid">
                         <div class="form-group" style="margin: 0;">
                             <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; width: 100%;">
                                 <span>Логотип банку (PNG/JPG)</span>
@@ -221,26 +242,16 @@ function renderBankAccordion(templates, activeKey) {
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-primary);">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                         </svg>
-                        Інструкції та логіка перевірки
+                        Інструкції та правила ШІ
                     </div>
-                    <div class="bank-settings-grid">
-                        <div class="form-group" style="margin: 0;">
-                            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Необхідно скріншотів для перевірки</label>
-                            <select id="bank-acc-req-scr-${key}" class="form-control" style="width: 100%;">
-                                <option value="1" ${template.required_screenshots == 1 ? 'selected' : ''}>1 скріншот</option>
-                                <option value="2" ${template.required_screenshots == 2 ? 'selected' : ''}>2 скріншоти</option>
-                                <option value="3" ${template.required_screenshots == 3 ? 'selected' : ''}>3 скріншоти</option>
-                                <option value="4" ${template.required_screenshots == 4 ? 'selected' : ''}>4 скріншоти</option>
-                                <option value="5" ${template.required_screenshots == 5 ? 'selected' : ''}>5 скріншотів</option>
-                            </select>
-                        </div>
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
                         <div class="form-group" style="margin: 0;">
                             <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Текст інструкції для клієнта</label>
-                            <textarea id="bank-acc-text-${key}" required class="form-control" rows="3" style="width: 100%; resize: vertical; min-height: 80px; font-family: inherit;">${template.text || ''}</textarea>
+                            <textarea id="bank-acc-text-${key}" required class="form-control auto-grow-textarea" rows="2" style="width: 100%; font-family: inherit;">${template.text || ''}</textarea>
                         </div>
-                        <div class="form-group grid-span-2" style="margin: 0;">
+                        <div class="form-group" style="margin: 0;">
                             <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Специфічні правила ШІ для банку</label>
-                            <textarea id="bank-acc-airules-${key}" class="form-control" rows="4" style="width: 100%; resize: vertical; min-height: 110px; font-family: inherit;" placeholder="Наприклад: Перевіряти ліміти...">${template.ai_rules || ''}</textarea>
+                            <textarea id="bank-acc-airules-${key}" class="form-control auto-grow-textarea" rows="3" style="width: 100%; font-family: inherit;" placeholder="Наприклад: Перевіряти ліміти...">${template.ai_rules || ''}</textarea>
                         </div>
                     </div>
 
