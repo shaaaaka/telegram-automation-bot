@@ -648,7 +648,8 @@ async def handle_route_code(callback: CallbackQuery, bot: Bot, state: FSMContext
     line_id = session['line_id']
     line_info = await db.get_line(line_id)
     line_num = line_info['line_id'] if line_info else line_id
-    bank_name = line_info['bank'] if line_info else "Банк"
+    bank_name_raw = line_info['bank'] if line_info else "Банк"
+    bank_name = await db.get_bank_display_name(bank_name_raw)
 
     # 1. Відправляємо код клієнту
     await db.increment_session_sent_codes_count(client_id)
@@ -711,7 +712,8 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot, state: FSMC
 
     line_id = session['line_id']
     line_info = await db.get_line(line_id)
-    bank_name = line_info['bank'] if line_info else "Банк"
+    bank_name_raw = line_info['bank'] if line_info else "Банк"
+    bank_name = await db.get_bank_display_name(bank_name_raw)
 
     if result in ("success", "release"):
         completed = await db.complete_current_bank(client_id, result)

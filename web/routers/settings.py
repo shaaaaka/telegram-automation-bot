@@ -1,7 +1,7 @@
 
 import os
 import shutil
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, HTTPException, File, UploadFile, Form
 
 import bot.database as db
@@ -104,9 +104,13 @@ async def update_template_endpoint(
     text: str = Form(...),
     code_length: int = Form(4),
     ai_rules: str = Form(""),
+    report_template: str = Form(""),
     required_screenshots: int = Form(1),
+    description: str = Form(""),
     logo_file: Optional[UploadFile] = File(None),
-    screenshot_file: Optional[UploadFile] = File(None)
+    screenshot_files: List[UploadFile] = File(default=[]),
+    download_screenshot_file: Optional[UploadFile] = File(None),
+    success_screenshot_file: Optional[UploadFile] = File(None)
 ):
     """Оновлення або додавання шаблону банку з файлами"""
     try:
@@ -120,13 +124,36 @@ async def update_template_endpoint(
             logo_path = f"/static/images/uploaded/logos/{filename}"
             
         screenshot_path = None
-        if screenshot_file and screenshot_file.filename:
-            ext = os.path.splitext(screenshot_file.filename)[1] or ".jpg"
-            filename = f"{key}{ext}"
+        # Handle multiple uploaded files
+        valid_screenshot_files = [f for f in screenshot_files if f and f.filename]
+        if valid_screenshot_files:
+            paths = []
+            for i, f in enumerate(valid_screenshot_files):
+                ext = os.path.splitext(f.filename)[1] or ".jpg"
+                filename = f"{key}_step{i+1}{ext}"
+                file_path = os.path.join(UPLOAD_INSTRUCTIONS_DIR, filename)
+                with open(file_path, "wb") as buffer:
+                    shutil.copyfileobj(f.file, buffer)
+                paths.append(f"/static/images/uploaded/instructions/{filename}")
+            screenshot_path = ",".join(paths)
+
+        download_screenshot_path = None
+        if download_screenshot_file and download_screenshot_file.filename:
+            ext = os.path.splitext(download_screenshot_file.filename)[1] or ".jpg"
+            filename = f"{key}_download{ext}"
             file_path = os.path.join(UPLOAD_INSTRUCTIONS_DIR, filename)
             with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(screenshot_file.file, buffer)
-            screenshot_path = f"/static/images/uploaded/instructions/{filename}"
+                shutil.copyfileobj(download_screenshot_file.file, buffer)
+            download_screenshot_path = f"/static/images/uploaded/instructions/{filename}"
+
+        success_screenshot_path = None
+        if success_screenshot_file and success_screenshot_file.filename:
+            ext = os.path.splitext(success_screenshot_file.filename)[1] or ".jpg"
+            filename = f"{key}_success{ext}"
+            file_path = os.path.join(UPLOAD_INSTRUCTIONS_DIR, filename)
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(success_screenshot_file.file, buffer)
+            success_screenshot_path = f"/static/images/uploaded/instructions/{filename}"
             
         await db.save_bank_template(
             key=key,
@@ -135,8 +162,12 @@ async def update_template_endpoint(
             code_length=code_length,
             logo_path=logo_path,
             screenshot_path=screenshot_path,
+            download_screenshot_path=download_screenshot_path,
+            success_screenshot_path=success_screenshot_path,
+            report_template=report_template,
             ai_rules=ai_rules,
-            required_screenshots=required_screenshots
+            required_screenshots=required_screenshots,
+            description=description
         )
         return {"status": "success"}
     except Exception as e:

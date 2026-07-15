@@ -439,25 +439,61 @@ function renderSessions(sessions) {
             const bankStatuses = session.bank_statuses || {};
             
             const historyBanks = Object.keys(bankStatuses);
-            const customOrder = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"];
-            const allPossibleBanks = Array.from(new Set([...customOrder, ...availableBanks, ...selectedList, ...historyBanks]))
-                .filter(b => b && b.toLowerCase() !== 'ecobank' && b.toLowerCase() !== 'pumb')
-                .sort((a, b) => {
-                    const idxA = customOrder.findIndex(x => x.toLowerCase() === a.toLowerCase());
-                    const idxB = customOrder.findIndex(x => x.toLowerCase() === b.toLowerCase());
-                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-                    if (idxA !== -1) return -1;
-                    if (idxB !== -1) return 1;
-                    return a.localeCompare(b);
-                });
+            // Build order dynamically from templates order in Settings
+            const savedOrderStr = localStorage.getItem('bank_accordion_order');
+            let customOrder = [];
+            if (savedOrderStr) {
+                try {
+                    customOrder = JSON.parse(savedOrderStr);
+                } catch(e) {}
+            }
+            if (!customOrder || customOrder.length === 0) {
+                customOrder = ["bank.kd", "izibank", "alliance", "lvivbank", "amobank"];
+            }
+
+            const allPossibleBanks = [];
+            const seenLower = new Set();
+            const inputSources = [...availableBanks, ...selectedList, ...historyBanks];
+
+            // 1. Add all banks from customOrder (preserving settings order)
+            customOrder.forEach(b => {
+                const lower = b.toLowerCase();
+                if (!seenLower.has(lower) && lower !== 'ecobank' && lower !== 'pumb') {
+                    seenLower.add(lower);
+                    const matched = inputSources.find(x => x.toLowerCase() === lower);
+                    allPossibleBanks.push(matched || b);
+                }
+            });
+
+            // 2. Add any remaining unique banks (fallback)
+            inputSources.forEach(b => {
+                if (b) {
+                    const lower = b.toLowerCase();
+                    if (!seenLower.has(lower) && lower !== 'ecobank' && lower !== 'pumb') {
+                        seenLower.add(lower);
+                        allPossibleBanks.push(b);
+                    }
+                }
+            });
+
+            // 3. Sort allPossibleBanks to match customOrder index
+            allPossibleBanks.sort((a, b) => {
+                const idxA = customOrder.findIndex(x => x.toLowerCase() === a.toLowerCase());
+                const idxB = customOrder.findIndex(x => x.toLowerCase() === b.toLowerCase());
+                if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                if (idxA !== -1) return -1;
+                if (idxB !== -1) return 1;
+                return a.localeCompare(b);
+            });
 
             const isRegistering = session.status === 'registering';
 
             allPossibleBanks.forEach(bank => {
-                const isSelected = selectedList.includes(bank);
-                const isRemaining = remainingList.includes(bank);
+                const isSelected = selectedList.some(x => x.toLowerCase() === bank.toLowerCase());
+                const isRemaining = remainingList.some(x => x.toLowerCase() === bank.toLowerCase());
                 const bankClass = getBankClass(bank);
-                const hasHistory = bankStatuses[bank] !== undefined;
+                const historyKey = Object.keys(bankStatuses).find(x => x.toLowerCase() === bank.toLowerCase());
+                const hasHistory = historyKey !== undefined;
 
                 let chipClasses = `bank-chip ${bankClass}`;
                 let statusIcon = '';
@@ -472,7 +508,7 @@ function renderSessions(sessions) {
                     }
                 } else {
                     if (hasHistory) {
-                        const status = bankStatuses[bank] || 'released';
+                        const status = bankStatuses[historyKey] || 'released';
                         if (status === 'success') {
                             chipClasses += ' success-done';
                             statusIcon = '<span class="chip-status-icon">✓</span>';
@@ -540,7 +576,7 @@ function renderSessions(sessions) {
                         </div>
                     `;
                 } else {
-                    const freeLines = (allLines || []).filter(l => l.status === 'available' && remaining.includes(l.bank));
+                    const freeLines = (allLines || []).filter(l => l.status === 'available' && remaining.some(b => b.toLowerCase() === l.bank.toLowerCase()));
                     const currentTempLineId = tempSelectedLines[session.client_id] || "";
 
                     let selectOptions = freeLines.map(l => {

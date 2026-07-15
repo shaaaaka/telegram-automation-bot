@@ -88,41 +88,30 @@ async def send_line_assignment_messages(client_id: int, line_id: int, bot: Bot, 
             import os
             key, template = await db.get_bank_template_with_key_db(bank_name)
             if template:
-                photo_path = None
-                if template.get('screenshot_path'):
-                    # Convert web URL path (e.g. /static/...) to local filesystem path (e.g. web/static/...)
-                    rel_path = template['screenshot_path'].lstrip('/')
-                    photo_path = os.path.join("web", rel_path)
-                
-                if not photo_path or not os.path.exists(photo_path):
-                    photo_path = get_template_photo(key) if key else None
-                    
-                caption_text = template['text']
-                instruction_msg = None
-                if photo_path and os.path.exists(photo_path):
-                    try:
-                        instruction_msg = await bot.send_photo(
-                            chat_id=client_id,
-                            photo=FSInputFile(photo_path),
-                            caption=caption_text
-                        )
-                    except Exception as e:
-                        logger.error("Помилка надсилання фото шаблону банку: %s", e)
+                # Send download screenshot if present, otherwise send download text
+                if template.get('download_screenshot_path'):
+                    rel_download_path = template['download_screenshot_path'].lstrip('/')
+                    download_photo_path = os.path.join("web", rel_download_path)
+                    if os.path.exists(download_photo_path):
                         try:
-                            instruction_msg = await bot.send_message(chat_id=client_id, text=caption_text)
-                        except Exception:
-                            pass
+                            download_text = template.get('text') or "Спершу завантажте цей додаток:"
+                            await bot.send_photo(
+                                chat_id=client_id,
+                                photo=FSInputFile(download_photo_path),
+                                caption=download_text
+                            )
+                        except Exception as e:
+                            logger.error("Помилка надсилання фото додатку для завантаження: %s", e)
+                    else:
+                        try:
+                            await bot.send_message(chat_id=client_id, text=template['text'])
+                        except Exception as e:
+                            logger.error("Помилка надсилання тексту додатку для завантаження: %s", e)
                 else:
                     try:
-                        instruction_msg = await bot.send_message(chat_id=client_id, text=caption_text)
+                        await bot.send_message(chat_id=client_id, text=template['text'])
                     except Exception as e:
-                        logger.error("Помилка надсилання тексту шаблону банку: %s", e)
-
-                if instruction_msg:
-                    try:
-                        await db.update_session_instruction_message_id(client_id, instruction_msg.message_id)
-                    except Exception as e:
-                        logger.error("Помилка оновлення instruction_message_id в БД: %s", e)
+                        logger.error("Помилка надсилання тексту додатку для завантаження: %s", e)
 
             await bot.send_message(
                 chat_id=client_id,

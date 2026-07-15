@@ -173,16 +173,24 @@ async def init_db():
                 code_length INTEGER DEFAULT 4,
                 logo_path TEXT,
                 screenshot_path TEXT,
+                download_screenshot_path TEXT,
+                success_screenshot_path TEXT,
+                report_template TEXT,
                 ai_rules TEXT,
-                required_screenshots INTEGER DEFAULT 1
+                required_screenshots INTEGER DEFAULT 1,
+                description TEXT
             )
         """)
         for col, col_def in [
             ("code_length", "INTEGER DEFAULT 4"),
             ("logo_path", "TEXT"),
             ("screenshot_path", "TEXT"),
+            ("download_screenshot_path", "TEXT"),
+            ("success_screenshot_path", "TEXT"),
+            ("report_template", "TEXT"),
             ("ai_rules", "TEXT"),
-            ("required_screenshots", "INTEGER DEFAULT 1")
+            ("required_screenshots", "INTEGER DEFAULT 1"),
+            ("description", "TEXT")
         ]:
             try:
                 await db.execute(f"ALTER TABLE bank_templates ADD COLUMN {col} {col_def}")
@@ -839,8 +847,12 @@ async def get_all_bank_templates() -> dict:
                     'code_length': row['code_length'],
                     'logo_path': row['logo_path'] if 'logo_path' in row.keys() else None,
                     'screenshot_path': row['screenshot_path'] if 'screenshot_path' in row.keys() else None,
+                    'download_screenshot_path': row['download_screenshot_path'] if 'download_screenshot_path' in row.keys() else None,
+                    'success_screenshot_path': row['success_screenshot_path'] if 'success_screenshot_path' in row.keys() else None,
+                    'report_template': row['report_template'] if ('report_template' in row.keys() and row['report_template']) else None,
                     'ai_rules': row['ai_rules'] if 'ai_rules' in row.keys() else None,
-                    'required_screenshots': row['required_screenshots'] if 'required_screenshots' in row.keys() else 1
+                    'required_screenshots': row['required_screenshots'] if 'required_screenshots' in row.keys() else 1,
+                    'description': row['description'] if 'description' in row.keys() else row['key']
                 } for row in rows
             }
 
@@ -851,23 +863,31 @@ async def save_bank_template(
     code_length: int = 4,
     logo_path: str = None,
     screenshot_path: str = None,
+    download_screenshot_path: str = None,
+    success_screenshot_path: str = None,
+    report_template: str = None,
     ai_rules: str = None,
-    required_screenshots: int = 1
+    required_screenshots: int = 1,
+    description: str = None
 ):
     """Збереження або оновлення шаблону банку"""
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("""
-            INSERT INTO bank_templates (key, command, text, code_length, logo_path, screenshot_path, ai_rules, required_screenshots)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO bank_templates (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(key) DO UPDATE SET
                 command = excluded.command,
                 text = excluded.text,
                 code_length = excluded.code_length,
                 logo_path = COALESCE(excluded.logo_path, bank_templates.logo_path),
                 screenshot_path = COALESCE(excluded.screenshot_path, bank_templates.screenshot_path),
+                download_screenshot_path = COALESCE(excluded.download_screenshot_path, bank_templates.download_screenshot_path),
+                success_screenshot_path = COALESCE(excluded.success_screenshot_path, bank_templates.success_screenshot_path),
+                report_template = excluded.report_template,
                 ai_rules = excluded.ai_rules,
-                required_screenshots = excluded.required_screenshots
-        """, (key, command, text, code_length, logo_path, screenshot_path, ai_rules, required_screenshots))
+                required_screenshots = excluded.required_screenshots,
+                description = COALESCE(excluded.description, bank_templates.description)
+        """, (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description))
         await db.commit()
 
 async def delete_bank_template(key: str):
@@ -897,6 +917,27 @@ async def get_bank_template_with_key_db(bank_name: str):
         if key in name_norm or name_norm in key:
             return key, val
     return None, None
+
+async def get_bank_display_name(bank_name: str) -> str:
+    """Повертає зрозумілу назву банку для відображення (наприклад, AmoBank)"""
+    if not bank_name:
+        return "Невідомий банк"
+    
+    name_norm = bank_name.lower().replace(" ", "").replace("-", "").replace(".", "")
+    mapping = {
+        "izibank": "IziBank",
+        "amobank": "AmoBank",
+        "lvivbank": "LvivBank",
+        "bankkd": "bank.kd",
+        "alliance": "Alliance"
+    }
+    
+    for key, val in mapping.items():
+        if key in name_norm or name_norm in key:
+            return val
+            
+    return bank_name[0].upper() + bank_name[1:] if len(bank_name) > 0 else bank_name
+
 
 async def log_verification_start(client_id: int, username: str, bank: str, phone_number: str):
     """Логування початку верифікації для лінії"""

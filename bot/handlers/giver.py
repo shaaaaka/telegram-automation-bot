@@ -144,7 +144,8 @@ async def handle_giver_message(message: Message, bot: Bot):
     keyboard_buttons = []
     for s in valid_sessions:
         line_info = await db.get_line(s['line_id']) if s['line_id'] else None
-        bank_name = line_info['bank'] if line_info else "Невідомий банк"
+        bank_name_raw = line_info['bank'] if line_info else "Невідомий банк"
+        bank_name = await db.get_bank_display_name(bank_name_raw)
         line_id = s['line_id']
         
         button_text = f"+{line_info['phone_number']} ({bank_name})" if line_info else f"Клієнт {s['client_id']} ({bank_name})"
@@ -168,7 +169,8 @@ async def send_code_to_client(bot: Bot, session: dict, line_info: dict, code: st
     client_id = session['client_id']
     username = session['username']
     line_id = session['line_id']
-    bank_name = line_info['bank'] if line_info else "Банк"
+    bank_name_raw = line_info['bank'] if line_info else "Банк"
+    bank_name = await db.get_bank_display_name(bank_name_raw)
 
     from aiogram.types import ReplyKeyboardRemove
     # Відправляємо клієнту
@@ -187,7 +189,7 @@ async def send_code_to_client(bot: Bot, session: dict, line_info: dict, code: st
     import asyncio
     updated_session = await db.get_session(client_id)
     if updated_session and updated_session.get('sent_codes_count') == 1:
-        asyncio.create_task(send_first_code_helper_delayed(bot, client_id, line_id, bank_name))
+        asyncio.create_task(send_first_code_helper_delayed(bot, client_id, line_id, bank_name_raw))
 
     # Звітуємо адміну
     phone_str = f" (+{line_info['phone_number']})" if line_info else ""
@@ -205,7 +207,8 @@ async def handle_giver_refusal(bot: Bot, session: dict, line_info: dict):
     client_id = session['client_id']
     username = session['username']
     line_id = session['line_id']
-    bank_name = line_info['bank'] if line_info else "Банк"
+    bank_name_raw = line_info['bank'] if line_info else "Банк"
+    bank_name = await db.get_bank_display_name(bank_name_raw)
 
     from aiogram.types import ReplyKeyboardRemove
     # Відправляємо клієнту
@@ -229,7 +232,6 @@ async def handle_giver_refusal(bot: Bot, session: dict, line_info: dict):
         ),
         parse_mode="Markdown"
     )
-
 async def send_first_code_helper_delayed(bot: Bot, client_id: int, line_id: int, bank_name: str):
     """Надсилає допоміжне повідомлення та шаблони через 1 хвилину після відправки першого коду"""
     import asyncio
@@ -240,7 +242,6 @@ async def send_first_code_helper_delayed(bot: Bot, client_id: int, line_id: int,
         if not session or session.get('status') == 'completed' or session.get('line_id') != line_id:
             return
             
-        is_amobank = bank_name.lower().strip() == "amobank"
         is_bank_kd = bank_name and "bank.kd" in bank_name.lower()
 
         if is_bank_kd:
@@ -260,27 +261,35 @@ async def send_first_code_helper_delayed(bot: Bot, client_id: int, line_id: int,
             return
 
         text = "Реєструйте як наче під себе робите"
-        if is_amobank:
+        
+        # Динамічно завантажуємо шаблон з бази даних
+        template = await db.get_bank_template_db(bank_name)
+        screenshot_paths = []
+        if template and template.get('screenshot_path'):
+            screenshot_paths_str = template.get('screenshot_path')
+            screenshot_paths = [p.strip() for p in screenshot_paths_str.split(",") if p.strip()]
+
+        if screenshot_paths:
             text += ", або якщо що, то ось готовий шаблон реєстрації:"
             
         # Надсилаємо текст клієнту
         await bot.send_message(chat_id=client_id, text=text)
         
-        # Якщо це AmoBank, надсилаємо 4 скріншоти
-        if is_amobank:
+        # Надсилаємо скріншоти кроків реєстрації
+        if screenshot_paths:
             from aiogram.types import InputMediaPhoto, FSInputFile
             import os
             
-            images_dir = os.path.join(os.path.dirname(__file__), "..", "resources", "images")
             media = []
-            for i in range(1, 5):
-                img_path = os.path.join(images_dir, f"amobank_step{i}.png")
-                if os.path.exists(img_path):
-                    media.append(InputMediaPhoto(media=FSInputFile(img_path)))
+            for p in screenshot_paths:
+                rel_path = p.lstrip('/')
+                local_path = os.path.join("web", rel_path)
+                if os.path.exists(local_path):
+                    media.append(InputMediaPhoto(media=FSInputFile(local_path)))
             
             if media:
                 sent_messages = await bot.send_media_group(chat_id=client_id, media=media)
-                for i, msg in enumerate(sent_messages):
+                for msg in sent_messages:
                     photo_id = msg.photo[-1].file_id if msg.photo else None
                     # Логуємо фотографії в чат-історію
                     await db.log_chat_message(client_id, 'bot', None, photo_id)

@@ -61,6 +61,7 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
         await state.clear()
         return
 
+    username = session.get('username')
     await state.clear()
 
     # Розпарсимо PIB, DOB, IPN з client_data
@@ -75,34 +76,58 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
     # Інформація про лінію
     line_id = session['line_id']
     line_str = "Не призначено"
+    line_id_val = "Невідомо"
+    line_phone_val = "Невідомо"
     bank_name = "Банк"
     if line_id:
         line_info = await db.get_line(line_id)
         if line_info:
             line_str = f"Line {line_info['line_id']} Return: {line_info['phone_number']} | {line_info['bank']}"
+            line_id_val = str(line_info['line_id'])
+            line_phone_val = str(line_info['phone_number'])
             bank_name = line_info['bank']
 
-    # Формуємо анкету без "РЕЄСТРАЦІЙНІ ДАНІ"
     phone_number = session.get('client_phone', text if 'text' in locals() else '')
-    anketa_text = (
-        f"ІПН: {ipn}\n"
-        f"ПІБ: {pib}\n"
-        f"Дата: {dob}\n"
-        f"Телефон: {phone_number}\n\n"
-    )
     
-    username = message.from_user.username
-    if username:
-        anketa_text += f"Дроп - @{username}\n\n"
-        
-    anketa_text += f"{line_str}\n\n"
+    # Спробуємо завантажити шаблон для отримання report_template
+    template_data = await db.get_bank_template_db(bank_name)
+    custom_tpl = template_data.get('report_template') if template_data else None
     
-    if client_card:
-        anketa_text += f"Номер карти: {client_card}\n\n"
-        
-    if client_password:
-        anketa_text += f"{client_password}"
-        
+    if custom_tpl:
+        # Використовуємо кастомний шаблон звіту
+        replacements = {
+            "{pib}": pib,
+            "{dob}": dob,
+            "{ipn}": ipn,
+            "{phone}": phone_number,
+            "{username}": username or "Невідомо",
+            "{line}": line_str,
+            "{line_id}": line_id_val,
+            "{line_phone}": line_phone_val,
+            "{code}": client_password or "Немає",
+            "{card}": client_card or "Немає",
+            "{bank}": bank_name or "Невідомий"
+        }
+        tpl_formatted = custom_tpl
+        for placeholder, val in replacements.items():
+            tpl_formatted = tpl_formatted.replace(placeholder, str(val))
+        anketa_text = tpl_formatted
+    else:
+        # Стандартний формат звіту (fallback)
+        anketa_text = (
+            f"ІПН: {ipn}\n"
+            f"ПІБ: {pib}\n"
+            f"Дата: {dob}\n"
+            f"Телефон: {phone_number}\n\n"
+        )
+        if username:
+            anketa_text += f"Дроп - @{username}\n\n"
+        anketa_text += f"{line_str}\n\n"
+        if client_card:
+            anketa_text += f"Номер карти: {client_card}\n\n"
+        if client_password:
+            anketa_text += f"{client_password}"
+            
     anketa_text = anketa_text.strip()
     
     from bot.config import get_anketa_chat_id, get_admin_id
@@ -657,16 +682,17 @@ async def trigger_sms_code_request(client_id: int, bot: Bot, state: FSMContext, 
         
     await notify_fn(msg_text, is_error=False, is_retry=is_retry)
 
+    display_bank = await db.get_bank_display_name(bank_name)
     if is_retry:
         try:
-            giver_msg = giver_retry_format.format(line_id=line_num, bank_name=bank_name)
+            giver_msg = giver_retry_format.format(line_id=line_num, bank_name=display_bank)
         except Exception:
-            giver_msg = f"Запрос {line_num} {bank_name} (ПОВТОРНО)"
+            giver_msg = f"Запрос {line_num} {display_bank} (ПОВТОРНО)"
     else:
         try:
-            giver_msg = giver_format.format(line_id=line_num, bank_name=bank_name)
+            giver_msg = giver_format.format(line_id=line_num, bank_name=display_bank)
         except Exception:
-            giver_msg = f"Запрос {line_num} {bank_name}"
+            giver_msg = f"Запрос {line_num} {display_bank}"
 
     # Надсилаємо запит постачальнику кодів (Giver)
     from bot.config import get_giver_chat_id, get_admin_id

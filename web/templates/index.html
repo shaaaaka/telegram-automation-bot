@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=9.16">
+    <link rel="stylesheet" href="/static/css/style.css?v=9.17">
 </head>
 <body>
     <div class="container">
@@ -532,6 +532,7 @@
                 .custom-select-trigger:hover {
                     background: rgba(255, 255, 255, 0.05);
                     border-color: rgba(255, 255, 255, 0.12);
+                    transform: none !important;
                 }
                 .custom-select-wrapper.open .custom-select-trigger {
                     border-color: var(--accent-primary);
@@ -564,8 +565,42 @@
                     from { opacity: 0; transform: translateY(-4px); }
                     to { opacity: 1; transform: translateY(0); }
                 }
-                .custom-select-wrapper.open .custom-select-options {
+                .custom-select-wrapper.open .custom-select-options,
+                .custom-select-options.active {
                     display: block;
+                    opacity: 1 !important;
+                    pointer-events: auto !important;
+                    transform: translateY(0) scale(1) !important;
+                }
+                .custom-select-wrapper.open {
+                    z-index: 150;
+                }
+                .btn-reset-file {
+                    background: rgba(239, 68, 68, 0.08);
+                    color: #ef4444;
+                    border: 1px solid rgba(239, 68, 68, 0.25);
+                    border-radius: 8px;
+                    padding: 6px 16px;
+                    font-size: 0.82rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.18s ease;
+                    margin-top: 8px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                    width: 100%;
+                    max-width: 140px;
+                }
+                .btn-reset-file:hover {
+                    background: rgba(239, 68, 68, 0.18);
+                    border-color: rgba(239, 68, 68, 0.4);
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+                }
+                .btn-reset-file:active {
+                    transform: translateY(0);
                 }
                 .custom-select-option {
                     padding: 10px 14px;
@@ -591,7 +626,7 @@
                     border-radius: 14px;
                     padding: 16px 20px;
                     transition: all 0.25s ease;
-                    overflow: hidden;
+                    overflow: visible;
                 }
                 .bank-accordion-item:hover {
                     border-color: rgba(255, 255, 255, 0.1);
@@ -966,64 +1001,209 @@
                                 <h4 style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #fff;">➕ Додати новий банк</h4>
                             </div>
                             <form id="add-bank-form" onsubmit="handleCreateAccordionBank(event)" style="display: flex; flex-direction: column; gap: 16px;">
-                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
-                                    <div class="form-group" style="margin: 0;">
-                                        <label for="new-bank-key" class="form-label">Ключ банку (напр. izibank)</label>
-                                        <input type="text" id="new-bank-key" placeholder="Напр. izibank" required class="form-control" style="width: 100%;">
+                                <div style="display: flex; gap: 20px; align-items: center; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 12px; padding: 12px;">
+                                    <!-- Logo Upload Box -->
+                                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                        <div id="new-bank-logo-preview" 
+                                             class="bank-media-preview-box" 
+                                             style="width: 64px; height: 64px; border-radius: 50%; border: 2px dashed rgba(255,255,255,0.15); background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; transition: all 0.25s ease; cursor: pointer; position: relative;"
+                                             onclick="document.getElementById('new-bank-logo').click()">
+                                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                            </svg>
+                                        </div>
+                                        <input type="file" id="new-bank-logo" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'new-bank-logo-preview', 'new-logo-filename', true)" data-original="">
+                                        <span id="new-logo-filename" class="file-upload-filename-pill" style="font-size: 0.65rem; max-width: 80px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-top: 2px;">Логотип</span>
+                                        <button type="button" id="new-logo-reset" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('new-bank', 'logo')">Відхилити</button>
                                     </div>
-                                    <div class="form-group" style="margin: 0;">
-                                        <label for="new-bank-command" class="form-label">Команда в Telegram</label>
-                                        <input type="text" id="new-bank-command" placeholder="Напр. /ЗАВАНТАЖізі" required class="form-control" style="width: 100%;">
-                                    </div>
-                                    <div class="form-group" style="margin: 0;">
-                                        <label for="new-bank-code-length" class="form-label">Довжина SMS-коду (цифр)</label>
-                                        <input type="number" id="new-bank-code-length" placeholder="4" value="4" required min="1" max="10" class="form-control" style="width: 100%;">
+
+                                    <!-- Technical Inputs Grid -->
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; flex-grow: 1; align-items: end;">
+                                        <div class="form-group" style="margin: 0;">
+                                            <label for="new-bank-key" class="form-label">Ключ банку (напр. izibank)</label>
+                                            <input type="text" id="new-bank-key" placeholder="Напр. izibank" required class="form-control" style="width: 100%;">
+                                        </div>
+                                        <div class="form-group" style="margin: 0;">
+                                            <label for="new-bank-command" class="form-label">Команда в Telegram</label>
+                                            <input type="text" id="new-bank-command" placeholder="Напр. /ЗАВАНТАЖізі" required class="form-control" style="width: 100%;">
+                                        </div>
+                                        <div class="form-group" style="margin: 0;">
+                                            <label for="new-bank-code-length" class="form-label">Довжина SMS-коду</label>
+                                            <input type="number" id="new-bank-code-length" placeholder="4" value="4" required min="1" max="10" class="form-control" style="width: 100%;">
+                                        </div>
+                                        <div class="form-group" style="margin: 0;">
+                                            <label class="form-label">Необхідно скріншотів</label>
+                                            <div class="custom-select-wrapper" id="custom-select-wrapper-new-bank">
+                                                <div class="custom-select-trigger" onclick="toggleCustomSelectDropdown('new-bank', event); event.stopPropagation();">
+                                                    <span id="custom-select-value-new-bank">1 скріншот</span>
+                                                    <svg class="custom-select-arrow" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                                    </svg>
+                                                </div>
+                                                <div class="custom-select-options" id="custom-select-options-new-bank">
+                                                    <div class="custom-select-option selected" data-value="1" onclick="selectRequiredScreenshotsOption('new-bank', 1)">1 скріншот</div>
+                                                    <div class="custom-select-option" data-value="2" onclick="selectRequiredScreenshotsOption('new-bank', 2)">2 скріншоти</div>
+                                                    <div class="custom-select-option" data-value="3" onclick="selectRequiredScreenshotsOption('new-bank', 3)">3 скріншоти</div>
+                                                    <div class="custom-select-option" data-value="4" onclick="selectRequiredScreenshotsOption('new-bank', 4)">4 скріншоти</div>
+                                                    <div class="custom-select-option" data-value="5" onclick="selectRequiredScreenshotsOption('new-bank', 5)">5 скріншотів</div>
+                                                </div>
+                                                <input type="hidden" id="new-bank-req-scr" value="1">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; align-items: end;">
-                                    <div class="form-group" style="margin: 0;">
-                                        <label class="form-label">Логотип банку (PNG/JPG)</label>
-                                        <div class="custom-file-upload-wrapper">
-                                            <label for="new-bank-logo" class="custom-file-upload-label">
-                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-                                                </svg>
-                                                Обрати файл
-                                            </label>
-                                            <input type="file" id="new-bank-logo" accept="image/*" style="display: none;" onchange="updateFileNameLabel(this, 'new-logo-filename')">
-                                            <span id="new-logo-filename" class="file-upload-filename-pill">Файл не обрано</span>
+
+                                <div class="bank-settings-section-title" style="margin-top: 12px; font-size: 0.9rem; font-weight: 600; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px;">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-primary);">
+                                        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path>
+                                        <path d="M8 12h8"></path>
+                                        <path d="M12 8v8"></path>
+                                    </svg>
+                                    Медіа-інструкції для клієнта
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 10px; margin-bottom: 16px;">
+                                    <!-- Download Screenshot Card -->
+                                    <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden;">
+                                        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
+                                            <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Який банк завантажити</span>
+                                            <span id="new-download-screenshot-filename" class="file-upload-filename-pill" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem; color: var(--accent-primary);">Файл не обрано</span>
+                                        </div>
+                                        
+                                        <div id="new-bank-download-screenshot-preview" 
+                                             class="bank-media-preview-box" 
+                                             style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); cursor: default; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                                            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                                                <line x1="12" y1="18" x2="12.01" y2="18"/>
+                                            </svg>
+                                        </div>
+
+                                        <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                                            <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
+                                                <label for="new-bank-download-screenshot" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
+                                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                                    </svg>
+                                                    Обрати файл
+                                                </label>
+                                                <input type="file" id="new-bank-download-screenshot" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'new-bank-download-screenshot-preview', 'new-download-screenshot-filename', false)" data-original="">
+                                            </div>
+                                            <button type="button" id="new-download-screenshot-reset" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('new-bank', 'download-screenshot')">Відхилити</button>
                                         </div>
                                     </div>
-                                    <div class="form-group" style="margin: 0;">
-                                        <label class="form-label">Скріншот-інструкція (JPG/PNG)</label>
-                                        <div class="custom-file-upload-wrapper">
-                                            <label for="new-bank-screenshot" class="custom-file-upload-label">
-                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+
+                                    <!-- Instruction Screenshot Card -->
+                                    <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 245px;">
+                                        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
+                                            <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Скріншот-інструкція як проходити</span>
+                                            <span id="new-screenshot-filename" class="file-upload-filename-pill" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem; color: var(--accent-primary);">Файл не обрано</span>
+                                        </div>
+                                        
+                                        <div id="new-bank-screenshot-preview" 
+                                             style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
+                                            <div class="bank-media-preview-box placeholder" 
+                                                 style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center;">
+                                                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                                                    <line x1="12" y1="18" x2="12.01" y2="18"/>
                                                 </svg>
-                                                Обрати файл
-                                            </label>
-                                            <input type="file" id="new-bank-screenshot" accept="image/*" style="display: none;" onchange="updateFileNameLabel(this, 'new-screenshot-filename')">
-                                            <span id="new-screenshot-filename" class="file-upload-filename-pill">Файл не обрано</span>
+                                            </div>
+                                        </div>
+
+                                        <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                                            <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
+                                                <label for="new-bank-screenshot" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
+                                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                                    </svg>
+                                                    Обрати скріншоти
+                                                </label>
+                                                <input type="file" id="new-bank-screenshot" accept="image/*" multiple style="display: none;" onchange="handleMultipleFilePreview(this, 'new-bank-screenshot-preview', 'new-screenshot-filename')" data-original="">
+                                            </div>
+                                            <button type="button" id="new-screenshot-reset" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('new-bank', 'screenshot')">Відхилити</button>
                                         </div>
                                     </div>
-                                    <div class="form-group" style="margin: 0;">
-                                        <label class="form-label">Необхідно скріншотів</label>
-                                        <div class="custom-select-wrapper" id="custom-select-wrapper-new-bank">
-                                            <div class="custom-select-trigger" onclick="toggleCustomSelectDropdown('new-bank')">
-                                                <span id="custom-select-value-new-bank">1 скріншот</span>
-                                                <svg class="custom-select-arrow" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
-                                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                                </svg>
+
+                                    <!-- Success Screenshot Card -->
+                                    <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 245px;">
+                                        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
+                                            <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Зразок успішного екрану</span>
+                                            <span id="new-success-screenshot-filename" class="file-upload-filename-pill" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem; color: var(--accent-primary);">Файл не обрано</span>
+                                        </div>
+                                        
+                                        <div id="new-bank-success-screenshot-preview" 
+                                             class="bank-media-preview-box" 
+                                             style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); cursor: default; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                                            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                                                <circle cx="12" cy="10" r="3"/>
+                                                <path d="M12 18H12.01"/>
+                                            </svg>
+                                        </div>
+
+                                        <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                                            <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
+                                                <label for="new-bank-success-screenshot" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
+                                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                                    </svg>
+                                                    Обрати файл
+                                                </label>
+                                                <input type="file" id="new-bank-success-screenshot" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'new-bank-success-screenshot-preview', 'new-success-screenshot-filename', false)" data-original="">
                                             </div>
-                                            <div class="custom-select-options" id="custom-select-options-new-bank">
-                                                <div class="custom-select-option selected" data-value="1" onclick="selectCustomOption('new-bank', 1)">1 скріншот</div>
-                                                <div class="custom-select-option" data-value="2" onclick="selectCustomOption('new-bank', 2)">2 скріншоти</div>
-                                                <div class="custom-select-option" data-value="3" onclick="selectCustomOption('new-bank', 3)">3 скріншоти</div>
-                                                <div class="custom-select-option" data-value="4" onclick="selectCustomOption('new-bank', 4)">4 скріншоти</div>
-                                                <div class="custom-select-option" data-value="5" onclick="selectCustomOption('new-bank', 5)">5 скріншотів</div>
-                                            </div>
-                                            <input type="hidden" id="new-bank-req-scr" value="1">
+                                            <button type="button" id="new-success-screenshot-reset" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('new-bank', 'success-screenshot')">Відхилити</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Verifier Report Template and Mockup Side-by-Side -->
+                                <div style="display: grid; grid-template-columns: 1fr 340px; gap: 20px; margin-bottom: 20px; align-items: start; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 18px;">
+                                    <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                                        <div class="bank-settings-section-title" style="margin: 0; font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; min-height: 20px;">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-primary);">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                            Шаблон повідомлення для верифікатора
+                                        </div>
+                                        <textarea id="new-bank-report-tpl" class="form-control auto-grow-textarea" rows="7" style="width: 100%; font-family: monospace; font-size: 0.78rem; line-height: 1.4; resize: vertical;" oninput="updateTelegramMockupPreview('new-bank')" placeholder="Шаблон звіту...">{pib}
+{dob}
+{ipn}
+{phone}
+
+Дроп - @{username}
+
+Line {line_id} Return: {line_phone} | {bank}
+
+{code}</textarea>
+                                        <span style="font-size: 0.72rem; color: rgba(255,255,255,0.4); line-height: 1.3;">
+                                            Ви можете редагувати цей текст. Доступні змінні для підстановки:
+                                            <br>
+                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px; display: inline-block; margin-top: 4px;">{pib}</code>, 
+                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{dob}</code>, 
+                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{ipn}</code>, 
+                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{phone}</code>, 
+                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{username}</code>, 
+                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{line}</code>, 
+                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{line_id}</code>, 
+                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{line_phone}</code>, 
+                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{code}</code>, 
+                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{card}</code>, 
+                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{bank}</code>
+                                        </span>
+                                    </div>
+
+                                    <!-- Telegram Mockup Bubble -->
+                                    <div class="telegram-mockup-wrapper" style="width: 100%; height: 100%; display: flex; flex-direction: column; text-align: left; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                                        <div style="font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 4px; min-height: 20px;">
+                                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                                            Прев'ю в Telegram
+                                        </div>
+                                        
+                                        <div class="telegram-message-bubble" style="background: #182533; border-radius: 10px; padding: 10px 12px; width: 100%; max-width: 320px; box-shadow: 0 1px 2px rgba(0,0,0,0.3); position: relative; display: flex; flex-direction: column; gap: 8px;">
+                                            <div id="new-telegram-mockup-image" style="width: 100%; height: 150px; border-radius: 6px; background: rgba(255,255,255,0.03) no-repeat center/cover; display: none; border: 1px solid rgba(255,255,255,0.06);"></div>
+                                            <div id="new-telegram-mockup-text" style="font-size: 0.82rem; color: #fff; line-height: 1.4; white-space: pre-line;"></div>
+                                            <div style="font-size: 0.65rem; color: #7f91a4; align-self: flex-end; margin-top: -4px;">14:38 ✓✓</div>
                                         </div>
                                     </div>
                                 </div>
@@ -1132,14 +1312,94 @@
     </div>
 
     <script src="/static/js/main.js?v=9.15"></script>
-    <script src="/static/js/control.js?v=9.15"></script>
+    <script src="/static/js/control.js?v=9.18"></script>
     <script src="/static/js/chat.js?v=9.15"></script>
     <script src="/static/js/stats.js?v=9.15"></script>
     <script src="/static/js/settings.js?v=9.15"></script>
-    <script src="/static/js/settings-banks.js?v=9.22"></script>
+    <script src="/static/js/settings-banks.js?v=9.49"></script>
 
     <script>
-        window.toggleCustomSelectDropdown = function(key) {
+        window.getScreenshotsHTML = function(pathsStr) {
+            if (!pathsStr) {
+                return `
+                    <div class="bank-media-preview-box placeholder" 
+                         style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                            <line x1="12" y1="18" x2="12.01" y2="18"/>
+                        </svg>
+                    </div>
+                `;
+            }
+            const paths = pathsStr.split(',').map(p => p.trim()).filter(p => p);
+            return paths.map(path => `
+                <div class="bank-media-preview-box" 
+                     style="border-radius: 12px; position: relative; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; overflow: hidden;"
+                     onclick="openLightbox('${path}')">
+                    <img src="${path}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;">
+                    <div class="hover-zoom-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 12px;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        window.handleMultipleFilePreview = function(input, previewContainerId, filenameLabelId) {
+            const files = input.files;
+            const label = document.getElementById(filenameLabelId);
+            const container = document.getElementById(previewContainerId);
+            const resetBtnId = filenameLabelId.replace('-filename', '-reset');
+            const resetBtnEl = document.getElementById(resetBtnId);
+            if (!container) return;
+
+            if (!files || files.length === 0) {
+                if (label) {
+                    label.textContent = "Файл не обрано";
+                    label.classList.remove('selected');
+                }
+                if (resetBtnEl) resetBtnEl.style.display = 'none';
+                container.innerHTML = `
+                    <div class="bank-media-preview-box placeholder" 
+                         style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                            <line x1="12" y1="18" x2="12.01" y2="18"/>
+                        </svg>
+                    </div>
+                `;
+                return;
+            }
+
+            if (label) {
+                label.textContent = `Обрано ${files.length} файл${files.length === 1 ? '' : files.length < 5 ? 'и' : 'ів'}`;
+                label.classList.add('selected');
+            }
+            if (resetBtnEl) resetBtnEl.style.display = 'inline-flex';
+
+            container.innerHTML = '';
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const dataUrl = e.target.result;
+                    const itemHTML = `
+                        <div class="bank-media-preview-box" 
+                             style="border-radius: 12px; position: relative; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; overflow: hidden;"
+                             onclick="openLightbox('${dataUrl}')">
+                            <img src="${dataUrl}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;">
+                            <div class="hover-zoom-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 12px;">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', itemHTML);
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        window.toggleCustomSelectDropdown = function(key, event) {
+            if (event) event.stopPropagation();
             const wrapper = document.getElementById(`custom-select-wrapper-${key}`);
             if (!wrapper) return;
             const isOpen = wrapper.classList.contains('open');
@@ -1149,7 +1409,7 @@
             wrapper.classList.toggle('open');
         };
 
-        window.selectCustomOption = function(key, val) {
+        window.selectRequiredScreenshotsOption = function(key, val) {
             const wrapper = document.getElementById(`custom-select-wrapper-${key}`);
             let input = document.getElementById(`bank-acc-req-scr-${key}`);
             if (!input && key === 'new-bank') {
@@ -1180,18 +1440,6 @@
                 });
             }
         });
-
-        function updateFileNameLabel(input, labelId) {
-            const label = document.getElementById(labelId);
-            if (!label) return;
-            if (input.files && input.files.length > 0) {
-                label.textContent = input.files[0].name;
-                label.classList.add('selected');
-            } else {
-                label.textContent = 'Файл не обрано';
-                label.classList.remove('selected');
-            }
-        }
 
         // Force reset iOS Safari viewport zoom to 1.0 on navigation events
         window.resetViewportScale = function() {

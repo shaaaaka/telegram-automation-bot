@@ -51,27 +51,32 @@ BANK_TEMPLATES = {
     "izibank": {
         "command": "/ЗАВАНТАЖізі",
         "text": "Завантажуйте будь ласка додаток \"izi bank\"",
-        "code_length": 4
+        "code_length": 4,
+        "description": "izi bank"
     },
     "amobank": {
         "command": "/ЗАВАНТАЖамо",
         "text": "Завантажуйте будь ласка додаток \"amobank\"",
-        "code_length": 4
+        "code_length": 4,
+        "description": "А-Банк"
     },
     "lvivbank": {
         "command": "/ЗАВАНТАЖльвів",
         "text": "Завантажуйте будь ласка додаток \"Bank Lviv\"",
-        "code_length": 6
+        "code_length": 6,
+        "description": "Банк Львів"
     },
     "bank.kd": {
         "command": "/ЗАВАНТАЖкд",
         "text": "Завантажуйте будь ласка додаток \"bank.kd\"",
-        "code_length": 6
+        "code_length": 6,
+        "description": "bank.kd"
     },
     "alliance": {
         "command": "/ЗАВАНТАЖальянс",
         "text": "Завантажуйте будь ласка додаток \"Alliance\"",
-        "code_length": 4
+        "code_length": 4,
+        "description": "Альянс Банк"
     }
 }
 

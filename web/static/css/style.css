@@ -4823,6 +4823,19 @@ div.empty-state span:first-child {
     border: none !important;
 }
 
+/* Bank Media Preview Boxes styling */
+.bank-media-preview-box {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+.bank-media-preview-box:hover {
+    filter: brightness(1.15);
+    border-color: var(--accent-primary) !important;
+    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.3) !important;
+}
+.bank-media-preview-box:hover .hover-zoom-overlay {
+    opacity: 1 !important;
+}
+
 
 
 

@@ -46,13 +46,19 @@ async def compile_system_instruction(current_bank_name: str = None, sent_codes_c
     # Отримуємо активні правила з бази
     active_rules = await db.get_active_ai_rules()
     
-    # Отримуємо специфічні правила для поточного банку з bank_templates
+    # Отримуємо специфічні правила та опис вигляду для поточного банку з bank_templates
     bank_specific_rules = ""
     if current_bank_name:
         try:
             bank_template = await db.get_bank_template_db(current_bank_name)
-            if bank_template and bank_template.get('ai_rules'):
-                bank_specific_rules = f"\n--- Специфічні правила для банку {current_bank_name.upper()} ---\n{bank_template['ai_rules']}\n"
+            if bank_template:
+                parts = []
+                if bank_template.get('description'):
+                    parts.append(f"Опис візуального вигляду банку (як виглядає додаток, кольори):\n{bank_template['description']}")
+                if bank_template.get('ai_rules'):
+                    parts.append(f"Специфічні правила для цього банку:\n{bank_template['ai_rules']}")
+                if parts:
+                    bank_specific_rules = f"\n--- НАЛАШТУВАННЯ ТА ПРАВИЛА ДЛЯ БАНКУ {current_bank_name.upper()} ---\n" + "\n\n".join(parts) + "\n"
         except Exception as e:
             logger.error(f"Помилка отримання специфічних правил для банку {current_bank_name}: {e}")
     
