@@ -62,10 +62,14 @@ function renderLines() {
             statusClass = 'line-status-banned';
         }
         
+        let displayName = line.bank;
+        if (window.bankTemplates && window.bankTemplates[line.bank]) {
+            displayName = window.bankTemplates[line.bank].display_name || line.bank;
+        }
         tr.innerHTML = `
             <td>${line.line_id}</td>
             <td><span class="phone-number-copy" onclick="copyToClipboard('+${line.phone_number}')">+${line.phone_number}</span></td>
-            <td>${line.bank}</td>
+            <td>${displayName}</td>
             <td><div class="status-wrapper"><span class="line-status-dot ${statusClass}"></span><span>${statusText}</span></div></td>
             <td>
                 <button type="button" class="btn-delete-line" onclick="handleDeleteLine(${line.id}, ${line.line_id}, '${line.bank}')" title="Видалити лінію">
@@ -495,6 +499,12 @@ function renderSessions(sessions) {
                 const historyKey = Object.keys(bankStatuses).find(x => x.toLowerCase() === bank.toLowerCase());
                 const hasHistory = historyKey !== undefined;
 
+                // Hide chip if bank is paused globally, and client is not active on it or has no history
+                const isGloballyActive = typeof availableBanks !== 'undefined' && availableBanks.some(x => x.toLowerCase() === bank.toLowerCase());
+                if (!isGloballyActive && !isSelected && !hasHistory && !isRemaining) {
+                    return;
+                }
+
                 let chipClasses = `bank-chip ${bankClass}`;
                 let statusIcon = '';
                 let onclickAttr = '';
@@ -536,7 +546,13 @@ function renderSessions(sessions) {
                     <div class="${chipClasses}" ${onclickAttr}>
                         <input type="checkbox" data-bank="${bank}" ${isSelected ? 'checked' : ''} style="display: none;">
                         ${statusIcon}
-                        <span>${bank}</span>
+                        <span>${(function() {
+                            let displayName = bank;
+                            if (window.bankTemplates && window.bankTemplates[bank]) {
+                                displayName = window.bankTemplates[bank].display_name || bank;
+                            }
+                            return displayName;
+                        })()}</span>
                     </div>
                 `;
             });
@@ -564,7 +580,13 @@ function renderSessions(sessions) {
                 if (session.line_id) {
                     const activeLine = (allLines || []).find(l => l.id === session.line_id);
                     const phoneNum = activeLine ? `+${activeLine.phone_number}` : 'Невідомий';
-                    const bankName = activeLine ? activeLine.bank : 'Банк';
+                    let bankName = 'Банк';
+                    if (activeLine) {
+                        bankName = activeLine.bank;
+                        if (window.bankTemplates && window.bankTemplates[bankName]) {
+                            bankName = window.bankTemplates[bankName].display_name || bankName;
+                        }
+                    }
                     assignmentHTML = `
                         <div class="assignment-box active-line-capsule-container">
                             <div class="section-label">Призначено лінію</div>
@@ -1156,4 +1178,45 @@ async function verifyManually(clientId) {
     } catch (err) {
         showToast("Не вдалося схвалити анкету", "error");
     }
+}
+
+// Dynamic population of manual bank selection dropdown
+function renderAddLineBanksDropdown() {
+    const list = document.getElementById('custom-select-options-list');
+    if (!list) return;
+    
+    // Save currently selected value if any
+    const currentValue = document.getElementById('add-bank').value;
+    
+    list.innerHTML = '';
+    if (typeof availableBanks !== 'undefined' && Array.isArray(availableBanks)) {
+        availableBanks.forEach(bank => {
+            const option = document.createElement('div');
+            option.className = 'add-bank-option';
+            option.setAttribute('data-value', bank);
+            if (bank === currentValue) {
+                option.classList.add('selected');
+            }
+            option.onclick = function(e) { selectCustomOption(this, e); };
+            
+            // Try to find display name in templates, fallback to key
+            let displayName = bank;
+            if (window.bankTemplates && window.bankTemplates[bank]) {
+                displayName = window.bankTemplates[bank].display_name || bank;
+            }
+            
+            option.textContent = displayName;
+            list.appendChild(option);
+        });
+    }
+}
+
+// Expose globally
+window.renderAddLineBanksDropdown = renderAddLineBanksDropdown;
+
+// Run once on load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderAddLineBanksDropdown);
+} else {
+    renderAddLineBanksDropdown();
 }

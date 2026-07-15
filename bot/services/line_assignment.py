@@ -44,9 +44,26 @@ def build_bank_selection_rows(
 
 
 async def get_all_banks_for_selection() -> list:
-    """Повертає об'єднаний та відсортований список банків за замовчуванням + з бази."""
+    """Повертає об'єднаний та відсортований список активних банків."""
     unique_banks_db = await db.get_unique_banks()
-    return list(dict.fromkeys(DEFAULT_BANK_ORDER + unique_banks_db))
+    combined_banks = list(dict.fromkeys(DEFAULT_BANK_ORDER + unique_banks_db))
+
+    # Фільтруємо неактивні банки
+    templates = await db.get_all_bank_templates()
+    active_banks = []
+    for bank in combined_banks:
+        is_active = True
+        name_norm = bank.lower().replace(" ", "").replace("-", "").replace(".", "")
+        for key, val in templates.items():
+            key_norm = key.lower().replace(" ", "").replace("-", "").replace(".", "")
+            if key_norm in name_norm or name_norm in key_norm:
+                if val.get('is_active') == 0:
+                    is_active = False
+                break
+        if is_active:
+            active_banks.append(bank)
+
+    return active_banks
 
 
 async def send_line_assignment_messages(client_id: int, line_id: int, bot: Bot, delay_before_phone: float = 0.0) -> dict | None:

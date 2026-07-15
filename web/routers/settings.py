@@ -107,6 +107,8 @@ async def update_template_endpoint(
     report_template: str = Form(""),
     required_screenshots: int = Form(1),
     description: str = Form(""),
+    display_name: str = Form(None),
+    is_active: int = Form(1),
     logo_file: Optional[UploadFile] = File(None),
     screenshot_files: List[UploadFile] = File(default=[]),
     download_screenshot_file: Optional[UploadFile] = File(None),
@@ -167,7 +169,9 @@ async def update_template_endpoint(
             report_template=report_template,
             ai_rules=ai_rules,
             required_screenshots=required_screenshots,
-            description=description
+            description=description,
+            display_name=display_name,
+            is_active=is_active
         )
         return {"status": "success"}
     except Exception as e:

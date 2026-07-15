@@ -8,3 +8,5 @@ websockets
 pytest
 pytest-asyncio
 tzdata
+python-multipart
+

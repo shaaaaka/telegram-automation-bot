@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=9.17">
+    <link rel="stylesheet" href="/static/css/style.css?v=9.18">
 </head>
 <body>
     <div class="container">
@@ -657,6 +657,65 @@
                 .bank-accordion-item.active .accordion-arrow {
                     transform: rotate(180deg);
                 }
+                .bank-accordion-item.bank-paused {
+                    border-color: rgba(255, 255, 255, 0.02) !important;
+                    opacity: 0.75;
+                    transition: all 0.25s ease;
+                }
+                .bank-accordion-item.bank-paused:hover {
+                    border-color: rgba(255, 255, 255, 0.05) !important;
+                    opacity: 0.9;
+                }
+                .bank-accordion-item.bank-paused .bank-title {
+                    color: rgba(255, 255, 255, 0.4) !important;
+                }
+                .bank-accordion-item.bank-paused .bank-icon-badge {
+                    filter: grayscale(1) opacity(0.4);
+                }
+
+                /* --- Bank Status Custom Switch --- */
+                .bank-status-switch {
+                    position: relative;
+                    display: inline-block;
+                    width: 48px;
+                    height: 26px;
+                }
+                .bank-status-switch input {
+                    opacity: 0;
+                    width: 0;
+                    height: 0;
+                }
+                .bank-status-slider {
+                    position: absolute;
+                    cursor: pointer;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    background-color: rgba(239, 68, 68, 0.08);
+                    border: 1px solid rgba(239, 68, 68, 0.2);
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    border-radius: 30px;
+                }
+                .bank-status-slider:before {
+                    position: absolute;
+                    content: "";
+                    height: 18px;
+                    width: 18px;
+                    left: 3px;
+                    bottom: 3px;
+                    background-color: #ef4444;
+                    box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    border-radius: 50%;
+                }
+                .bank-status-switch input:checked + .bank-status-slider {
+                    background-color: rgba(52, 211, 153, 0.12);
+                    border-color: rgba(52, 211, 153, 0.3);
+                    box-shadow: 0 0 12px rgba(52, 211, 153, 0.15);
+                }
+                .bank-status-switch input:checked + .bank-status-slider:before {
+                    transform: translateX(22px);
+                    background-color: #34d399;
+                    box-shadow: 0 0 10px #34d399;
+                }
 
                 .bank-icon-badge {
                     width: 36px;
@@ -1018,7 +1077,11 @@
                                     </div>
 
                                     <!-- Technical Inputs Grid -->
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; flex-grow: 1; align-items: end;">
+                                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; flex-grow: 1; align-items: end;">
+                                        <div class="form-group" style="margin: 0;">
+                                            <label for="new-bank-display-name" class="form-label">Назва банку</label>
+                                            <input type="text" id="new-bank-display-name" placeholder="Напр. ізібанк" required class="form-control" style="width: 100%;">
+                                        </div>
                                         <div class="form-group" style="margin: 0;">
                                             <label for="new-bank-key" class="form-label">Ключ банку (напр. izibank)</label>
                                             <input type="text" id="new-bank-key" placeholder="Напр. izibank" required class="form-control" style="width: 100%;">
@@ -1084,7 +1147,7 @@
                                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                                                     </svg>
-                                                    Обрати файл
+                                                    Обрати скріншот
                                                 </label>
                                                 <input type="file" id="new-bank-download-screenshot" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'new-bank-download-screenshot-preview', 'new-download-screenshot-filename', false)" data-original="">
                                             </div>
@@ -1147,7 +1210,7 @@
                                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                                                     </svg>
-                                                    Обрати файл
+                                                    Обрати скріншот
                                                 </label>
                                                 <input type="file" id="new-bank-success-screenshot" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'new-bank-success-screenshot-preview', 'new-success-screenshot-filename', false)" data-original="">
                                             </div>
@@ -1166,7 +1229,7 @@
                                             </svg>
                                             Шаблон повідомлення для верифікатора
                                         </div>
-                                        <textarea id="new-bank-report-tpl" class="form-control auto-grow-textarea" rows="7" style="width: 100%; font-family: monospace; font-size: 0.78rem; line-height: 1.4; resize: vertical;" oninput="updateTelegramMockupPreview('new-bank')" placeholder="Шаблон звіту...">{pib}
+                                        <textarea id="new-bank-report-tpl" class="form-control auto-grow-textarea" rows="7" style="width: 100%; font-family: monospace; font-size: 0.78rem; line-height: 1.4; resize: none; overflow-y: hidden;" oninput="updateTelegramMockupPreview('new-bank'); autoGrowTextarea(this);" placeholder="Шаблон звіту...">{pib}
 {dob}
 {ipn}
 {phone}
@@ -1207,14 +1270,18 @@ Line {line_id} Return: {line_phone} | {bank}
                                         </div>
                                     </div>
                                 </div>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div style="display: flex; flex-direction: column; gap: 16px;">
                                     <div class="form-group" style="margin: 0;">
-                                        <label for="new-bank-text" class="form-label">Текст інструкції для клієнта</label>
-                                        <textarea id="new-bank-text" placeholder="Текст заготовки..." required class="form-control" rows="3" style="width: 100%; resize: vertical; min-height: 80px; font-family: inherit;"></textarea>
+                                        <label for="new-bank-text" class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Текст інструкції для клієнта</label>
+                                        <textarea id="new-bank-text" placeholder="Текст заготовки..." required class="form-control" rows="2" style="width: 100%; resize: none; overflow-y: hidden; min-height: 80px; font-family: inherit;" oninput="autoGrowTextarea(this)"></textarea>
                                     </div>
                                     <div class="form-group" style="margin: 0;">
-                                        <label for="new-bank-airules" class="form-label">Специфічні правила ШІ для банку</label>
-                                        <textarea id="new-bank-airules" placeholder="Наприклад: Перевіряти ліміт переказів не менше 50 000 грн..." class="form-control" rows="3" style="width: 100%; resize: vertical; min-height: 80px; font-family: inherit;"></textarea>
+                                        <label for="new-bank-airules" class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Специфічні правила ШІ для банку</label>
+                                        <textarea id="new-bank-airules" placeholder="Наприклад: Перевіряти ліміт переказів не менше 50 000 грн..." class="form-control" rows="3" style="width: 100%; resize: none; overflow-y: hidden; min-height: 80px; font-family: inherit;" oninput="autoGrowTextarea(this)"></textarea>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label for="new-bank-desc" class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Опис вигляду банку для ШІ (як виглядає додаток, кольори)</label>
+                                        <textarea id="new-bank-desc" placeholder="Наприклад: Додаток має темну тему, помаранчеві кольори, скляні плашки..." class="form-control" rows="2" style="width: 100%; resize: none; overflow-y: hidden; min-height: 80px; font-family: inherit;" oninput="autoGrowTextarea(this)"></textarea>
                                     </div>
                                 </div>
                                 <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
@@ -1224,9 +1291,23 @@ Line {line_id} Return: {line_phone} | {bank}
                             </form>
                         </div>
 
-                        <!-- Контейнер для списку акордів банків -->
-                        <div id="bank-settings-accordion" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+                        <!-- Контейнер для списку акордів активних банків -->
+                        <div id="bank-settings-accordion-active" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
                             <!-- Заповнюється динамічно JS -->
+                        </div>
+
+                        <!-- Розділювач та контейнер для неактивних банків -->
+                        <div id="bank-settings-accordion-paused-wrapper" style="display: none; margin-top: 32px; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 24px;">
+                            <h4 style="margin: 0 0 16px 0; font-size: 0.95rem; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                <svg style="width: 14px; height: 14px; color: var(--text-muted);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="6" y="4" width="4" height="16" rx="1"></rect>
+                                    <rect x="14" y="4" width="4" height="16" rx="1"></rect>
+                                </svg>
+                                Деактивовані банки (на паузі)
+                            </h4>
+                            <div id="bank-settings-accordion-paused" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+                                <!-- Заповнюється динамічно JS -->
+                            </div>
                         </div>
                     </div> <!-- Close settings-content-banks -->
                 </div> <!-- Close settings-content-pane -->
@@ -1311,12 +1392,12 @@ Line {line_id} Return: {line_phone} | {bank}
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=9.15"></script>
-    <script src="/static/js/control.js?v=9.18"></script>
+    <script src="/static/js/main.js?v=9.16"></script>
+    <script src="/static/js/control.js?v=9.19"></script>
     <script src="/static/js/chat.js?v=9.15"></script>
     <script src="/static/js/stats.js?v=9.15"></script>
     <script src="/static/js/settings.js?v=9.15"></script>
-    <script src="/static/js/settings-banks.js?v=9.49"></script>
+    <script src="/static/js/settings-banks.js?v=9.65"></script>
 
     <script>
         window.getScreenshotsHTML = function(pathsStr) {
@@ -1430,6 +1511,7 @@ Line {line_id} Return: {line_phone} | {bank}
                         opt.classList.remove('selected');
                     }
                 });
+                input.dispatchEvent(new Event('change', { bubbles: true }));
             }
         };
 

@@ -95,6 +95,7 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
     
     if custom_tpl:
         # Використовуємо кастомний шаблон звіту
+        display_bank = await db.get_bank_display_name(bank_name)
         replacements = {
             "{pib}": pib,
             "{dob}": dob,
@@ -106,7 +107,7 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
             "{line_phone}": line_phone_val,
             "{code}": client_password or "Немає",
             "{card}": client_card or "Немає",
-            "{bank}": bank_name or "Невідомий"
+            "{bank}": display_bank or "Невідомий"
         }
         tpl_formatted = custom_tpl
         for placeholder, val in replacements.items():

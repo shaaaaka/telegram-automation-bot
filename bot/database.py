@@ -190,7 +190,9 @@ async def init_db():
             ("report_template", "TEXT"),
             ("ai_rules", "TEXT"),
             ("required_screenshots", "INTEGER DEFAULT 1"),
-            ("description", "TEXT")
+            ("description", "TEXT"),
+            ("display_name", "TEXT"),
+            ("is_active", "INTEGER DEFAULT 1")
         ]:
             try:
                 await db.execute(f"ALTER TABLE bank_templates ADD COLUMN {col} {col_def}")
@@ -278,7 +280,9 @@ async def init_db():
                 default_examples = [
                     ("Ой, а що писати в графі роботи?", "Пишіть, що тимчасово не працюєте, або фрілансер. Все ок."),
                     ("Дія не підписує, кручу головою і нічого", "Спробуйте протерти фронталку і підійти до вікна, там світло вирішує."),
-                    ("А скільки платять за верифікацію?", "Щодо виплат — це до менеджера, зараз підключиться. Наша задача — закінчити верифікацію банку.")
+                    ("А скільки платять за верифікацію?", "Щодо виплат — це до менеджера, зараз підключиться. Наша задача — закінчити верифікацію банку."),
+                    ("Що це за ІПН?", "Це індивідуальний податковий номер (або РНОКПП). Його можна швидко знайти та скопіювати в додатку Дія (він там підписаний як РНОКПП або ІПН), або знайти на паперовій довідці платника податків."),
+                    ("що це", "Це індивідуальний податковий номер (або РНОКПП). Його можна швидко знайти та скопіювати в додатку Дія (він там підписаний як РНОКПП або ІПН), або знайти на паперовій довідці платника податків.")
                 ]
                 await db.executemany("INSERT INTO ai_examples (client_message, bot_response, is_active) VALUES (?, ?, 1)", default_examples)
 
@@ -852,7 +856,9 @@ async def get_all_bank_templates() -> dict:
                     'report_template': row['report_template'] if ('report_template' in row.keys() and row['report_template']) else None,
                     'ai_rules': row['ai_rules'] if 'ai_rules' in row.keys() else None,
                     'required_screenshots': row['required_screenshots'] if 'required_screenshots' in row.keys() else 1,
-                    'description': row['description'] if 'description' in row.keys() else row['key']
+                    'description': row['description'] if 'description' in row.keys() else row['key'],
+                    'display_name': row['display_name'] if ('display_name' in row.keys() and row['display_name']) else row['key'],
+                    'is_active': row['is_active'] if 'is_active' in row.keys() else 1
                 } for row in rows
             }
 
@@ -868,13 +874,15 @@ async def save_bank_template(
     report_template: str = None,
     ai_rules: str = None,
     required_screenshots: int = 1,
-    description: str = None
+    description: str = None,
+    display_name: str = None,
+    is_active: int = 1
 ):
     """Збереження або оновлення шаблону банку"""
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("""
-            INSERT INTO bank_templates (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO bank_templates (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description, display_name, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(key) DO UPDATE SET
                 command = excluded.command,
                 text = excluded.text,
@@ -886,8 +894,10 @@ async def save_bank_template(
                 report_template = excluded.report_template,
                 ai_rules = excluded.ai_rules,
                 required_screenshots = excluded.required_screenshots,
-                description = COALESCE(excluded.description, bank_templates.description)
-        """, (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description))
+                description = COALESCE(excluded.description, bank_templates.description),
+                display_name = excluded.display_name,
+                is_active = excluded.is_active
+        """, (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description, display_name, is_active))
         await db.commit()
 
 async def delete_bank_template(key: str):
@@ -903,7 +913,8 @@ async def get_bank_template_db(bank_name: str):
     templates = await get_all_bank_templates()
     name_norm = bank_name.lower().replace(" ", "").replace("-", "")
     for key, val in templates.items():
-        if key in name_norm or name_norm in key:
+        key_norm = key.lower().replace(" ", "").replace("-", "")
+        if key_norm in name_norm or name_norm in key_norm:
             return val
     return None
 
@@ -914,7 +925,8 @@ async def get_bank_template_with_key_db(bank_name: str):
     templates = await get_all_bank_templates()
     name_norm = bank_name.lower().replace(" ", "").replace("-", "")
     for key, val in templates.items():
-        if key in name_norm or name_norm in key:
+        key_norm = key.lower().replace(" ", "").replace("-", "")
+        if key_norm in name_norm or name_norm in key_norm:
             return key, val
     return None, None
 
@@ -922,6 +934,11 @@ async def get_bank_display_name(bank_name: str) -> str:
     """Повертає зрозумілу назву банку для відображення (наприклад, AmoBank)"""
     if not bank_name:
         return "Невідомий банк"
+    
+    # Спробуємо знайти назву в шаблонах бази даних
+    tpl = await get_bank_template_db(bank_name)
+    if tpl and tpl.get('display_name'):
+        return tpl['display_name']
     
     name_norm = bank_name.lower().replace(" ", "").replace("-", "").replace(".", "")
     mapping = {

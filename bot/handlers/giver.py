@@ -233,14 +233,30 @@ async def handle_giver_refusal(bot: Bot, session: dict, line_info: dict):
         parse_mode="Markdown"
     )
 async def send_first_code_helper_delayed(bot: Bot, client_id: int, line_id: int, bank_name: str):
-    """Надсилає допоміжне повідомлення та шаблони через 1 хвилину після відправки першого коду"""
+    """Надсилає допоміжне повідомлення та шаблони через 20 секунд після відправки першого коду"""
     import asyncio
-    await asyncio.sleep(60)
+    await asyncio.sleep(20)
     try:
         # Перевіряємо чи сесія все ще активна та не була змінена
         session = await db.get_session(client_id)
         if not session or session.get('status') == 'completed' or session.get('line_id') != line_id:
             return
+            
+        # Якщо користувач вже успішно зареєструвався і перейшов до відправки скріншотів чи вводу пін-коду,
+        # то допоміжне повідомлення надсилати не потрібно!
+        from web.core import dp
+        if dp:
+            state = dp.fsm.resolve_context(bot, chat_id=client_id, user_id=client_id)
+            current_state = await state.get_state()
+            if current_state in [
+                "RegistrationStates:waiting_confirm",
+                "RegistrationStates:waiting_password",
+                "RegistrationStates:waiting_wrong_code_confirm",
+                "RegistrationStates:waiting_own_number_confirm",
+                "RegistrationStates:waiting_amobank_instruction_confirm",
+                "RegistrationStates:waiting_lviv_success_confirm"
+            ]:
+                return
             
         is_bank_kd = bank_name and "bank.kd" in bank_name.lower()
 

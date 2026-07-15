@@ -668,7 +668,7 @@ async def handle_route_code(callback: CallbackQuery, bot: Bot, state: FSMContext
     if updated_session and updated_session.get('sent_codes_count') == 1:
         from bot.handlers.giver import send_first_code_helper_delayed
         import asyncio
-        asyncio.create_task(send_first_code_helper_delayed(bot, client_id, line_id, bank_name))
+        asyncio.create_task(send_first_code_helper_delayed(bot, client_id, line_id, bank_name_raw))
 
     # Видаляємо з веб-списку нерозподілених кодів
     try:

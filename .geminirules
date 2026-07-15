@@ -1,0 +1,47 @@
+# Antigravity Rules for Automizer (Telegram Automation Bot & CRM)
+
+This workspace instructions file helps Antigravity agents understand the project structure, paths, database schema, and operational commands immediately upon starting a session.
+
+## 1. System Environment & Commands
+- **Operating System**: Windows.
+- **Python Path**: Do NOT call global `python` (it redirects to Windows Store). Always use the absolute path: `C:\Users\oliks\AppData\Local\Python\bin\python.exe`.
+- **Start Command**: Run the server using `& C:\Users\oliks\AppData\Local\Python\bin\python.exe main.py` in the root directory.
+- **Server Ports**: FastAPI runs on `http://127.0.0.1:8000` (or `http://localhost:8000`).
+
+## 2. Project Architecture
+The project is split into a Telegram bot component and a FastAPI CRM Web Dashboard:
+
+### A. Telegram Bot (`bot/`)
+- `bot/database.py`: Core database operations, migrations, WAL mode initialization. Manages SQLite queries for lines, sessions, templates, and logs.
+- `bot/config.py`: Configuration loader (`BOT_TOKEN`, `LOG_BOT_TOKEN`, paths for files, basic constants).
+- `bot/openai_client.py`: AI interface using OpenRouter. Analyzes screenshot text and handles vision instructions.
+- `bot/handlers/`:
+  - `client.py`: Private chat flow with drops (collects PIB, DOB, IPN, assigns numbers, requests SMS codes).
+  - `client_helpers.py`: Helper scripts for drop private chats, formatting verification reports.
+  - `giver.py`: Relays SMS requests to sbuyers (givers) and handles SMS code responses.
+  - `verifier.py`: Processes verifier approvals/rejections of drop screenshots in the admin channels.
+- `bot/services/`:
+  - `line_assignment.py`: Contains the logic for assigning active phone lines to drop sessions and sending instructions.
+
+### B. FastAPI Web CRM (`web/`)
+- `web/app.py`: FastAPI app declaration, routes registration, websocket setup.
+- `web/core.py`: Stores references to bot, dispatcher, and websocket connections manager.
+- `web/routers/`: FastAPI routers for database interfaces (`settings.py`, `lines.py`, `sessions.py`, `banks.py`, `dashboard.py`).
+- `web/templates/index.html`: Main admin panel layout. Single page application with general settings, active lines table, active sessions grid, and chat tabs.
+- `web/static/js/`:
+  - `main.js`: Setup WebSocket connections, handle polling loops for system status, lines, and sessions.
+  - `control.js`: Logic for managing lines (CRUD), line assignments, session actions, and rendering tables.
+  - `settings.js` / `settings-banks.js`: Load/save server configurations, render and manage dynamic bank settings.
+
+## 3. Database Schema (`bot.db` / `db.sqlite`)
+The SQLite database stores settings, lines, sessions, and bank templates.
+- **Key Tables**:
+  - `bank_templates`: Contains bank settings. Keys (e.g. `izibank`, `amobank`, `lvivbank`, `bank.kd`, `alliance`, `NovaPay`) are system primary keys (all templates lookups in python are case-insensitive).
+  - `display_name` column stores human-readable names (e.g., `IziBank`, `AmoBank`, `BankLviv`, `NovaPay`), which must be used for UI headers, dropdowns, and bot messages.
+  - `lines`: Active phone lines. Column `bank` links to `bank_templates` key.
+  - `sessions`: State of currently active drop registrations.
+
+## 4. Key Rules for Agents
+1. When modifying bank settings forms or rendering bank names in the Web CRM (dropdowns, accordion headers, session cards, lines table), always load the templates list first and use `template.display_name || key` to render the bank name.
+2. Ensure FSM state matches when sending automatic reminder helpers to drops. If FSM state is not in initial registration states (e.g. they are already in `waiting_confirm` or `waiting_password` states), do not send helper advice messages.
+3. Keep uvicorn running as a background task. Do not stop it unless reloading backend python files.

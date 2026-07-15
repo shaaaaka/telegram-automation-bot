@@ -366,11 +366,9 @@ async function pollData() {
             }
             
             try {
-                const banksRes = await fetch('/api/banks');
-                const banksData = await banksRes.json();
-                availableBanks = banksData.banks || [];
+                await updateAvailableBanks();
             } catch (e) {
-                console.error("Failed to load banks list:", e);
+                console.error("Failed to update available banks in poll loop:", e);
             }
         }
 
@@ -588,6 +586,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Load initial bank templates for display names
+    fetch('/api/settings?nocache=' + Date.now())
+        .then(res => res.json())
+        .then(data => {
+            window.bankTemplates = data.templates;
+            if (window.renderAddLineBanksDropdown) {
+                window.renderAddLineBanksDropdown();
+            }
+            if (typeof renderLines === 'function') {
+                renderLines();
+            }
+        })
+        .catch(err => console.error("Failed to load initial templates:", err));
+
     // Initial fetch and poll scheduling (every 1s)
     pollData();
     setInterval(pollData, 1000);
@@ -693,3 +705,23 @@ function syncSoundControlsUI() {
     }
 }
 
+// Dynamic fetch and sync of available banks list across tabs
+async function updateAvailableBanks() {
+    try {
+        const banksRes = await fetch('/api/banks');
+        const banksData = await banksRes.json();
+        availableBanks = banksData.banks || [];
+        if (window.renderAddLineBanksDropdown) {
+            window.renderAddLineBanksDropdown();
+        }
+        if (typeof renderLines === 'function') {
+            renderLines();
+        }
+        if (typeof renderSessions === 'function' && lastFetchedSessions) {
+            renderSessions(lastFetchedSessions);
+        }
+    } catch (e) {
+        console.error("Failed to load banks list:", e);
+    }
+}
+window.updateAvailableBanks = updateAvailableBanks;
