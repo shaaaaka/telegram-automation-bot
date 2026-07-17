@@ -40,8 +40,12 @@ let lastUnroutedCodes = [];     // Unrouted codes cache
 // Audio Context (Web Audio API)
 let audioCtx = null;
 let soundEnabled = localStorage.getItem('notification_sound_enabled') !== '0';
-let savedVolume = localStorage.getItem('notification_volume');
-let soundVolume = (savedVolume !== null && !isNaN(parseFloat(savedVolume))) ? parseFloat(savedVolume) : 0.5;
+let oldVolume = localStorage.getItem('notification_volume');
+let defaultVol = (oldVolume !== null && !isNaN(parseFloat(oldVolume))) ? parseFloat(oldVolume) : 0.5;
+
+let soundVolumeMessage = localStorage.getItem('notification_volume_message') !== null ? parseFloat(localStorage.getItem('notification_volume_message')) : defaultVol;
+let soundVolumeClient = localStorage.getItem('notification_volume_client') !== null ? parseFloat(localStorage.getItem('notification_volume_client')) : defaultVol;
+let soundVolumeCode = localStorage.getItem('notification_volume_code') !== null ? parseFloat(localStorage.getItem('notification_volume_code')) : Math.min(1.0, defaultVol * 1.5);
 let soundProfile = localStorage.getItem('notification_sound_profile') || 'classic';
 
 // Toast Notification System
@@ -251,7 +255,11 @@ function playSound(type) {
                 osc.type = oscType;
                 osc.frequency.setValueAtTime(freq * fMultiplier, now + delay);
                 
-                const vol = parseFloat(soundVolume);
+                let vol = 0.5;
+                if (type === 'new_message') vol = soundVolumeMessage;
+                else if (type === 'new_client') vol = soundVolumeClient;
+                else if (type === 'waiting_code' || type === 'unrouted_code') vol = soundVolumeCode;
+                
                 const maxGain = vol * 0.25;
                 
                 gain.gain.setValueAtTime(maxGain, now + delay);
@@ -268,17 +276,19 @@ function playSound(type) {
         }
 
         if (type === 'new_client') {
-            playToneWithProfile(523.25, 0.08, 0);
-            playToneWithProfile(659.25, 0.08, 0.08);
-            playToneWithProfile(783.99, 0.12, 0.16);
-        } else if (type === 'waiting_code') {
-            playToneWithProfile(880, 0.06, 0);
-            playToneWithProfile(880, 0.06, 0.1);
-        } else if (type === 'unrouted_code') {
-            playToneWithProfile(440, 0.12, 0);
-            playToneWithProfile(554.37, 0.18, 0.08);
+            // Gentle double chime (D5 -> A5)
+            playToneWithProfile(587.33, 0.1, 0);
+            playToneWithProfile(880.00, 0.15, 0.1);
+        } else if (type === 'waiting_code' || type === 'unrouted_code') {
+            // Critical rising arpeggio up to high C7 (C6 -> E6 -> G6 -> C7)
+            playToneWithProfile(1046.50, 0.08, 0);
+            playToneWithProfile(1318.51, 0.08, 0.08);
+            playToneWithProfile(1567.98, 0.08, 0.16);
+            playToneWithProfile(2093.00, 0.15, 0.24);
         } else if (type === 'new_message') {
-            playToneWithProfile(587.33, 0.15, 0);
+            // Soft double droplet (G5 -> D6)
+            playToneWithProfile(783.99, 0.05, 0);
+            playToneWithProfile(1174.66, 0.1, 0.04);
         }
     } catch (e) {
         console.error("Sound playback error:", e);
@@ -663,32 +673,61 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1000);
 });
 
-function updateVolume(val) {
-    soundVolume = parseFloat(val) / 100;
-    localStorage.setItem('notification_volume', soundVolume);
-    const valueEl = document.getElementById('settings-volume-value');
-    if (valueEl) valueEl.textContent = val + '%';
+function updateEventVolume(eventType, val) {
+    const volumeVal = parseFloat(val) / 100;
+    if (eventType === 'new_message') {
+        soundVolumeMessage = volumeVal;
+        localStorage.setItem('notification_volume_message', volumeVal);
+        const valueEl = document.getElementById('settings-volume-value-message');
+        if (valueEl) valueEl.textContent = val + '%';
+    } else if (eventType === 'new_client') {
+        soundVolumeClient = volumeVal;
+        localStorage.setItem('notification_volume_client', volumeVal);
+        const valueEl = document.getElementById('settings-volume-value-client');
+        if (valueEl) valueEl.textContent = val + '%';
+    } else if (eventType === 'code') {
+        soundVolumeCode = volumeVal;
+        localStorage.setItem('notification_volume_code', volumeVal);
+        const valueEl = document.getElementById('settings-volume-value-code');
+        if (valueEl) valueEl.textContent = val + '%';
+    }
 }
 
 function updateSoundProfile(profile) {
     soundProfile = profile;
     localStorage.setItem('notification_sound_profile', profile);
-    playTestTone();
+    playTestTone('new_message');
 }
 
-function playTestTone() {
-    playSound('new_message');
+function playTestTone(eventType) {
+    if (eventType === 'new_message') {
+        playSound('new_message');
+    } else if (eventType === 'new_client') {
+        playSound('new_client');
+    } else if (eventType === 'code') {
+        playSound('unrouted_code');
+    }
 }
 
 function syncSoundControlsUI() {
-    const slider = document.getElementById('settings-volume-slider');
-    if (slider) {
-        slider.value = Math.round(soundVolume * 100);
-    }
-    const valueEl = document.getElementById('settings-volume-value');
-    if (valueEl) {
-        valueEl.textContent = Math.round(soundVolume * 100) + '%';
-    }
+    // Sync Chat Message Volume
+    const sliderMsg = document.getElementById('settings-volume-slider-message');
+    if (sliderMsg) sliderMsg.value = Math.round(soundVolumeMessage * 100);
+    const valueMsg = document.getElementById('settings-volume-value-message');
+    if (valueMsg) valueMsg.textContent = Math.round(soundVolumeMessage * 100) + '%';
+
+    // Sync New Client Volume
+    const sliderCli = document.getElementById('settings-volume-slider-client');
+    if (sliderCli) sliderCli.value = Math.round(soundVolumeClient * 100);
+    const valueCli = document.getElementById('settings-volume-value-client');
+    if (valueCli) valueCli.textContent = Math.round(soundVolumeClient * 100) + '%';
+
+    // Sync SMS Code Volume
+    const sliderCode = document.getElementById('settings-volume-slider-code');
+    if (sliderCode) sliderCode.value = Math.round(soundVolumeCode * 100);
+    const valueCode = document.getElementById('settings-volume-value-code');
+    if (valueCode) valueCode.textContent = Math.round(soundVolumeCode * 100) + '%';
+
     const select = document.getElementById('settings-sound-profile');
     if (select) {
         select.value = soundProfile;
@@ -766,7 +805,9 @@ window.selectSoundOption = function(val, event) {
     const originalSelect = document.getElementById('settings-sound-profile');
     if (originalSelect) {
         originalSelect.value = val;
-        originalSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if (typeof updateSoundProfile === 'function') {
+        updateSoundProfile(val);
     }
     window.syncCustomSoundSelectUI();
     

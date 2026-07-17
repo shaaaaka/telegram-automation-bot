@@ -211,6 +211,13 @@ async def process_pib_dob(message: Message, state: FSMContext):
     
     await register_reg_msg(state, message.message_id)
 
+    # Шукаємо ІПН (10 цифр, перша не нуль)
+    ipn_match = re.search(r'\b([1-9]\d{9})\b', text)
+    if ipn_match:
+        ipn_val = ipn_match.group(1)
+        await state.update_data(ipn=ipn_val)
+        text = text.replace(ipn_val, '').strip()
+
     # Шукаємо дату народження
     date_match = re.search(r'\b(\d{1,2}[\.\-\/,]\d{1,2}[\.\-\/,]\d{2,4})\b', text)
     if not date_match:
@@ -288,22 +295,41 @@ async def process_pib_dob(message: Message, state: FSMContext):
         client_data = f"ПІБ: {saved_pib}\nДата: {saved_dob}"
         await state.update_data(client_data=client_data)
         
-        ipn_msg1 = await message.answer(
-            "Будь ласка, напишіть Ваш ІПН (10 цифр):",
-            reply_markup=get_cancel_keyboard()
-        )
-        ipn_msg2 = await message.answer(
-            "Ми запитуємо ІПН, ПІБ та дату народження виключно для перевірки через офіційні державні реєстри:\n"
-            "• щоб переконатися, що немає відкритих проваджень\n"
-            "• щоб перевірити, чи не було раніше співпраці з нашою компанією\n\n"
-            "*Важливо:*\n"
-            "Ці дані використовуються тільки для внутрішньої перевірки і не передаються третім особам.",
-            parse_mode="Markdown"
-        )
-        await register_reg_msg(state, ipn_msg1.message_id)
-        await register_reg_msg(state, ipn_msg2.message_id)
-        await state.update_data(ipn_prompt_msg_ids=[ipn_msg1.message_id, ipn_msg2.message_id])
-        await state.set_state(RegistrationStates.waiting_ipn)
+        # Перевіряємо, чи ми вже розпізнали ІПН на попередньому кроці
+        state_data = await state.get_data()
+        saved_ipn = state_data.get('ipn')
+        
+        if saved_ipn:
+            confirm_text = (
+                f"Перевірте ваші дані:\n\n"
+                f"ІПН: {saved_ipn}\n"
+                f"ПІБ: {saved_pib}\n"
+                f"Дата народження: {saved_dob}"
+            )
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="✅ Підтвердити та надіслати", callback_data="confirm_reg")],
+                [InlineKeyboardButton(text="🔄 Заповнити заново", callback_data="restart_reg")]
+            ])
+            msg = await message.answer(confirm_text, reply_markup=keyboard, parse_mode="Markdown")
+            await register_reg_msg(state, msg.message_id)
+            await state.set_state(RegistrationStates.waiting_confirm)
+        else:
+            ipn_msg1 = await message.answer(
+                "Будь ласка, напишіть Ваш ІПН (10 цифр):",
+                reply_markup=get_cancel_keyboard()
+            )
+            ipn_msg2 = await message.answer(
+                "Ми запитуємо ІПН, ПІБ та дату народження виключно для перевірки через офіційні державні реєстри:\n"
+                "• щоб переконатися, що немає відкритих проваджень\n"
+                "• щоб перевірити, чи не було раніше співпраці з нашою компанією\n\n"
+                "*Важливо:*\n"
+                "Ці дані використовуються тільки для внутрішньої перевірки і не передаються третім особам.",
+                parse_mode="Markdown"
+            )
+            await register_reg_msg(state, ipn_msg1.message_id)
+            await register_reg_msg(state, ipn_msg2.message_id)
+            await state.update_data(ipn_prompt_msg_ids=[ipn_msg1.message_id, ipn_msg2.message_id])
+            await state.set_state(RegistrationStates.waiting_ipn)
     elif saved_pib:
         err_msg = await message.answer(
             "Напишіть також вашу дату народження?",

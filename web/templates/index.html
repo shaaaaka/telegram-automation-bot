@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=9.34">
+    <link rel="stylesheet" href="/static/css/style.css?v=9.37">
 </head>
 <body>
     <div class="container">
@@ -925,13 +925,34 @@
                                                 </button>
                                             </div>
 
-                                            <!-- Volume Slider -->
-                                            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px; margin: 0;">
-                                                <div class="settings-volume-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                                                    <label for="settings-volume-slider" class="form-label" style="margin: 0; font-size: 0.82rem; font-weight: 500;">Гучність сповіщень</label>
-                                                    <span id="settings-volume-value" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">50%</span>
+                                            <!-- Volume Sliders -->
+                                            <div style="display: flex; flex-direction: column; gap: 12px; margin: 0;">
+                                                <!-- Chat Messages Volume -->
+                                                <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin: 0;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                                        <label for="settings-volume-slider-message" class="form-label" style="margin: 0; font-size: 0.82rem; font-weight: 500;">💬 Гучність чату (нові повідомлення)</label>
+                                                        <span id="settings-volume-value-message" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">50%</span>
+                                                    </div>
+                                                    <input type="range" id="settings-volume-slider-message" min="0" max="100" value="50" oninput="updateEventVolume('new_message', this.value)" onchange="playTestTone('new_message')" style="width: 100%; cursor: pointer; accent-color: var(--accent-primary);">
                                                 </div>
-                                                <input type="range" id="settings-volume-slider" min="0" max="100" value="50" oninput="updateVolume(this.value)" onchange="playTestTone()" style="width: 100%; cursor: pointer; accent-color: var(--accent-primary);">
+
+                                                <!-- New Client Volume -->
+                                                <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin: 0;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                                        <label for="settings-volume-slider-client" class="form-label" style="margin: 0; font-size: 0.82rem; font-weight: 500;">👤 Гучність нового клієнта (реєстрація)</label>
+                                                        <span id="settings-volume-value-client" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">50%</span>
+                                                    </div>
+                                                    <input type="range" id="settings-volume-slider-client" min="0" max="100" value="50" oninput="updateEventVolume('new_client', this.value)" onchange="playTestTone('new_client')" style="width: 100%; cursor: pointer; accent-color: var(--accent-primary);">
+                                                </div>
+
+                                                <!-- SMS Code Volume -->
+                                                <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin: 0;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                                        <label for="settings-volume-slider-code" class="form-label" style="margin: 0; font-size: 0.82rem; font-weight: 500;">🔑 Гучність SMS кодів (критична подія)</label>
+                                                        <span id="settings-volume-value-code" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">50%</span>
+                                                    </div>
+                                                    <input type="range" id="settings-volume-slider-code" min="0" max="100" value="50" oninput="updateEventVolume('code', this.value)" onchange="playTestTone('code')" style="width: 100%; cursor: pointer; accent-color: var(--accent-primary);">
+                                                </div>
                                             </div>
 
                                             <!-- Sound Melody Select -->
@@ -1369,9 +1390,9 @@ Line {line_id} Return: {line_phone} | {bank}
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=9.21"></script>
+    <script src="/static/js/main.js?v=9.24"></script>
     <script src="/static/js/control.js?v=9.19"></script>
-    <script src="/static/js/chat.js?v=9.15"></script>
+    <script src="/static/js/chat.js?v=9.18"></script>
     <script src="/static/js/stats.js?v=9.15"></script>
     <script src="/static/js/settings.js?v=9.17"></script>
     <script src="/static/js/settings-banks.js?v=9.70"></script>

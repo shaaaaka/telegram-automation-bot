@@ -24,13 +24,17 @@ async def register_reg_msg(state: FSMContext, msg_id: int):
         msg_ids.append(msg_id)
         await state.update_data(registration_msg_ids=msg_ids)
 async def delete_reg_messages(chat_id: int, state: FSMContext, bot: Bot):
+    import logging
+    logger = logging.getLogger(__name__)
     data = await state.get_data()
     msg_ids = data.get("registration_msg_ids", [])
+    logger.info(f"delete_reg_messages called for chat_id={chat_id}, msg_ids={msg_ids}")
     for msg_id in msg_ids:
         try:
             await bot.delete_message(chat_id=chat_id, message_id=msg_id)
-        except Exception:
-            pass
+            logger.info(f"Successfully deleted message {msg_id}")
+        except Exception as e:
+            logger.error(f"Failed to delete message {msg_id}: {e}")
     await state.update_data(registration_msg_ids=[])
 def get_cancel_keyboard() -> ReplyKeyboardRemove:
     return ReplyKeyboardRemove()
@@ -42,6 +46,10 @@ def get_waiting_keyboard() -> ReplyKeyboardMarkup:
         is_persistent=True
     )
 def clean_pib(pib: str) -> str:
+    # Видаляємо лідируюче "я" або "я,"
+    pib = re.sub(r'(?i)^\s*(я\s+|я,\s+)', '', pib)
+    # Видаляємо вступні фрази
+    pib = re.sub(r'(?i)\b(мене\s+звати|мене\s+звать|моє\s+ім\'я|ім\'я\s+моє|меня\s+зовут|мое\s+имя|я\s+хочу\s+зареєструватися|зареєструватися|зареєструватись)\b', '', pib)
     # Видаляємо допоміжні фрази на кшталт "дата народження", "д.н." тощо
     pib = re.sub(r'(?i)\b(дата\s+народження|д\.н\.|дн|народження|нар\.?|р\.н\.?)\b', '', pib)
     pib = re.sub(r'^[^\w\s]+|[^\w\s]+$', '', pib)
@@ -301,25 +309,39 @@ def parse_and_validate_date(date_str: str) -> str:
         return None
 def is_valid_pib(pib: str) -> bool:
     words = pib.strip().split()
-    if len(words) < 2 or len(words) > 4:
+    if len(words) < 3 or len(words) > 4:
         return False
         
+    greetings = {
+        "добрий", "доброго", "привіт", "вітаю", "здравствуйте", "привет", "хай", "hello", "hi",
+        "день", "дня", "вечір", "вечора", "ранок", "ранку", "утро", "салют", "ку", "вітаючко", "вітання"
+    }
+    
     stop_words = {
         "хз", "хто", "хтось", "нічого", "ні", "та", "ну", "да", "ок", "окей", "оки", "ладно", 
         "так", "не", "буду", "хочу", "знаю", "робот", "бот", "автоматизатор", "помічник", 
         "підтримка", "адмін", "адміністратор", "це", "це ваш", "це ваше", "я", "ти", "ми", "ви", "вони"
     }
     
+    patronymic_pattern = re.compile(
+        r'.*(ович|евич|євич|авіч|евіч|ич|іч|ыч|огли|оглу|оглы|івна|ївна|аўна|еўна|овна|евна|ична|ічна|ычна|кизи|кизы|кизі|гизи)$', 
+        re.IGNORECASE
+    )
+    
+    has_patronymic = False
+    
     for w in words:
-        w_clean = w.lower().strip().strip('.,!?')
-        if w_clean in stop_words:
+        w_clean = w.lower().strip().strip('.,!?()""\'\'')
+        if w_clean in stop_words or w_clean in greetings:
             return False
         if len(w_clean) < 2:
             return False
         if not re.match(r'^[a-zA-Zа-яА-ЯіІїЇєЄґҐ\'\-]+$', w_clean):
             return False
+        if patronymic_pattern.match(w_clean):
+            has_patronymic = True
             
-    return True
+    return has_patronymic
 def is_question_or_objection(text: str) -> bool:
     t = text.lower().strip().strip('?').strip('.').strip('!')
     if "?" in text:

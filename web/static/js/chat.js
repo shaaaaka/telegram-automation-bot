@@ -12,6 +12,36 @@ let chatUnreadCounts = {};
 let selectedChatClientId = null;
 let chatWs = null;
 const chatLogsCache = {};
+let unreadMessagesInCurrentChat = 0;
+
+function showScrollBottomButton(increment = 0) {
+    const btn = document.getElementById('chat-scroll-bottom-btn');
+    const badge = document.getElementById('chat-scroll-bottom-badge');
+    if (!btn || !badge) return;
+    
+    unreadMessagesInCurrentChat += increment;
+    
+    btn.style.display = 'flex';
+    if (unreadMessagesInCurrentChat > 0) {
+        badge.style.display = 'flex';
+        badge.textContent = unreadMessagesInCurrentChat;
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+function hideScrollBottomButton() {
+    const btn = document.getElementById('chat-scroll-bottom-btn');
+    const badge = document.getElementById('chat-scroll-bottom-badge');
+    if (btn) btn.style.display = 'none';
+    if (badge) badge.style.display = 'none';
+    unreadMessagesInCurrentChat = 0;
+}
+
+function scrollChatToBottomWithReset() {
+    scrollToBottom('chat-window-body-container', true);
+    hideScrollBottomButton();
+}
 
 function setChatSidebarTab(type) {
     chatSidebarTab = type;
@@ -378,6 +408,14 @@ async function selectChatClient(clientId) {
                 </div>
             </div>
         </div>
+        <!-- Floating Scroll to Bottom Button -->
+        <div class="chat-scroll-bottom-btn" id="chat-scroll-bottom-btn" onclick="scrollChatToBottomWithReset()" style="display: none;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <polyline points="19 12 12 19 5 12"></polyline>
+            </svg>
+            <span class="badge" id="chat-scroll-bottom-badge" style="display: none;">0</span>
+        </div>
     `;
     
     // Render from cache instantly if available to prevent black screen transition
@@ -385,6 +423,18 @@ async function selectChatClient(clientId) {
     if (bodyContainer && chatLogsCache[clientId]) {
         renderChatLogsFromArray(bodyContainer, chatLogsCache[clientId]);
     }
+    
+    if (bodyContainer) {
+        bodyContainer.addEventListener('scroll', () => {
+            const isAtBottom = bodyContainer.scrollHeight - bodyContainer.scrollTop - bodyContainer.clientHeight < 100;
+            if (isAtBottom) {
+                hideScrollBottomButton();
+            } else {
+                showScrollBottomButton(0);
+            }
+        });
+    }
+    hideScrollBottomButton();
     
     await refreshChatPageMessages(clientId);
     
@@ -447,7 +497,7 @@ function renderChatLogsFromArray(container, logs) {
         renderSingleChatMessage(container, log, hideAvatar);
     });
     
-    scrollToBottom('chat-window-body-container');
+    scrollToBottom('chat-window-body-container', true);
 }
 
 async function refreshChatPageMessages(clientId) {
@@ -579,17 +629,24 @@ function renderSingleChatMessage(container, log, hideAvatar = false) {
     container.appendChild(containerDiv);
 }
 
-function scrollToBottom(containerId) {
+function scrollToBottom(containerId, force = false) {
     const container = document.getElementById(containerId);
     if (container) {
-        container.scrollTop = container.scrollHeight;
-        // Schedule delayed scrolls to bypass dynamic layout recalculation lag
-        setTimeout(() => {
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+        
+        if (force || isNearBottom) {
             container.scrollTop = container.scrollHeight;
-        }, 50);
-        setTimeout(() => {
-            container.scrollTop = container.scrollHeight;
-        }, 150);
+            // Schedule delayed scrolls to bypass dynamic layout recalculation lag
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 50);
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 150);
+            hideScrollBottomButton();
+        } else {
+            showScrollBottomButton(0);
+        }
     }
 }
 
@@ -708,6 +765,14 @@ function handleIncomingWebSocketMessage(data) {
     if (selectedChatClientId === data.client_id) {
         const bodyContainer = document.getElementById('chat-window-body-container');
         if (bodyContainer) {
+            const isNearBottom = bodyContainer.scrollHeight - bodyContainer.scrollTop - bodyContainer.clientHeight < 100;
+            if (!isNearBottom && data.sender === 'client') {
+                unreadMessagesInCurrentChat++;
+            }
+            if (data.sender === 'client') {
+                playSound('new_message');
+            }
+            
             if (bodyContainer.innerHTML.includes('Історія повідомлень порожня')) {
                 bodyContainer.innerHTML = '';
             }
