@@ -633,60 +633,58 @@ function renderBankAccordion(templates, activeKey) {
                                 </div>
                             </div>
                             <!-- Deletion Screenshot Card -->
-                            <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; position: relative; overflow: hidden; min-height: 245px; transition: all 0.3s ease;">
-                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%;">
-                                    <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.6); letter-spacing: 0.5px; text-transform: uppercase;">Зразок видалення додатку</span>
-                                    <span id="deletion-screenshot-filename-${key}" class="file-upload-filename-pill ${template.deletion_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem; display: ${(template.deletion_requirement || 'none') !== 'none' ? 'block' : 'none'};">
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; justify-content: space-between; gap: 14px; position: relative; overflow: hidden; min-height: 310px; transition: all 0.3s ease;">
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
+                                    <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Зразок видалення додатку</span>
+                                    <span id="deletion-screenshot-filename-${key}" class="file-upload-filename-pill ${template.deletion_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">
                                         ${template.deletion_screenshot_path ? 'Файл завантажено' : 'Файл не обрано'}
                                     </span>
                                 </div>
                                 
-                                <div style="width: 100%; max-width: 200px; text-align: left; display: flex; flex-direction: column; gap: 5px; margin: 2px 0;">
-                                    <label for="bank-acc-deletion-req-${key}" style="font-size: 0.62rem; font-weight: 600; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.5px;">Вимога в боті</label>
-                                    <select id="bank-acc-deletion-req-${key}" onchange="handleDeletionRequirementChange('${key}')" class="bank-settings-select" style="width: 100%; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 0.78rem; font-family: var(--font-family); cursor: pointer; outline: none; transition: all 0.2s;">
-                                        <option value="none" ${(template.deletion_requirement || 'none') === 'none' ? 'selected' : ''}>Нічого не просити</option>
-                                        <option value="screenshot" ${(template.deletion_requirement || 'none') === 'screenshot' ? 'selected' : ''}>Просити скріншот</option>
-                                        <option value="video" ${(template.deletion_requirement || 'none') === 'video' ? 'selected' : ''}>Просити відео</option>
-                                    </select>
-                                </div>
-
-                                <div id="deletion-media-upload-area-${key}" style="display: ${(template.deletion_requirement || 'none') !== 'none' ? 'flex' : 'none'}; flex-direction: column; align-items: center; gap: 14px; width: 100%;">
-                                    <div id="deletion-screenshot-preview-${key}" 
-                                         class="bank-media-preview-box" 
-                                         style="width: ${template.deletion_screenshot_path ? 'auto' : '100px'}; height: ${template.deletion_screenshot_path ? 'auto' : '150px'}; border-radius: 12px; border: ${template.deletion_screenshot_path ? '1px solid rgba(255,255,255,0.08)' : '2px dashed rgba(255,255,255,0.12)'}; background: ${template.deletion_screenshot_path ? 'transparent' : 'rgba(255,255,255,0.02)'}; display: flex; align-items: center; justify-content: center; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); cursor: ${template.deletion_screenshot_path ? 'pointer' : 'default'}; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.2); flex-shrink: 0; overflow: hidden;"
-                                         ${template.deletion_screenshot_path ? `onclick="openLightbox('${template.deletion_screenshot_path}')"` : ''}>
-                                        ${!template.deletion_screenshot_path ? `
-                                            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                                                <line x1="12" y1="18" x2="12.01" y2="18"/>
-                                            </svg>
-                                        ` : `
-                                            <img src="${template.deletion_screenshot_path}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;">
-                                            <div class="hover-zoom-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 12px;">
-                                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-                                            </div>
-                                        `}
-                                    </div>
-     
-                                    <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
-                                        <input type="hidden" id="bank-acc-deletion-screenshot-removed-${key}" value="0">
-                                        <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
-                                            <label for="bank-acc-deletion-screenshot-${key}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
-                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-                                                </svg>
-                                                Обрати скріншот
-                                            </label>
-                                            <input type="file" id="bank-acc-deletion-screenshot-${key}" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'deletion-screenshot-preview-${key}', 'deletion-screenshot-filename-${key}', false)" data-original="${template.deletion_screenshot_path || ''}">
+                                <div id="deletion-screenshot-preview-${key}" 
+                                     class="bank-media-preview-box" 
+                                     style="width: ${template.deletion_screenshot_path ? 'auto' : '100px'}; height: ${template.deletion_screenshot_path ? 'auto' : '150px'}; border-radius: 12px; border: ${template.deletion_screenshot_path ? '1px solid rgba(255,255,255,0.08)' : '2px dashed rgba(255,255,255,0.12)'}; background: ${template.deletion_screenshot_path ? 'transparent' : 'rgba(255,255,255,0.02)'}; display: flex; align-items: center; justify-content: center; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); cursor: ${template.deletion_screenshot_path ? 'pointer' : 'default'}; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.2); flex-shrink: 0; overflow: hidden;"
+                                     ${template.deletion_screenshot_path ? `onclick="openLightbox('${template.deletion_screenshot_path}')"` : ''}>
+                                    ${!template.deletion_screenshot_path ? `
+                                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                                            <line x1="12" y1="18" x2="12.01" y2="18"/>
+                                        </svg>
+                                    ` : `
+                                        <img src="${template.deletion_screenshot_path}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;">
+                                        <div class="hover-zoom-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 12px;">
+                                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
                                         </div>
-                                        <button type="button" id="deletion-screenshot-reset-${key}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${key}', 'deletion-screenshot')">Відхилити</button>
-                                        <button type="button" id="deletion-screenshot-delete-${key}" class="btn-delete-media" style="display: ${template.deletion_screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${key}', 'deletion-screenshot')">
-                                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <polyline points="3 6 5 6 21 6"></polyline>
-                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    `}
+                                </div>
+ 
+                                <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                                    <input type="hidden" id="bank-acc-deletion-screenshot-removed-${key}" value="0">
+                                    <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
+                                        <label for="bank-acc-deletion-screenshot-${key}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                                             </svg>
-                                            Вилучити фото
-                                        </button>
+                                            Обрати скріншот
+                                        </label>
+                                        <input type="file" id="bank-acc-deletion-screenshot-${key}" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'deletion-screenshot-preview-${key}', 'deletion-screenshot-filename-${key}', false)" data-original="${template.deletion_screenshot_path || ''}">
+                                    </div>
+                                    <button type="button" id="deletion-screenshot-reset-${key}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${key}', 'deletion-screenshot')">Відхилити</button>
+                                    <button type="button" id="deletion-screenshot-delete-${key}" class="btn-delete-media" style="display: ${template.deletion_screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${key}', 'deletion-screenshot')">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                        Вилучити фото
+                                    </button>
+                                    
+                                    <div style="width: 100%; max-width: 200px; text-align: left; display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
+                                        <label for="bank-acc-deletion-req-${key}" style="font-size: 0.62rem; font-weight: 600; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.5px;">Вимога в боті</label>
+                                        <select id="bank-acc-deletion-req-${key}" onchange="checkAccordionFormChanges('${key}')" class="bank-settings-select" style="width: 100%; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 0.78rem; font-family: var(--font-family); cursor: pointer; outline: none; transition: all 0.2s;">
+                                            <option value="none" ${(template.deletion_requirement || 'none') === 'none' ? 'selected' : ''}>Нічого не просити</option>
+                                            <option value="screenshot" ${(template.deletion_requirement || 'none') === 'screenshot' ? 'selected' : ''}>Просити скріншот</option>
+                                            <option value="video" ${(template.deletion_requirement || 'none') === 'video' ? 'selected' : ''}>Просити відео</option>
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -1437,22 +1435,3 @@ window.removeSavedImage = function(key, type) {
     }
 };
 
-window.handleDeletionRequirementChange = function(key) {
-    const reqSelect = document.getElementById(`bank-acc-deletion-req-${key}`);
-    const uploadArea = document.getElementById(`deletion-media-upload-area-${key}`);
-    const filenameEl = document.getElementById(`deletion-screenshot-filename-${key}`);
-    
-    if (reqSelect && uploadArea) {
-        if (reqSelect.value === 'none') {
-            uploadArea.style.display = 'none';
-            if (filenameEl) filenameEl.style.display = 'none';
-        } else {
-            uploadArea.style.display = 'flex';
-            if (filenameEl) filenameEl.style.display = 'block';
-        }
-    }
-    
-    if (typeof window.checkAccordionFormChanges === 'function') {
-        window.checkAccordionFormChanges(key);
-    }
-};
