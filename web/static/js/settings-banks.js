@@ -633,7 +633,7 @@ function renderBankAccordion(templates, activeKey) {
                                 </div>
                             </div>
                             <!-- Deletion Screenshot Card -->
-                            <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; position: relative; overflow: hidden; min-height: 245px; transition: all 0.3s ease;">
+                            <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; position: relative; overflow: hidden; min-height: 245px; transition: all 0.3s ease;">
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%;">
                                     <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.6); letter-spacing: 0.5px; text-transform: uppercase;">Зразок видалення додатку</span>
                                     <span id="deletion-screenshot-filename-${key}" class="file-upload-filename-pill ${template.deletion_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem; display: ${(template.deletion_requirement || 'none') !== 'none' ? 'block' : 'none'};">
