@@ -1357,8 +1357,8 @@ textarea:focus {
     background: rgba(255, 255, 255, 0.015);
     border: 1px solid rgba(255, 255, 255, 0.04);
     border-radius: 12px;
-    padding: 12px 16px;
-    margin: 16px 0;
+    padding: 10px 14px;
+    margin: 10px 0 16px 0;
     width: 100%;
     box-sizing: border-box;
     gap: 16px;
@@ -1376,9 +1376,10 @@ textarea:focus {
 
 .bank-deletion-settings-control {
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
     width: 100%;
-    max-width: 220px;
+    max-width: 200px;
+    margin: 0 auto;
 }
 
 @media (min-width: 992px) {
@@ -1393,7 +1394,7 @@ textarea:focus {
     .bank-deletion-settings-control {
         grid-column: 4;
         justify-content: center;
-        max-width: 100%;
+        margin: 0 auto;
     }
 }
 
