@@ -520,7 +520,8 @@ function renderBankAccordion(templates, activeKey) {
                                     ${!template.download_screenshot_path ? `
                                         <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                             <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                                            <line x1="12" y1="18" x2="12.01" y2="18"/>
+                                            <path d="M12 6v8M9 11l3 3 3-3"/>
+                                            <line x1="9" y1="17" x2="15" y2="17"/>
                                         </svg>
                                     ` : `
                                         <img src="${template.download_screenshot_path}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;">
@@ -600,8 +601,7 @@ function renderBankAccordion(templates, activeKey) {
                                     ${!template.success_screenshot_path ? `
                                         <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                             <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                                            <circle cx="12" cy="10" r="3"/>
-                                            <path d="M12 18H12.01"/>
+                                            <polyline points="9 11 11 13 15 9"/>
                                         </svg>
                                     ` : `
                                         <img src="${template.success_screenshot_path}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;">
@@ -648,7 +648,7 @@ function renderBankAccordion(templates, activeKey) {
                                     ${!template.deletion_screenshot_path ? `
                                         <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                             <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                                            <line x1="12" y1="18" x2="12.01" y2="18"/>
+                                            <path d="M9 7h6M10 7V6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M7 9h10M8 9l1 9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l1-9"/>
                                         </svg>
                                     ` : `
                                         <img src="${template.deletion_screenshot_path}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;">
@@ -1248,7 +1248,7 @@ window.resetFileSelection = function(key, type) {
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                 </svg>
             `;
-        } else if (type === 'download-screenshot' || type === 'deletion-screenshot') {
+        } else if (type === 'download-screenshot') {
             preview.style.backgroundImage = 'none';
             preview.style.cursor = originalPath ? 'pointer' : 'default';
             if (originalPath) {
@@ -1272,7 +1272,36 @@ window.resetFileSelection = function(key, type) {
                 preview.innerHTML = `
                     <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                        <line x1="12" y1="18" x2="12.01" y2="18"/>
+                        <path d="M12 6v8M9 11l3 3 3-3"/>
+                        <line x1="9" y1="17" x2="15" y2="17"/>
+                    </svg>
+                `;
+            }
+        } else if (type === 'deletion-screenshot') {
+            preview.style.backgroundImage = 'none';
+            preview.style.cursor = originalPath ? 'pointer' : 'default';
+            if (originalPath) {
+                preview.style.width = 'auto';
+                preview.style.height = 'auto';
+                preview.style.borderStyle = 'solid';
+                preview.style.borderColor = 'rgba(255,255,255,0.08)';
+                preview.setAttribute('onclick', `openLightbox('${originalPath}')`);
+                preview.innerHTML = `
+                    <img src="${originalPath}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;">
+                    <div class="hover-zoom-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 12px;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                    </div>
+                `;
+            } else {
+                preview.style.width = '100px';
+                preview.style.height = '150px';
+                preview.style.borderStyle = 'dashed';
+                preview.style.borderColor = 'rgba(255,255,255,0.12)';
+                preview.removeAttribute('onclick');
+                preview.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                        <path d="M9 7h6M10 7V6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M7 9h10M8 9l1 9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l1-9"/>
                     </svg>
                 `;
             }
@@ -1300,8 +1329,7 @@ window.resetFileSelection = function(key, type) {
                 preview.innerHTML = `
                     <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                        <circle cx="12" cy="10" r="3"/>
-                        <path d="M12 18H12.01"/>
+                        <polyline points="9 11 11 13 15 9"/>
                     </svg>
                 `;
             }
@@ -1397,19 +1425,26 @@ window.removeSavedImage = function(key, type) {
         preview.style.backgroundImage = 'none';
         preview.removeAttribute('onclick');
         
-        if (type === 'download-screenshot' || type === 'deletion-screenshot') {
+        if (type === 'download-screenshot') {
             preview.innerHTML = `
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                    <line x1="12" y1="18" x2="12.01" y2="18"/>
+                    <path d="M12 6v8M9 11l3 3 3-3"/>
+                    <line x1="9" y1="17" x2="15" y2="17"/>
+                </svg>
+            `;
+        } else if (type === 'deletion-screenshot') {
+            preview.innerHTML = `
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                    <path d="M9 7h6M10 7V6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M7 9h10M8 9l1 9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l1-9"/>
                 </svg>
             `;
         } else if (type === 'success-screenshot') {
             preview.innerHTML = `
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                    <circle cx="12" cy="10" r="3"/>
-                    <path d="M12 18H12.01"/>
+                    <polyline points="9 11 11 13 15 9"/>
                 </svg>
             `;
             // Hide Telegram mockup image
@@ -1424,7 +1459,9 @@ window.removeSavedImage = function(key, type) {
                      style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center;">
                     <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                        <line x1="12" y1="18" x2="12.01" y2="18"/>
+                        <line x1="9" y1="7" x2="15" y2="7"/>
+                        <line x1="9" y1="11" x2="15" y2="11"/>
+                        <line x1="9" y1="15" x2="13" y2="15"/>
                     </svg>
                 </div>
             `;
