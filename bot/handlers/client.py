@@ -1198,6 +1198,46 @@ async def process_deletion_proof(message: Message, state: FSMContext, bot: Bot):
     if not media_id:
         await message.answer(f"Будь ласка, надішліть саме {proof_label} видалення додатку {bank_name} для підтвердження.")
         return
+
+    # Надсилаємо статус перевірки
+    status_msg = await message.answer("Перевіряю ваш доказ видалення за допомогою ШІ, зачекайте, будь ласка... 🔄")
+    
+    try:
+        # Завантажуємо медіа
+        from io import BytesIO
+        file_info = await bot.get_file(media_id)
+        file_buffer = BytesIO()
+        await bot.download_file(file_info.file_path, file_buffer)
+        media_bytes = file_buffer.getvalue()
         
-    await state.update_data(deletion_proof_media=media_id, deletion_proof_type=media_type)
-    await continue_after_phone(message, state, bot, message.from_user.id)
+        # Викликаємо ШІ-верифікацію
+        from bot.openai_client import verify_deletion_proof as ai_verify
+        is_valid, reason = await ai_verify(media_bytes, media_type)
+        
+        # Видаляємо статус-повідомлення
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+            
+        if is_valid:
+            await message.answer(f"Чудово! ШІ підтвердив видалення додатку {bank_name}. 🎉")
+            await state.update_data(deletion_proof_media=media_id, deletion_proof_type=media_type)
+            await continue_after_phone(message, state, bot, message.from_user.id)
+        else:
+            await message.answer(
+                f"❌ На жаль, ШІ не зміг підтвердити видалення додатку.\n\n"
+                f"**Причина:** {reason}\n\n"
+                f"Будь ласка, надішліть {proof_label} ще раз."
+            )
+            
+    except Exception as e:
+        logger.error(f"Помилка при авто-перевірці доказу: {e}")
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+        # У разі критичної помилки дозволяємо пройти далі, щоб не блокувати користувача
+        await message.answer("Виникла технічна затримка під час авто-перевірки, але ваш файл збережено для ручної перевірки оператором. Продовжуємо...")
+        await state.update_data(deletion_proof_media=media_id, deletion_proof_type=media_type)
+        await continue_after_phone(message, state, bot, message.from_user.id)

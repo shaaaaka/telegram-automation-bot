@@ -9,4 +9,5 @@ pytest
 pytest-asyncio
 tzdata
 python-multipart
+opencv-python-headless
 
