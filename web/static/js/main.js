@@ -319,6 +319,18 @@ function switchTab(tabId) {
     currentTab = tabId;
     localStorage.setItem('activeTab', tabId);
     
+    if (tabId === 'chat') {
+        if (typeof chatUnreadCounts !== 'undefined' && typeof selectedChatClientId !== 'undefined' && selectedChatClientId) {
+            chatUnreadCounts[selectedChatClientId] = 0;
+            if (typeof window.updateAllUnreadBadges === 'function') {
+                window.updateAllUnreadBadges(selectedChatClientId);
+            }
+            if (typeof renderChatSidebar === 'function') {
+                renderChatSidebar();
+            }
+        }
+    }
+    
 
     
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));

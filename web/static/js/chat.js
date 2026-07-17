@@ -827,11 +827,17 @@ function handleIncomingWebSocketMessage(data) {
         const bodyContainer = document.getElementById('chat-window-body-container');
         if (bodyContainer) {
             const isNearBottom = bodyContainer.scrollHeight - bodyContainer.scrollTop - bodyContainer.clientHeight < 100;
-            if (!isNearBottom && data.sender === 'client') {
-                unreadMessagesInCurrentChat++;
-            }
+            const isChatActiveAndVisible = (typeof currentTab !== 'undefined' && currentTab === 'chat');
             if (data.sender === 'client') {
                 playSound('new_message');
+                if (!isChatActiveAndVisible) {
+                    chatUnreadCounts[data.client_id] = (chatUnreadCounts[data.client_id] || 0) + 1;
+                    if (typeof window.updateAllUnreadBadges === 'function') {
+                        window.updateAllUnreadBadges(data.client_id);
+                    }
+                } else if (!isNearBottom) {
+                    unreadMessagesInCurrentChat++;
+                }
             }
             
             if (bodyContainer.innerHTML.includes('Історія повідомлень порожня')) {
