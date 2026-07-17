@@ -633,7 +633,7 @@ function renderBankAccordion(templates, activeKey) {
                                 </div>
                             </div>
                             <!-- Deletion Screenshot Card -->
-                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; justify-content: space-between; gap: 14px; position: relative; overflow: hidden; min-height: 310px; transition: all 0.3s ease;">
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; justify-content: space-between; gap: 14px; position: relative; overflow: hidden; min-height: 245px; transition: all 0.3s ease;">
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
                                     <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Зразок видалення додатку</span>
                                     <span id="deletion-screenshot-filename-${key}" class="file-upload-filename-pill ${template.deletion_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">
@@ -677,25 +677,30 @@ function renderBankAccordion(templates, activeKey) {
                                         </svg>
                                         Вилучити фото
                                     </button>
-                                    
-                                    <input type="hidden" id="bank-acc-deletion-req-${key}" value="${template.deletion_requirement || 'none'}">
-                                    <div style="width: 100%; max-width: 200px; text-align: left; display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
-                                        <span style="font-size: 0.62rem; font-weight: 600; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.5px; text-align: center; width: 100%;">Вимога в боті</span>
-                                        <div style="display: flex; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.05); padding: 3px; border-radius: 10px; width: 100%; box-sizing: border-box; justify-content: space-between; align-items: center; gap: 4px;">
-                                            <div id="del-tab-${key}-none" class="del-tab-btn ${(template.deletion_requirement || 'none') === 'none' ? 'active' : ''}" onclick="selectDeletionTab('${key}', 'none')" style="flex: 1; text-align: center; font-size: 0.72rem; font-weight: 600; padding: 6px 2px; border-radius: 7px; cursor: pointer; color: ${(template.deletion_requirement || 'none') === 'none' ? '#fff' : 'rgba(255, 255, 255, 0.4)'}; background: ${(template.deletion_requirement || 'none') === 'none' ? 'rgba(255,255,255,0.08)' : 'transparent'}; border: 1px solid ${(template.deletion_requirement || 'none') === 'none' ? 'rgba(255,255,255,0.08)' : 'transparent'}; transition: all 0.2s ease; user-select: none;">
-                                                Нічого
-                                            </div>
-                                            <div id="del-tab-${key}-screenshot" class="del-tab-btn ${(template.deletion_requirement || 'none') === 'screenshot' ? 'active' : ''}" onclick="selectDeletionTab('${key}', 'screenshot')" style="flex: 1; text-align: center; font-size: 0.72rem; font-weight: 600; padding: 6px 2px; border-radius: 7px; cursor: pointer; color: ${(template.deletion_requirement || 'none') === 'screenshot' ? '#fff' : 'rgba(255, 255, 255, 0.4)'}; background: ${(template.deletion_requirement || 'none') === 'screenshot' ? 'rgba(255,255,255,0.08)' : 'transparent'}; border: 1px solid ${(template.deletion_requirement || 'none') === 'screenshot' ? 'rgba(255,255,255,0.08)' : 'transparent'}; transition: all 0.2s ease; user-select: none;">
-                                                Скрін
-                                            </div>
-                                            <div id="del-tab-${key}-video" class="del-tab-btn ${(template.deletion_requirement || 'none') === 'video' ? 'active' : ''}" onclick="selectDeletionTab('${key}', 'video')" style="flex: 1; text-align: center; font-size: 0.72rem; font-weight: 600; padding: 6px 2px; border-radius: 7px; cursor: pointer; color: ${(template.deletion_requirement || 'none') === 'video' ? '#fff' : 'rgba(255, 255, 255, 0.4)'}; background: ${(template.deletion_requirement || 'none') === 'video' ? 'rgba(255,255,255,0.08)' : 'transparent'}; border: 1px solid ${(template.deletion_requirement || 'none') === 'video' ? 'rgba(255,255,255,0.08)' : 'transparent'}; transition: all 0.2s ease; user-select: none;">
-                                                Відео
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
+
+                        <!-- AI Deletion Requirement Global Setting Row -->
+                        <input type="hidden" id="bank-acc-deletion-req-${key}" value="${template.deletion_requirement || 'none'}">
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); border-radius: 12px; padding: 12px 16px; margin: 16px 0; width: 100%; box-sizing: border-box; gap: 16px; flex-wrap: wrap;">
+                            <div style="display: flex; flex-direction: column; gap: 3px; text-align: left; flex: 1; min-width: 250px;">
+                                <span style="font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.85); letter-spacing: 0.2px;">Вимога видалення додатку в боті (ШІ)</span>
+                                <span style="font-size: 0.7rem; color: rgba(255,255,255,0.45); line-height: 1.3;">Оберіть, який доказ видалення додатку бот повинен запросити у клієнта та автоматично перевірити через ШІ</span>
+                            </div>
+                            <div style="display: flex; background: rgba(0, 0, 0, 0.22); border: 1px solid rgba(255, 255, 255, 0.05); padding: 3px; border-radius: 10px; width: 100%; max-width: 240px; box-sizing: border-box; justify-content: space-between; align-items: center; gap: 4px;">
+                                <div id="del-tab-${key}-none" class="del-tab-btn ${(template.deletion_requirement || 'none') === 'none' ? 'active' : ''}" onclick="selectDeletionTab('${key}', 'none')" style="flex: 1; text-align: center; font-size: 0.72rem; font-weight: 600; padding: 6px 4px; border-radius: 7px; cursor: pointer; color: ${(template.deletion_requirement || 'none') === 'none' ? '#fff' : 'rgba(255, 255, 255, 0.4)'}; background: ${(template.deletion_requirement || 'none') === 'none' ? 'rgba(255,255,255,0.08)' : 'transparent'}; border: 1px solid ${(template.deletion_requirement || 'none') === 'none' ? 'rgba(255,255,255,0.08)' : 'transparent'}; transition: all 0.2s ease; user-select: none;">
+                                    Нічого
+                                </div>
+                                <div id="del-tab-${key}-screenshot" class="del-tab-btn ${(template.deletion_requirement || 'none') === 'screenshot' ? 'active' : ''}" onclick="selectDeletionTab('${key}', 'screenshot')" style="flex: 1; text-align: center; font-size: 0.72rem; font-weight: 600; padding: 6px 4px; border-radius: 7px; cursor: pointer; color: ${(template.deletion_requirement || 'none') === 'screenshot' ? '#fff' : 'rgba(255, 255, 255, 0.4)'}; background: ${(template.deletion_requirement || 'none') === 'screenshot' ? 'rgba(255,255,255,0.08)' : 'transparent'}; border: 1px solid ${(template.deletion_requirement || 'none') === 'screenshot' ? 'rgba(255,255,255,0.08)' : 'transparent'}; transition: all 0.2s ease; user-select: none;">
+                                    Скріншот
+                                </div>
+                                <div id="del-tab-${key}-video" class="del-tab-btn ${(template.deletion_requirement || 'none') === 'video' ? 'active' : ''}" onclick="selectDeletionTab('${key}', 'video')" style="flex: 1; text-align: center; font-size: 0.72rem; font-weight: 600; padding: 6px 4px; border-radius: 7px; cursor: pointer; color: ${(template.deletion_requirement || 'none') === 'video' ? '#fff' : 'rgba(255, 255, 255, 0.4)'}; background: ${(template.deletion_requirement || 'none') === 'video' ? 'rgba(255,255,255,0.08)' : 'transparent'}; border: 1px solid ${(template.deletion_requirement || 'none') === 'video' ? 'rgba(255,255,255,0.08)' : 'transparent'}; transition: all 0.2s ease; user-select: none;">
+                                    Відео
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="form-group" style="margin-top: 16px;">
                             <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Текст інструкції для клієнта</label>
                             <textarea id="bank-acc-text-${key}" required class="form-control auto-grow-textarea" rows="2" style="width: 100%; font-family: inherit;">${template.text || ''}</textarea>
