@@ -97,6 +97,10 @@ window.checkAccordionFormChanges = function(key) {
     const successScreenshotInput = document.getElementById(`bank-acc-success-screenshot-${key}`);
     const successChanged = successScreenshotInput && successScreenshotInput.files && successScreenshotInput.files.length > 0;
 
+    const downloadRemoved = document.getElementById(`bank-acc-download-screenshot-removed-${key}`)?.value === '1';
+    const screenshotRemoved = document.getElementById(`bank-acc-screenshot-removed-${key}`)?.value === '1';
+    const successRemoved = document.getElementById(`bank-acc-success-screenshot-removed-${key}`)?.value === '1';
+
     // Normalizations for text comparisons
     const normTpl = reportTpl.replace(/\r\n/g, '\n').trim();
     const originalTpl = (template.report_template || `{pib}\n{dob}\n{ipn}\n{phone}\n\nДроп - @{username}\n\nLine {line_id} Return: {line_phone} | {bank}\n\n{code}`).replace(/\r\n/g, '\n').trim();
@@ -111,7 +115,7 @@ window.checkAccordionFormChanges = function(key) {
     if (description !== (template.description || '')) hasChanges = true;
     if (activeVal !== originalActive) hasChanges = true;
     if (normTpl !== originalTpl) hasChanges = true;
-    if (logoChanged || downloadChanged || screenshotChanged || successChanged) hasChanges = true;
+    if (logoChanged || downloadChanged || screenshotChanged || successChanged || downloadRemoved || screenshotRemoved || successRemoved) hasChanges = true;
 
     if (hasChanges) {
         btnSave.disabled = false;
@@ -1348,5 +1352,8 @@ window.removeSavedImage = function(key, type) {
     if (btnCancel) {
         btnCancel.setAttribute('data-has-changes', 'true');
         btnCancel.textContent = 'Скасувати';
+    }
+    if (typeof window.checkAccordionFormChanges === 'function') {
+        window.checkAccordionFormChanges(key);
     }
 };
