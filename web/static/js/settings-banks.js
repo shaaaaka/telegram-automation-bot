@@ -678,13 +678,20 @@ function renderBankAccordion(templates, activeKey) {
                                         Вилучити фото
                                     </button>
                                     
-                                    <div style="width: 100%; max-width: 200px; text-align: left; display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
-                                        <label for="bank-acc-deletion-req-${key}" style="font-size: 0.62rem; font-weight: 600; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.5px;">Вимога в боті</label>
-                                        <select id="bank-acc-deletion-req-${key}" onchange="checkAccordionFormChanges('${key}')" class="bank-settings-select" style="width: 100%; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 0.78rem; font-family: var(--font-family); cursor: pointer; outline: none; transition: all 0.2s;">
-                                            <option value="none" ${(template.deletion_requirement || 'none') === 'none' ? 'selected' : ''}>Нічого не просити</option>
-                                            <option value="screenshot" ${(template.deletion_requirement || 'none') === 'screenshot' ? 'selected' : ''}>Просити скріншот</option>
-                                            <option value="video" ${(template.deletion_requirement || 'none') === 'video' ? 'selected' : ''}>Просити відео</option>
-                                        </select>
+                                    <input type="hidden" id="bank-acc-deletion-req-${key}" value="${template.deletion_requirement || 'none'}">
+                                    <div style="width: 100%; max-width: 200px; text-align: left; display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+                                        <span style="font-size: 0.62rem; font-weight: 600; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.5px; text-align: center; width: 100%;">Вимога в боті</span>
+                                        <div style="display: flex; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.05); padding: 3px; border-radius: 10px; width: 100%; box-sizing: border-box; justify-content: space-between; align-items: center; gap: 4px;">
+                                            <div id="del-tab-${key}-none" class="del-tab-btn ${(template.deletion_requirement || 'none') === 'none' ? 'active' : ''}" onclick="selectDeletionTab('${key}', 'none')" style="flex: 1; text-align: center; font-size: 0.72rem; font-weight: 600; padding: 6px 2px; border-radius: 7px; cursor: pointer; color: ${(template.deletion_requirement || 'none') === 'none' ? '#fff' : 'rgba(255, 255, 255, 0.4)'}; background: ${(template.deletion_requirement || 'none') === 'none' ? 'rgba(255,255,255,0.08)' : 'transparent'}; border: 1px solid ${(template.deletion_requirement || 'none') === 'none' ? 'rgba(255,255,255,0.08)' : 'transparent'}; transition: all 0.2s ease; user-select: none;">
+                                                Нічого
+                                            </div>
+                                            <div id="del-tab-${key}-screenshot" class="del-tab-btn ${(template.deletion_requirement || 'none') === 'screenshot' ? 'active' : ''}" onclick="selectDeletionTab('${key}', 'screenshot')" style="flex: 1; text-align: center; font-size: 0.72rem; font-weight: 600; padding: 6px 2px; border-radius: 7px; cursor: pointer; color: ${(template.deletion_requirement || 'none') === 'screenshot' ? '#fff' : 'rgba(255, 255, 255, 0.4)'}; background: ${(template.deletion_requirement || 'none') === 'screenshot' ? 'rgba(255,255,255,0.08)' : 'transparent'}; border: 1px solid ${(template.deletion_requirement || 'none') === 'screenshot' ? 'rgba(255,255,255,0.08)' : 'transparent'}; transition: all 0.2s ease; user-select: none;">
+                                                Скрін
+                                            </div>
+                                            <div id="del-tab-${key}-video" class="del-tab-btn ${(template.deletion_requirement || 'none') === 'video' ? 'active' : ''}" onclick="selectDeletionTab('${key}', 'video')" style="flex: 1; text-align: center; font-size: 0.72rem; font-weight: 600; padding: 6px 2px; border-radius: 7px; cursor: pointer; color: ${(template.deletion_requirement || 'none') === 'video' ? '#fff' : 'rgba(255, 255, 255, 0.4)'}; background: ${(template.deletion_requirement || 'none') === 'video' ? 'rgba(255,255,255,0.08)' : 'transparent'}; border: 1px solid ${(template.deletion_requirement || 'none') === 'video' ? 'rgba(255,255,255,0.08)' : 'transparent'}; transition: all 0.2s ease; user-select: none;">
+                                                Відео
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1430,6 +1437,36 @@ window.removeSavedImage = function(key, type) {
         btnCancel.setAttribute('data-has-changes', 'true');
         btnCancel.textContent = 'Скасувати';
     }
+    if (typeof window.checkAccordionFormChanges === 'function') {
+        window.checkAccordionFormChanges(key);
+    }
+};
+
+window.selectDeletionTab = function(key, val) {
+    const hiddenInput = document.getElementById(`bank-acc-deletion-req-${key}`);
+    if (!hiddenInput) return;
+    
+    hiddenInput.value = val;
+    
+    // Update active tab styles
+    const tabs = ['none', 'screenshot', 'video'];
+    tabs.forEach(t => {
+        const tabEl = document.getElementById(`del-tab-${key}-${t}`);
+        if (tabEl) {
+            if (t === val) {
+                tabEl.style.color = '#fff';
+                tabEl.style.background = 'rgba(255,255,255,0.08)';
+                tabEl.style.borderColor = 'rgba(255,255,255,0.08)';
+                tabEl.classList.add('active');
+            } else {
+                tabEl.style.color = 'rgba(255, 255, 255, 0.4)';
+                tabEl.style.background = 'transparent';
+                tabEl.style.borderColor = 'transparent';
+                tabEl.classList.remove('active');
+            }
+        }
+    });
+    
     if (typeof window.checkAccordionFormChanges === 'function') {
         window.checkAccordionFormChanges(key);
     }
