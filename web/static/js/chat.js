@@ -43,6 +43,64 @@ function scrollChatToBottomWithReset() {
     hideScrollBottomButton();
 }
 
+window.updateGlobalUnreadChatBadge = function() {
+    let totalUnread = 0;
+    if (typeof chatUnreadCounts !== 'undefined') {
+        for (const clientId in chatUnreadCounts) {
+            totalUnread += chatUnreadCounts[clientId] || 0;
+        }
+    }
+    
+    const tabBtn = document.getElementById('tab-btn-chat');
+    if (tabBtn) {
+        let badge = tabBtn.querySelector('.tab-badge');
+        if (totalUnread > 0) {
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'tab-badge';
+                tabBtn.appendChild(badge);
+            }
+            badge.textContent = totalUnread;
+        } else {
+            if (badge) badge.remove();
+        }
+    }
+};
+
+window.updateSessionCardUnreadBadge = function(clientId) {
+    const card = document.querySelector(`.session-card[data-id="${clientId}"]`);
+    if (card) {
+        const btn = card.querySelector('.btn-chat-modal-circle');
+        if (btn) {
+            let badge = btn.querySelector('.badge');
+            const unreadCount = (typeof chatUnreadCounts !== 'undefined' && chatUnreadCounts[clientId]) || 0;
+            if (unreadCount > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'badge';
+                    btn.appendChild(badge);
+                }
+                badge.textContent = unreadCount;
+            } else {
+                if (badge) badge.remove();
+            }
+        }
+    }
+};
+
+window.updateAllUnreadBadges = function(clientId) {
+    window.updateGlobalUnreadChatBadge();
+    if (clientId) {
+        window.updateSessionCardUnreadBadge(clientId);
+    } else {
+        if (typeof chatUnreadCounts !== 'undefined') {
+            for (const cid in chatUnreadCounts) {
+                window.updateSessionCardUnreadBadge(cid);
+            }
+        }
+    }
+};
+
 function setChatSidebarTab(type) {
     chatSidebarTab = type;
     try {
@@ -340,6 +398,9 @@ async function selectChatClient(clientId) {
     } catch (e) {}
     chatUnreadCounts[clientId] = 0;
     renderChatSidebar();
+    if (typeof window.updateAllUnreadBadges === 'function') {
+        window.updateAllUnreadBadges(clientId);
+    }
     
     const layout = document.getElementById('chat-page-layout-container');
     if (layout) {
@@ -889,8 +950,11 @@ function handleIncomingWebSocketMessage(data) {
     } else {
         if (data.sender === 'client') {
             playSound('new_message');
+            chatUnreadCounts[data.client_id] = (chatUnreadCounts[data.client_id] || 0) + 1;
+            if (typeof window.updateAllUnreadBadges === 'function') {
+                window.updateAllUnreadBadges(data.client_id);
+            }
         }
-        chatUnreadCounts[data.client_id] = (chatUnreadCounts[data.client_id] || 0) + 1;
     }
     
     updateSidebarItemPreview(data.client_id, data.message_text || "[Фото]");

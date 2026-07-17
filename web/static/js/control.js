@@ -674,6 +674,9 @@ function renderSessions(sessions) {
                 ? `<span class="client-username-sub">@${session.username}</span>`
                 : '';
 
+            const unreadCount = (typeof chatUnreadCounts !== 'undefined' && chatUnreadCounts[session.client_id]) || 0;
+            const badgeHTML = unreadCount > 0 ? `<span class="badge">${unreadCount}</span>` : '';
+
             const newHTML = `
                 <div class="card-header-bar" onclick="toggleExpand(${session.client_id})">
                     <div class="header-left">
@@ -687,6 +690,7 @@ function renderSessions(sessions) {
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
                                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                             </svg>
+                            ${badgeHTML}
                         </button>
                         <svg class="chevron-icon" width="20" height="20" viewBox="0 0 24 24" onclick="toggleExpand(${session.client_id}); event.stopPropagation();" style="margin-left: 4px; cursor: pointer;"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
                     </div>
