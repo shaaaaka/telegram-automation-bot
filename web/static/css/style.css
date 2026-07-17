@@ -1350,6 +1350,53 @@ textarea:focus {
     margin-bottom: 16px;
 }
 
+.bank-deletion-settings-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    width: 100%;
+    box-sizing: border-box;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.bank-deletion-settings-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    text-align: left;
+    flex: 1;
+    min-width: 250px;
+}
+
+.bank-deletion-settings-control {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    max-width: 220px;
+}
+
+@media (min-width: 992px) {
+    .bank-deletion-settings-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+    }
+    .bank-deletion-settings-info {
+        grid-column: span 3;
+    }
+    .bank-deletion-settings-control {
+        grid-column: 4;
+        justify-content: center;
+        max-width: 100%;
+    }
+}
+
 .toast-container {
     position: fixed;
     top: 30px;
