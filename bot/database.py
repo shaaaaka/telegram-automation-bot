@@ -879,6 +879,7 @@ async def save_bank_template(
     ai_rules: str = None,
     required_screenshots: int = 1,
     description: str = None,
+    display_name: str = None,
     deletion_requirement: str = 'none',
     deletion_screenshot_path: str = None,
     is_active: int = 1,
