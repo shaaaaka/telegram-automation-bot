@@ -876,7 +876,11 @@ async def save_bank_template(
     required_screenshots: int = 1,
     description: str = None,
     display_name: str = None,
-    is_active: int = 1
+    is_active: int = 1,
+    clear_download_screenshot: bool = False,
+    clear_success_screenshot: bool = False,
+    clear_screenshots: bool = False,
+    clear_logo: bool = False
 ):
     """Збереження або оновлення шаблону банку"""
     async with aiosqlite.connect(DB_FILE) as db:
@@ -898,6 +902,16 @@ async def save_bank_template(
                 display_name = excluded.display_name,
                 is_active = excluded.is_active
         """, (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description, display_name, is_active))
+        
+        if clear_logo:
+            await db.execute("UPDATE bank_templates SET logo_path = NULL WHERE key = ?", (key,))
+        if clear_screenshots:
+            await db.execute("UPDATE bank_templates SET screenshot_path = NULL WHERE key = ?", (key,))
+        if clear_download_screenshot:
+            await db.execute("UPDATE bank_templates SET download_screenshot_path = NULL WHERE key = ?", (key,))
+        if clear_success_screenshot:
+            await db.execute("UPDATE bank_templates SET success_screenshot_path = NULL WHERE key = ?", (key,))
+            
         await db.commit()
 
 async def delete_bank_template(key: str):

@@ -1,6 +1,28 @@
 let isDraggingBank = false;
 let dragSourceEl = null;
 
+// Global function to insert a placeholder tag at cursor position in report template textarea
+window.insertPlaceholderTag = function(keyOrId, tagName) {
+    const textarea = document.getElementById(keyOrId === 'new-bank' ? 'new-bank-report-tpl' : `bank-acc-report-tpl-${keyOrId}`);
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const before = text.substring(0, start);
+    const after  = text.substring(end, text.length);
+    textarea.value = before + tagName + after;
+    textarea.selectionStart = textarea.selectionEnd = start + tagName.length;
+    textarea.focus();
+    if (keyOrId === 'new-bank') {
+        updateTelegramMockupPreview('new-bank');
+    } else {
+        updateTelegramMockupPreview(keyOrId);
+    }
+    if (keyOrId !== 'new-bank') {
+        checkAccordionFormChanges(keyOrId);
+    }
+};
+
 // Global function to switch tabs inside a bank accordion item
 window.switchBankAccordionTab = function(key, tabName, event) {
     if (event) {
@@ -389,7 +411,7 @@ function renderBankAccordion(templates, activeKey) {
 
                     <!-- TAB 1: General Parameters -->
                     <div id="bank-tab-content-${key}-general" class="bank-tab-content" style="${activeSubTab === 'general' ? '' : 'display: none;'}">
-                        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-top: 8px; align-items: stretch;">
+                        <div class="bank-general-grid">
                             <!-- Card 1: Logo + Назва банку -->
                             <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; align-items: center; gap: 16px; justify-content: center;">
                                 <!-- Logo Upload Box -->
@@ -470,12 +492,12 @@ function renderBankAccordion(templates, activeKey) {
 
                     <!-- TAB 2: Media Instructions -->
                     <div id="bank-tab-content-${key}-media" class="bank-tab-content" style="${activeSubTab === 'media' ? '' : 'display: none;'}">
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 8px;">
+                        <div class="bank-media-grid">
                             <!-- Download Screenshot Card -->
                             <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 245px;">
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
                                     <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Який банк завантажити</span>
-                                    <span id="download-screenshot-filename-${key}" class="file-upload-filename-pill" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem; color: var(--accent-primary);">Файл не обрано</span>
+                                    <span id="download-screenshot-filename-${key}" class="file-upload-filename-pill ${template.download_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">${template.download_screenshot_path ? 'Файл завантажено' : 'Файл не обрано'}</span>
                                 </div>
                                 
                                 <div id="download-screenshot-preview-${key}" 
@@ -496,6 +518,7 @@ function renderBankAccordion(templates, activeKey) {
                                 </div>
 
                                 <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                                    <input type="hidden" id="bank-acc-download-screenshot-removed-${key}" value="0">
                                     <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
                                         <label for="bank-acc-download-screenshot-${key}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
                                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -506,22 +529,30 @@ function renderBankAccordion(templates, activeKey) {
                                         <input type="file" id="bank-acc-download-screenshot-${key}" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'download-screenshot-preview-${key}', 'download-screenshot-filename-${key}', false)" data-original="${template.download_screenshot_path || ''}">
                                     </div>
                                     <button type="button" id="download-screenshot-reset-${key}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${key}', 'download-screenshot')">Відхилити</button>
+                                    <button type="button" id="download-screenshot-delete-${key}" class="btn-delete-media" style="display: ${template.download_screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${key}', 'download-screenshot')">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                        Вилучити фото
+                                    </button>
                                 </div>
                             </div>
-
+ 
                             <!-- Instruction Screenshot Card -->
                             <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 245px;">
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
                                     <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Скріншот-інструкція як проходити</span>
-                                    <span id="screenshot-filename-${key}" class="file-upload-filename-pill" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem; color: var(--accent-primary);">Файл не обрано</span>
+                                    <span id="screenshot-filename-${key}" class="file-upload-filename-pill ${template.screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">${template.screenshot_path ? 'Файл завантажено' : 'Файл не обрано'}</span>
                                 </div>
                                 
                                 <div id="screenshot-preview-${key}" 
                                      style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
-                                    ${getScreenshotsHTML(template.screenshot_path)}
+                                     ${getScreenshotsHTML(template.screenshot_path)}
                                 </div>
-
+ 
                                 <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                                    <input type="hidden" id="bank-acc-screenshot-removed-${key}" value="0">
                                     <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
                                         <label for="bank-acc-screenshot-${key}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
                                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -532,14 +563,21 @@ function renderBankAccordion(templates, activeKey) {
                                         <input type="file" id="bank-acc-screenshot-${key}" accept="image/*" multiple style="display: none;" onchange="handleMultipleFilePreview(this, 'screenshot-preview-${key}', 'screenshot-filename-${key}')" data-original="${template.screenshot_path || ''}">
                                     </div>
                                     <button type="button" id="screenshot-reset-${key}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${key}', 'screenshot')">Відхилити</button>
+                                    <button type="button" id="screenshot-delete-${key}" class="btn-delete-media" style="display: ${template.screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${key}', 'screenshot')">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                        Вилучити фото
+                                    </button>
                                 </div>
                             </div>
-
+ 
                             <!-- Success Screenshot Card -->
                             <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 245px;">
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
                                     <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Зразок успішного екрану</span>
-                                    <span id="success-screenshot-filename-${key}" class="file-upload-filename-pill" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem; color: var(--accent-primary);">Файл не обрано</span>
+                                    <span id="success-screenshot-filename-${key}" class="file-upload-filename-pill ${template.success_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">${template.success_screenshot_path ? 'Файл завантажено' : 'Файл не обрано'}</span>
                                 </div>
                                 
                                 <div id="success-screenshot-preview-${key}" 
@@ -559,8 +597,9 @@ function renderBankAccordion(templates, activeKey) {
                                         </div>
                                     `}
                                 </div>
-
+ 
                                 <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                                    <input type="hidden" id="bank-acc-success-screenshot-removed-${key}" value="0">
                                     <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
                                         <label for="bank-acc-success-screenshot-${key}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
                                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -571,6 +610,13 @@ function renderBankAccordion(templates, activeKey) {
                                         <input type="file" id="bank-acc-success-screenshot-${key}" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'success-screenshot-preview-${key}', 'success-screenshot-filename-${key}', false)" data-original="${template.success_screenshot_path || ''}">
                                     </div>
                                     <button type="button" id="success-screenshot-reset-${key}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${key}', 'success-screenshot')">Відхилити</button>
+                                    <button type="button" id="success-screenshot-delete-${key}" class="btn-delete-media" style="display: ${template.success_screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${key}', 'success-screenshot')">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                        Вилучити фото
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -583,7 +629,7 @@ function renderBankAccordion(templates, activeKey) {
                     <!-- TAB 3: AI & Verifier -->
                     <div id="bank-tab-content-${key}-ai" class="bank-tab-content" style="${activeSubTab === 'ai' ? '' : 'display: none;'}">
                         <!-- Verifier Report Template and Mockup Side-by-Side -->
-                        <div style="display: grid; grid-template-columns: 1fr 340px; gap: 20px; margin-top: 8px; align-items: start; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 18px;">
+                        <div class="bank-ai-split-grid">
                             <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
                                 <div class="bank-settings-section-title" style="margin: 0; font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; min-height: 20px;">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-primary);">
@@ -593,21 +639,22 @@ function renderBankAccordion(templates, activeKey) {
                                     Шаблон повідомлення для верифікатора
                                 </div>
                                 <textarea id="bank-acc-report-tpl-${key}" class="form-control auto-grow-textarea" rows="7" style="width: 100%; font-family: monospace; font-size: 0.78rem; line-height: 1.4; resize: vertical;" oninput="updateTelegramMockupPreview('${key}')" placeholder="Шаблон звіту...">${template.report_template || `{pib}\n{dob}\n{ipn}\n{phone}\n\nДроп - @{username}\n\nLine {line_id} Return: {line_phone} | {bank}\n\n{code}`}</textarea>
-                                <span style="font-size: 0.72rem; color: rgba(255,255,255,0.4); line-height: 1.3;">
-                                    Ви можете редагувати цей текст. Доступні змінні для підстановки:
-                                    <br>
-                                    <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px; display: inline-block; margin-top: 4px;">{pib}</code>, 
-                                    <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{dob}</code>, 
-                                    <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{ipn}</code>, 
-                                    <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{phone}</code>, 
-                                    <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{username}</code>, 
-                                    <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{line}</code>, 
-                                    <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{line_id}</code>, 
-                                    <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{line_phone}</code>, 
-                                    <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{code}</code>, 
-                                    <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{card}</code>, 
-                                    <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{bank}</code>
-                                </span>
+                                <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
+                                    <span style="font-size: 0.75rem; color: rgba(255,255,255,0.35); font-weight: 500;">💡 Доступні змінні (натисніть для вставки):</span>
+                                    <div class="tag-pills-container">
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{pib}')">{pib}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{dob}')">{dob}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{ipn}')">{ipn}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{phone}')">{phone}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{username}')">{username}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{line}')">{line}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{line_id}')">{line_id}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{line_phone}')">{line_phone}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{code}')">{code}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{card}')">{card}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{bank}')">{bank}</div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Telegram Mockup Bubble -->
@@ -638,11 +685,11 @@ function renderBankAccordion(templates, activeKey) {
                         </div>
                     </div>
 
-                    <div style="display: flex; justify-content: space-between; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
+                    <div class="bank-action-buttons-row">
                         <div>
                             <button type="button" class="btn btn-danger btn-sm" onclick="deleteAccordionBank('${key}')" style="padding: 8px 16px; font-size: 0.8rem;">Видалити банк</button>
                         </div>
-                        <div style="display: flex; gap: 12px;">
+                        <div class="bank-action-right-group">
                             <button type="button" id="bank-acc-cancel-btn-${key}" data-has-changes="false" class="btn btn-secondary btn-sm" onclick="cancelAccordionEdit('${key}')" style="padding: 8px 16px; font-size: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7);">Скасувати</button>
                             <button type="submit" id="bank-acc-save-btn-${key}" disabled class="btn btn-primary" style="padding: 8px 20px; font-weight: 600; font-size: 0.85rem; opacity: 0.4; cursor: not-allowed; transition: all 0.2s ease;">Зберегти зміни</button>
                         </div>
@@ -923,6 +970,18 @@ async function saveAccordionBankSettings(event, key) {
     formData.append('required_screenshots', required_screenshots);
     formData.append('is_active', is_active);
 
+    const downloadRemovedInput = document.getElementById(`bank-acc-download-screenshot-removed-${key}`);
+    const download_removed = downloadRemovedInput ? downloadRemovedInput.value : '0';
+    formData.append('download_screenshot_removed', download_removed === '1');
+
+    const screenshotsRemovedInput = document.getElementById(`bank-acc-screenshot-removed-${key}`);
+    const screenshots_removed = screenshotsRemovedInput ? screenshotsRemovedInput.value : '0';
+    formData.append('screenshots_removed', screenshots_removed === '1');
+
+    const successRemovedInput = document.getElementById(`bank-acc-success-screenshot-removed-${key}`);
+    const success_removed = successRemovedInput ? successRemovedInput.value : '0';
+    formData.append('success_screenshot_removed', success_removed === '1');
+
     const logoInput = document.getElementById(`bank-acc-logo-${key}`);
     if (logoInput && logoInput.files.length > 0) {
         formData.append('logo_file', logoInput.files[0]);
@@ -1077,8 +1136,13 @@ window.resetFileSelection = function(key, type) {
     if (resetBtn) resetBtn.style.display = 'none';
 
     if (filename) {
-        filename.textContent = 'Файл не обрано';
-        filename.classList.remove('selected');
+        if (originalPath) {
+            filename.textContent = 'Файл завантажено';
+            filename.classList.add('selected');
+        } else {
+            filename.textContent = 'Файл не обрано';
+            filename.classList.remove('selected');
+        }
     }
 
     if (preview) {
@@ -1206,3 +1270,83 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+window.removeSavedImage = function(key, type) {
+    const hiddenRemoved = document.getElementById(`bank-acc-${type}-removed-${key}`);
+    if (hiddenRemoved) {
+        hiddenRemoved.value = '1';
+    }
+    
+    const fileInput = document.getElementById(`bank-acc-${type}-${key}`);
+    if (fileInput) {
+        fileInput.value = '';
+        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    
+    const filenameEl = document.getElementById(`${type}-filename-${key}`);
+    if (filenameEl) {
+        filenameEl.textContent = 'Файл не обрано';
+        filenameEl.classList.remove('selected');
+    }
+    
+    const deleteBtn = document.getElementById(`${type}-delete-${key}`);
+    if (deleteBtn) {
+        deleteBtn.style.display = 'none';
+    }
+    
+    const resetBtn = document.getElementById(`${type}-reset-${key}`);
+    if (resetBtn) {
+        resetBtn.style.display = 'none';
+    }
+    
+    const preview = document.getElementById(`${type}-preview-${key}`);
+    if (preview) {
+        preview.style.width = '100px';
+        preview.style.height = '150px';
+        preview.style.border = '2px dashed rgba(255,255,255,0.12)';
+        preview.style.background = 'rgba(255,255,255,0.02)';
+        preview.style.cursor = 'default';
+        preview.style.backgroundImage = 'none';
+        preview.removeAttribute('onclick');
+        
+        if (type === 'download-screenshot') {
+            preview.innerHTML = `
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                    <line x1="12" y1="18" x2="12.01" y2="18"/>
+                </svg>
+            `;
+        } else if (type === 'success-screenshot') {
+            preview.innerHTML = `
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                    <circle cx="12" cy="10" r="3"/>
+                    <path d="M12 18H12.01"/>
+                </svg>
+            `;
+            // Hide Telegram mockup image
+            const mockupEl = document.getElementById(`telegram-mockup-image-${key}`);
+            if (mockupEl) {
+                mockupEl.style.display = 'none';
+                mockupEl.style.backgroundImage = 'none';
+            }
+        } else if (type === 'screenshot') {
+            preview.innerHTML = `
+                <div class="bank-media-preview-box placeholder" 
+                     style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center;">
+                    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                        <line x1="12" y1="18" x2="12.01" y2="18"/>
+                    </svg>
+                </div>
+            `;
+        }
+    }
+    
+    // Mark accordion as changed
+    const btnCancel = document.getElementById(`bank-acc-cancel-btn-${key}`);
+    if (btnCancel) {
+        btnCancel.setAttribute('data-has-changes', 'true');
+        btnCancel.textContent = 'Скасувати';
+    }
+};

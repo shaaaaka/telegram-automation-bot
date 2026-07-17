@@ -1,8 +1,11 @@
 
 import os
 import shutil
+import logging
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, File, UploadFile, Form
+
+logger = logging.getLogger(__name__)
 
 import bot.database as db
 from bot.config import set_cached_setting
@@ -112,23 +115,75 @@ async def update_template_endpoint(
     logo_file: Optional[UploadFile] = File(None),
     screenshot_files: List[UploadFile] = File(default=[]),
     download_screenshot_file: Optional[UploadFile] = File(None),
-    success_screenshot_file: Optional[UploadFile] = File(None)
+    success_screenshot_file: Optional[UploadFile] = File(None),
+    logo_removed: bool = Form(False),
+    screenshots_removed: bool = Form(False),
+    download_screenshot_removed: bool = Form(False),
+    success_screenshot_removed: bool = Form(False)
 ):
     """Оновлення або додавання шаблону банку з файлами"""
     try:
+        logger.info(f"update_template_endpoint key={key} logo_removed={logo_removed} screenshots_removed={screenshots_removed} download_screenshot_removed={download_screenshot_removed} success_screenshot_removed={success_screenshot_removed}")
+        # Load existing template first to delete old files if they are being replaced or removed
+        existing_template = await db.get_bank_template_db(key)
+        
+        def safe_delete_file(relative_path: str):
+            if not relative_path:
+                return
+            try:
+                abs_path = os.path.join("web", relative_path.lstrip("/"))
+                if os.path.exists(abs_path):
+                    os.remove(abs_path)
+            except Exception as file_err:
+                logger.error(f"Failed to delete file {relative_path}: {file_err}")
+
+        # Handle removals
+        clear_logo = False
+        if logo_removed and existing_template:
+            safe_delete_file(existing_template.get('logo_path'))
+            clear_logo = True
+            
+        clear_screenshots = False
+        if screenshots_removed and existing_template:
+            old_paths_str = existing_template.get('screenshot_path')
+            if old_paths_str:
+                for p in old_paths_str.split(','):
+                    safe_delete_file(p.strip())
+            clear_screenshots = True
+            
+        clear_download_screenshot = False
+        if download_screenshot_removed and existing_template:
+            safe_delete_file(existing_template.get('download_screenshot_path'))
+            clear_download_screenshot = True
+            
+        clear_success_screenshot = False
+        if success_screenshot_removed and existing_template:
+            safe_delete_file(existing_template.get('success_screenshot_path'))
+            clear_success_screenshot = True
+
         logo_path = None
         if logo_file and logo_file.filename:
+            # If replacing logo, delete old one first
+            if existing_template and existing_template.get('logo_path'):
+                safe_delete_file(existing_template.get('logo_path'))
             ext = os.path.splitext(logo_file.filename)[1] or ".png"
             filename = f"{key}{ext}"
             file_path = os.path.join(UPLOAD_LOGOS_DIR, filename)
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(logo_file.file, buffer)
             logo_path = f"/static/images/uploaded/logos/{filename}"
+            clear_logo = False
             
         screenshot_path = None
         # Handle multiple uploaded files
         valid_screenshot_files = [f for f in screenshot_files if f and f.filename]
         if valid_screenshot_files:
+            # If replacing screenshots, delete old ones first
+            if existing_template and existing_template.get('screenshot_path'):
+                old_paths_str = existing_template.get('screenshot_path')
+                if old_paths_str:
+                    for p in old_paths_str.split(','):
+                        safe_delete_file(p.strip())
             paths = []
             for i, f in enumerate(valid_screenshot_files):
                 ext = os.path.splitext(f.filename)[1] or ".jpg"
@@ -138,24 +193,33 @@ async def update_template_endpoint(
                     shutil.copyfileobj(f.file, buffer)
                 paths.append(f"/static/images/uploaded/instructions/{filename}")
             screenshot_path = ",".join(paths)
+            clear_screenshots = False
 
         download_screenshot_path = None
         if download_screenshot_file and download_screenshot_file.filename:
+            # If replacing, delete old one first
+            if existing_template and existing_template.get('download_screenshot_path'):
+                safe_delete_file(existing_template.get('download_screenshot_path'))
             ext = os.path.splitext(download_screenshot_file.filename)[1] or ".jpg"
             filename = f"{key}_download{ext}"
             file_path = os.path.join(UPLOAD_INSTRUCTIONS_DIR, filename)
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(download_screenshot_file.file, buffer)
             download_screenshot_path = f"/static/images/uploaded/instructions/{filename}"
+            clear_download_screenshot = False
 
         success_screenshot_path = None
         if success_screenshot_file and success_screenshot_file.filename:
+            # If replacing, delete old one first
+            if existing_template and existing_template.get('success_screenshot_path'):
+                safe_delete_file(existing_template.get('success_screenshot_path'))
             ext = os.path.splitext(success_screenshot_file.filename)[1] or ".jpg"
             filename = f"{key}_success{ext}"
             file_path = os.path.join(UPLOAD_INSTRUCTIONS_DIR, filename)
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(success_screenshot_file.file, buffer)
             success_screenshot_path = f"/static/images/uploaded/instructions/{filename}"
+            clear_success_screenshot = False
             
         await db.save_bank_template(
             key=key,
@@ -171,7 +235,11 @@ async def update_template_endpoint(
             required_screenshots=required_screenshots,
             description=description,
             display_name=display_name,
-            is_active=is_active
+            is_active=is_active,
+            clear_download_screenshot=clear_download_screenshot,
+            clear_success_screenshot=clear_success_screenshot,
+            clear_screenshots=clear_screenshots,
+            clear_logo=clear_logo
         )
         return {"status": "success"}
     except Exception as e:

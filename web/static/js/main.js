@@ -40,7 +40,8 @@ let lastUnroutedCodes = [];     // Unrouted codes cache
 // Audio Context (Web Audio API)
 let audioCtx = null;
 let soundEnabled = localStorage.getItem('notification_sound_enabled') !== '0';
-let soundVolume = parseFloat(localStorage.getItem('notification_volume')) || 0.5;
+let savedVolume = localStorage.getItem('notification_volume');
+let soundVolume = (savedVolume !== null && !isNaN(parseFloat(savedVolume))) ? parseFloat(savedVolume) : 0.5;
 let soundProfile = localStorage.getItem('notification_sound_profile') || 'classic';
 
 // Toast Notification System
@@ -182,12 +183,13 @@ function initAudio() {
             const AudioContextClass = window.AudioContext || window.webkitAudioContext;
             if (AudioContextClass) {
                 audioCtx = new AudioContextClass();
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume().catch(err => console.log("AudioContext resume failed:", err));
-                }
             } else {
                 console.warn("Web Audio API not supported in this browser");
+                return;
             }
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(err => console.log("AudioContext resume failed:", err));
         }
     } catch (e) {
         console.error("AudioContext initialization failed:", e);
@@ -218,7 +220,7 @@ function toggleSound() {
 function playSound(type) {
     if (!soundEnabled) return;
     initAudio();
-    if (!audioCtx || audioCtx.state === 'suspended') return;
+    if (!audioCtx) return;
 
     try {
         const now = audioCtx.currentTime;
@@ -283,9 +285,7 @@ function playSound(type) {
     }
 }
 
-document.addEventListener('click', () => {
-    initAudio();
-}, { once: true });
+
 
 function getBankClass(bankName) {
     const name = bankName.toLowerCase();
@@ -342,12 +342,12 @@ async function pollData() {
             if (statusBadge.dataset.lastConfigured !== isConfigured) {
                 statusBadge.dataset.lastConfigured = isConfigured;
                 if (statusData.bot_configured) {
-                    statusBadge.innerHTML = '<span class="status-dot-inline" style="background:#10b981;box-shadow:0 0 8px #10b981;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span class="hide-mobile" style="margin-left:8px;">Бот Онлайн</span>';
+                    statusBadge.innerHTML = '<span class="status-dot-inline" style="background:#10b981;box-shadow:0 0 8px #10b981;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span style="margin-left:8px;">Бот активний</span>';
                     statusBadge.style.color = '#10b981';
                     statusBadge.style.borderColor = 'rgba(16, 185, 129, 0.2)';
                     statusBadge.style.background = 'rgba(16, 185, 129, 0.1)';
                 } else {
-                    statusBadge.innerHTML = '<span class="status-dot-inline" style="background:#ef4444;box-shadow:0 0 8px #ef4444;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span class="hide-mobile" style="margin-left:8px;">Помилка бота</span>';
+                    statusBadge.innerHTML = '<span class="status-dot-inline" style="background:#ef4444;box-shadow:0 0 8px #ef4444;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span style="margin-left:8px;">Бот неактивний</span>';
                     statusBadge.style.color = '#ef4444';
                     statusBadge.style.borderColor = 'rgba(239, 68, 68, 0.2)';
                     statusBadge.style.background = 'rgba(239, 68, 68, 0.1)';
@@ -469,7 +469,7 @@ async function pollData() {
         console.error("API polling error:", err);
         const statusBadge = document.getElementById('bot-status');
         if (statusBadge) {
-            statusBadge.innerHTML = '<span class="status-dot-inline" style="background:#ef4444;box-shadow:0 0 8px #ef4444;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span class="hide-mobile" style="margin-left:8px;">Помилка мережі</span>';
+            statusBadge.innerHTML = '<span class="status-dot-inline" style="background:#ef4444;box-shadow:0 0 8px #ef4444;display:inline-block;width:8px;height:8px;border-radius:50%;"></span><span style="margin-left:8px;">Бот неактивний</span>';
             statusBadge.style.color = '#ef4444';
             statusBadge.style.borderColor = 'rgba(239, 68, 68, 0.2)';
             statusBadge.style.background = 'rgba(239, 68, 68, 0.1)';
@@ -692,6 +692,9 @@ function syncSoundControlsUI() {
     const select = document.getElementById('settings-sound-profile');
     if (select) {
         select.value = soundProfile;
+        if (typeof window.syncCustomSoundSelectUI === 'function') {
+            window.syncCustomSoundSelectUI();
+        }
     }
     const toggleBtn = document.getElementById('settings-sound-toggle-btn');
     if (toggleBtn) {
@@ -724,4 +727,90 @@ async function updateAvailableBanks() {
         console.error("Failed to load banks list:", e);
     }
 }
+
+// Global Textarea Auto-Grow System
+window.autoGrowTextarea = function(element) {
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.overflowY = "hidden";
+    element.style.height = (element.scrollHeight) + "px";
+};
+
+window.setupAutoGrowTextareas = function() {
+    const textareas = document.querySelectorAll('.auto-grow-textarea, textarea.form-control');
+    textareas.forEach(textarea => {
+        // Skip chat input or specific manual resize textareas if any
+        if (textarea.id === 'chat-msg-input') return;
+        
+        textarea.style.resize = 'none';
+        textarea.style.overflowY = 'hidden';
+        
+        // Initial height adjustment
+        setTimeout(() => {
+            window.autoGrowTextarea(textarea);
+        }, 50);
+
+        if (!textarea.dataset.autoresizeBound) {
+            textarea.dataset.autoresizeBound = "true";
+            textarea.addEventListener('input', function() {
+                window.autoGrowTextarea(this);
+            });
+        }
+    });
+};
+
+// Custom Select Dropdown System
+// Custom Select Dropdown System
+window.selectSoundOption = function(val, event) {
+    if (event) event.stopPropagation();
+    const originalSelect = document.getElementById('settings-sound-profile');
+    if (originalSelect) {
+        originalSelect.value = val;
+        originalSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    window.syncCustomSoundSelectUI();
+    
+    // Close the dropdown
+    const wrapper = document.getElementById('custom-select-wrapper-sound');
+    if (wrapper) {
+        wrapper.classList.remove('open');
+    }
+};
+
+window.syncCustomSoundSelectUI = function() {
+    const select = document.getElementById('settings-sound-profile');
+    if (!select) return;
+    
+    // Sync the trigger text
+    const displayVal = document.getElementById('custom-select-value-sound');
+    if (displayVal) {
+        const option = Array.from(select.options).find(opt => opt.value === soundProfile);
+        if (option) {
+            displayVal.textContent = option.textContent;
+        }
+    }
+    
+    // Sync active class on options
+    const optionsContainer = document.getElementById('custom-select-options-sound');
+    if (optionsContainer) {
+        optionsContainer.querySelectorAll('.custom-select-option').forEach(opt => {
+            if (opt.getAttribute('data-value') === soundProfile) {
+                opt.classList.add('selected');
+            } else {
+                opt.classList.remove('selected');
+            }
+        });
+    }
+};
+
+window.initCustomSoundSelect = function() {
+    window.syncCustomSoundSelectUI();
+};
+
+// Document click listener to sync audio contexts
+document.addEventListener('click', () => {
+    if (typeof initAudio === 'function') {
+        initAudio();
+    }
+});
 window.updateAvailableBanks = updateAvailableBanks;

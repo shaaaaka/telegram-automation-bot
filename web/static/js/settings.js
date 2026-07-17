@@ -74,6 +74,12 @@ async function loadSettings() {
         if (typeof syncSoundControlsUI === 'function') {
             syncSoundControlsUI();
         }
+        if (typeof window.setupAutoGrowTextareas === 'function') {
+            window.setupAutoGrowTextareas();
+        }
+        if (typeof window.initCustomSoundSelect === 'function') {
+            window.initCustomSoundSelect();
+        }
 
         window.bankTemplates = data.templates;
         
@@ -86,7 +92,10 @@ async function loadSettings() {
         }
 
         // Restore active settings subtab
-        const savedSubtab = localStorage.getItem('active_settings_subtab') || 'general';
+        let savedSubtab = localStorage.getItem('active_settings_subtab') || 'general';
+        if (!['general', 'banks', 'chats'].includes(savedSubtab)) {
+            savedSubtab = 'general';
+        }
         switchSettingsSubtab(savedSubtab);
     } catch (err) {
         console.error("loadSettings error:", err);

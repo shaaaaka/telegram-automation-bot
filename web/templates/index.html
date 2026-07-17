@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=9.18">
+    <link rel="stylesheet" href="/static/css/style.css?v=9.34">
 </head>
 <body>
     <div class="container">
@@ -739,7 +739,22 @@
                         flex-direction: column;
                     }
                     .settings-sidebar {
-                        width: 100%;
+                        width: 100% !important;
+                        flex-direction: row !important;
+                        overflow-x: auto !important;
+                        white-space: nowrap !important;
+                        padding: 10px !important;
+                        gap: 8px !important;
+                        -webkit-overflow-scrolling: touch;
+                    }
+                    .settings-sidebar::-webkit-scrollbar {
+                        display: none !important;
+                    }
+                    .settings-subtab-btn {
+                        width: auto !important;
+                        flex-shrink: 0 !important;
+                        padding: 8px 14px !important;
+                        font-size: 0.85rem !important;
                     }
                 }
             </style>
@@ -767,39 +782,13 @@
                         </div>
                         <span>Налаштування банків</span>
                     </button>
-                    <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('reminders')">
-                        <div class="subtab-icon-wrapper">
-                            <svg class="subtab-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                            </svg>
-                        </div>
-                        <span>Нагадування</span>
-                    </button>
-                    <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('status-sound')">
-                        <div class="subtab-icon-wrapper">
-                            <svg class="subtab-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                            </svg>
-                        </div>
-                        <span>Звук</span>
-                    </button>
                     <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('chats')">
                         <div class="subtab-icon-wrapper">
                             <svg class="subtab-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
                             </svg>
                         </div>
-                        <span>Системні чати та ID</span>
-                    </button>
-                    <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('sleep')">
-                        <div class="subtab-icon-wrapper">
-                            <svg class="subtab-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                            </svg>
-                        </div>
-                        <span>Режим сну</span>
+                        <span>Телеграм чати та ID</span>
                     </button>
                 </div>
 
@@ -819,134 +808,175 @@
                                     Основні налаштування
                                 </h3>
 
-                                <!-- Статус бота по центру -->
-                                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; margin-bottom: 24px; padding: 20px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px;">
-                                    <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;">Поточний статус бота</span>
-                                    <div class="status-badge" id="bot-status" style="display: inline-flex; align-items: center; font-size: 1.1rem; font-weight: 700; color: #ffffff; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 10px 24px; border-radius: 12px; min-height: 44px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: fit-content;">
-                                        <span class="status-dot-inline" style="background:#f59e0b;box-shadow:0 0 10px #f59e0b;display:inline-block;width:10px;height:10px;border-radius:50%;"></span><span style="margin-left:10px;">Синхронізація</span>
-                                    </div>
-                                </div>
-
-                                <!-- Обмеження частоти SMS -->
-                                <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 16px;">
-                                    <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
-                                        <svg class="subtab-svg" style="color: var(--accent-primary); width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <circle cx="12" cy="12" r="10"></circle>
-                                            <polyline points="12 6 12 12 16 14"></polyline>
-                                        </svg>
-                                        Частота запиту коду
-                                    </h4>
-                                    <div class="form-group" style="margin: 0;">
-                                        <label for="settings-sms-cooldown" class="form-label">Затримка між запитами SMS-коду (секунд)</label>
-                                        <input type="number" id="settings-sms-cooldown" class="form-control" required min="5" max="3600" style="width: 100%; max-width: 200px;">
-                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">Мінімальний час у секундах, який клієнт повинен зачекати перед повторним запитом коду. Рекомендовано: 30-60 сек.</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Вкладка 5: Нагадування -->
-                            <div id="settings-content-reminders" class="settings-subtab-content">
-                                <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
-                                    <svg class="subtab-svg" style="color: var(--accent-primary); width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                                    </svg>
-                                    Нагадування
-                                </h3>
-
-                                <!-- Нагадування -->
-                                <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 16px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px; margin-bottom: 4px;">
-                                        <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
-                                            <svg class="subtab-svg" style="color: var(--accent-primary); width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                                            </svg>
-                                            Автоматичні нагадування
-                                        </h4>
-                                        <label class="switch-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                            <div class="switch">
-                                                <input type="checkbox" id="settings-reminders-enabled" onchange="toggleReminderInputs(true)">
-                                                <span class="slider"></span>
+                                <div class="settings-general-layout">
+                                    <!-- Left Column: Bot Status, SMS request limit, and Sleep Mode -->
+                                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                                        <!-- Card 1: Bot Status & Cooldown -->
+                                        <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 16px;">
+                                            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px; margin-bottom: 4px;">
+                                                <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                                    Статус бота
+                                                </h4>
+                                                <div id="bot-status" style="font-size: 0.85rem; font-weight: 700; color: #ffffff; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); padding: 4px 12px; border-radius: 8px; display: inline-flex; align-items: center;">
+                                                    Синхронізація
+                                                </div>
                                             </div>
-                                        </label>
+                                            <div class="form-group" style="margin: 0;">
+                                                <label for="settings-sms-cooldown" class="form-label">Затримка між запитами SMS-коду (секунд)</label>
+                                                <input type="number" id="settings-sms-cooldown" class="form-control" required min="5" max="3600" style="width: 100%;">
+                                                <div class="form-hint" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Клієнт чекатиме перед повторним запитом коду. Рекомендовано: 30-60 сек.</div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Card 2: Sleep Mode -->
+                                        <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 16px;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px; margin-bottom: 4px;">
+                                                <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                                    <svg class="subtab-svg" style="color: var(--accent-primary); width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                                                    </svg>
+                                                    Тихі години
+                                                </h4>
+                                                <label class="switch-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                                    <div class="switch">
+                                                        <input type="checkbox" id="settings-sleep-enabled" onchange="toggleSleepInputs()">
+                                                        <span class="slider"></span>
+                                                    </div>
+                                                </label>
+                                            </div>
+
+                                            <div class="form-group" style="margin: 0;">
+                                                <label class="form-label">Період режиму сну</label>
+                                                <div class="sleep-time-grid">
+                                                    <div>
+                                                        <label for="settings-sleep-start" style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 4px; display: block;">Початок</label>
+                                                        <input type="time" id="settings-sleep-start" class="form-control" required>
+                                                    </div>
+                                                    <div class="sleep-time-separator"></div>
+                                                    <div>
+                                                        <label for="settings-sleep-end" style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 4px; display: block;">Кінець</label>
+                                                        <input type="time" id="settings-sleep-end" class="form-control" required>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="form-group" style="margin: 0;">
+                                                <label for="settings-sleep-timezone" class="form-label">Часовий пояс</label>
+                                                <select id="settings-sleep-timezone" class="form-control" style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 10px; border-radius: 8px; font-family: inherit;">
+                                                    <option value="Europe/Kyiv">Київ (Europe/Kyiv)</option>
+                                                    <option value="Europe/Berlin">Європа (Europe/Berlin)</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="form-group" style="margin: 0;">
+                                                <label for="settings-sleep-reply" class="form-label">Повідомлення клієнту</label>
+                                                <textarea id="settings-sleep-reply" class="form-control auto-grow-textarea" style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 10px; border-radius: 8px; font-family: inherit; resize: none; overflow-y: hidden; min-height: 50px;" rows="3" oninput="window.autoGrowTextarea(this)"></textarea>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="form-group">
-                                        <label for="settings-reminder-delay" class="form-label">Затримка перед нагадуванням (хв)</label>
-                                        <input type="number" id="settings-reminder-delay" class="form-control" required style="width: 100%; max-width: 200px;">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="settings-reminder-text" class="form-label">Текст автоматичного нагадування</label>
-                                        <textarea id="settings-reminder-text" class="form-control" rows="4" required style="width: 100%; resize: vertical; min-height: 100px; font-family: inherit;"></textarea>
+
+                                    <!-- Right Column: Automatic Reminders & Audio Notifications -->
+                                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                                        <!-- Card 3: Automatic Reminders -->
+                                        <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 16px;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px; margin-bottom: 4px;">
+                                                <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                                    <svg class="subtab-svg" style="color: var(--accent-primary); width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                                    </svg>
+                                                    Автоматичні нагадування
+                                                </h4>
+                                                <label class="switch-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                                    <div class="switch">
+                                                        <input type="checkbox" id="settings-reminders-enabled" onchange="toggleReminderInputs(true)">
+                                                        <span class="slider"></span>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                            <div class="form-group" style="margin: 0;">
+                                                <label for="settings-reminder-delay" class="form-label">Затримка перед нагадуванням (хв)</label>
+                                                <input type="number" id="settings-reminder-delay" class="form-control" required style="width: 100%;">
+                                            </div>
+                                            <div class="form-group" style="margin: 0;">
+                                                <label for="settings-reminder-text" class="form-label">Текст автоматичного нагадування</label>
+                                                <textarea id="settings-reminder-text" class="form-control auto-grow-textarea" rows="4" required style="width: 100%; resize: none; overflow-y: hidden; min-height: 50px; font-family: inherit;" oninput="window.autoGrowTextarea(this)"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Card 4: Audio Notifications -->
+                                        <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 16px;">
+                                            <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px; margin-bottom: 4px;">
+                                                <svg class="subtab-svg" style="color: var(--accent-primary); width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                                </svg>
+                                                Керування звуком
+                                            </h4>
+                                            
+                                            <!-- Toggle Audio Button -->
+                                            <div class="settings-sound-toggle-row" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 12px;">
+                                                <div style="display: flex; flex-direction: column; gap: 2px;">
+                                                    <span style="font-size: 0.85rem; font-weight: 500; color: #fff;">Звукові сповіщення</span>
+                                                    <span style="font-size: 0.72rem; color: var(--text-muted);">Звуки на сайті</span>
+                                                </div>
+                                                <button type="button" class="btn btn-secondary" id="settings-sound-toggle-btn" onclick="toggleSound()" style="padding: 6px 14px; font-size: 0.82rem; font-weight: 600; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); cursor: pointer; border-radius: 8px; transition: all 0.3s ease;">
+                                                    🔊 <span>Звук увімкнено</span>
+                                                </button>
+                                            </div>
+
+                                            <!-- Volume Slider -->
+                                            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px; margin: 0;">
+                                                <div class="settings-volume-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                                    <label for="settings-volume-slider" class="form-label" style="margin: 0; font-size: 0.82rem; font-weight: 500;">Гучність сповіщень</label>
+                                                    <span id="settings-volume-value" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">50%</span>
+                                                </div>
+                                                <input type="range" id="settings-volume-slider" min="0" max="100" value="50" oninput="updateVolume(this.value)" onchange="playTestTone()" style="width: 100%; cursor: pointer; accent-color: var(--accent-primary);">
+                                            </div>
+
+                                            <!-- Sound Melody Select -->
+                                            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px; margin: 0; position: relative;">
+                                                <label for="settings-sound-profile" class="form-label" style="margin: 0; font-size: 0.82rem; font-weight: 500;">Тип звуку (мелодія)</label>
+                                                <!-- Native hidden select -->
+                                                <select id="settings-sound-profile" onchange="updateSoundProfile(this.value)" style="display: none;">
+                                                    <option value="classic">🎹 Класичний (Фортепіано)</option>
+                                                    <option value="retro">👾 Ретро (8-біт ігри)</option>
+                                                    <option value="digital">💻 Цифровий (Синтезатор)</option>
+                                                    <option value="soft">🔔 М'який дзвіночок</option>
+                                                </select>
+                                                <!-- Custom Select Wrapper -->
+                                                <div class="custom-select-wrapper" id="custom-select-wrapper-sound" style="width: 100%;">
+                                                    <div class="custom-select-trigger" onclick="window.toggleCustomSelectDropdown('sound', event); event.stopPropagation();">
+                                                        <span id="custom-select-value-sound">🎹 &nbsp; Класичний (Фортепіано)</span>
+                                                        <svg class="custom-select-arrow" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                                        </svg>
+                                                    </div>
+                                                    <div class="custom-select-options" id="custom-select-options-sound">
+                                                        <div class="custom-select-option selected" data-value="classic" onclick="window.selectSoundOption('classic', event)">🎹 &nbsp; Класичний (Фортепіано)</div>
+                                                        <div class="custom-select-option" data-value="retro" onclick="window.selectSoundOption('retro', event)">👾 &nbsp; Ретро (8-біт ігри)</div>
+                                                        <div class="custom-select-option" data-value="digital" onclick="window.selectSoundOption('digital', event)">💻 &nbsp; Цифровий (Синтезатор)</div>
+                                                        <div class="custom-select-option" data-value="soft" onclick="window.selectSoundOption('soft', event)">🔔 &nbsp; М'який дзвіночок</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Вкладка: Звук -->
-                            <div id="settings-content-status-sound" class="settings-subtab-content">
-                                <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
-                                    <svg class="subtab-svg" style="color: var(--accent-primary); width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                                    </svg>
-                                    Звук
-                                </h3>
-
-                                <!-- Керування звуком -->
-                                <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 24px; border-radius: 16px; display: flex; flex-direction: column; gap: 24px;">
-                                    <h4 style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 10px;">
-                                        <svg class="subtab-svg" style="color: var(--accent-primary); width: 18px; height: 18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                                        </svg>
-                                        Керування звуком
-                                    </h4>
-                                    
-                                    <!-- Кнопка увімкнення звуку -->
-                                    <div class="settings-sound-toggle-row" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 16px;">
-                                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                                            <span style="font-size: 0.95rem; font-weight: 500; color: #fff;">Звукові сповіщення</span>
-                                            <span style="font-size: 0.8rem; color: var(--text-muted);">Увімкнути або вимкнути звуки на сайті</span>
-                                        </div>
-                                        <button type="button" class="btn btn-secondary" id="settings-sound-toggle-btn" onclick="toggleSound()" style="padding: 8px 18px; font-size: 0.9rem; font-weight: 600; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); cursor: pointer; border-radius: 8px; transition: all 0.3s ease;">
-                                            🔊 <span>Звук увімкнено</span>
-                                        </button>
-                                    </div>
-
-                                    <!-- Повзунок гучності -->
-                                    <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
-                                        <div class="settings-volume-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                                            <label for="settings-volume-slider" class="form-label" style="margin: 0; font-weight: 500;">Гучність сповіщень</label>
-                                            <span id="settings-volume-value" style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">50%</span>
-                                        </div>
-                                        <input type="range" id="settings-volume-slider" min="0" max="100" value="50" oninput="updateVolume(this.value)" onchange="playTestTone()" style="width: 100%; cursor: pointer; accent-color: var(--accent-primary);">
-                                    </div>
-
-                                    <!-- Вибір профілю звуку -->
-                                    <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
-                                        <label for="settings-sound-profile" class="form-label" style="margin: 0; font-weight: 500;">Тип звуку (мелодія)</label>
-                                        <select id="settings-sound-profile" onchange="updateSoundProfile(this.value)" class="form-control" style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 10px; border-radius: 8px; font-family: inherit;">
-                                            <option value="classic">🎹 Класичний (Фортепіано)</option>
-                                            <option value="retro">👾 Ретро (8-біт ігри)</option>
-                                            <option value="digital">💻 Цифровий (Синтезатор)</option>
-                                            <option value="soft">🔔 М'який дзвіночок</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Приховані шаблони повідомлень (щоб JS не видавав помилок) -->
+                            <!-- Hidden message format templates to prevent JS errors -->
                             <input type="hidden" id="settings-giver-format">
                             <input type="hidden" id="settings-giver-retry-format">
                             <textarea id="settings-client-assign-format" style="display: none;"></textarea>
 
-                            <!-- Вкладка 4: Системні чати та ID -->
+                            <!-- Tab 4: Telegram Chats and IDs -->
                             <div id="settings-content-chats" class="settings-subtab-content">
                                 <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
                                     <svg class="subtab-svg" style="color: var(--accent-primary); width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
                                     </svg>
-                                    Системні чати та ID
+                                    Телеграм чати та ID
                                 </h3>
                                 
                                 <div style="display: flex; flex-direction: column; gap: 20px;">
@@ -969,62 +999,6 @@
                                         <label for="settings-archive-group-id" class="form-label">ID Чату Архіву (Archive Group ID)</label>
                                         <input type="text" id="settings-archive-group-id" class="form-control" required style="width: 100%;">
                                         <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">ID чату для архівних звітів про сесії. Має починатися з <code>-100</code>.</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Вкладка: Режим сну -->
-                            <div id="settings-content-sleep" class="settings-subtab-content">
-                                <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
-                                    <svg class="subtab-svg" style="color: var(--accent-primary); width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                                    </svg>
-                                    Режим сну
-                                </h3>
-
-                                <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 16px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px; margin-bottom: 4px;">
-                                        <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
-                                            <svg class="subtab-svg" style="color: var(--accent-primary); width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                                            </svg>
-                                            Тихі години
-                                        </h4>
-                                        <label class="switch-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                            <div class="switch">
-                                                <input type="checkbox" id="settings-sleep-enabled" onchange="toggleSleepInputs()">
-                                                <span class="slider"></span>
-                                            </div>
-                                        </label>
-                                    </div>
-
-                                    <div class="form-group" style="margin: 0;">
-                                        <label class="form-label">Період режиму сну</label>
-                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                                            <div>
-                                                <label for="settings-sleep-start" style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px; display: block;">Початок</label>
-                                                <input type="time" id="settings-sleep-start" class="form-control" style="width: 100%;" required>
-                                            </div>
-                                            <div>
-                                                <label for="settings-sleep-end" style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px; display: block;">Кінець</label>
-                                                <input type="time" id="settings-sleep-end" class="form-control" style="width: 100%;" required>
-                                            </div>
-                                        </div>
-                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">Повідомлення, що надсилаються клієнту, будуть без звуку, а автоматичні нагадування — призупинені.</div>
-                                    </div>
-
-                                    <div class="form-group" style="margin: 0;">
-                                        <label for="settings-sleep-timezone" class="form-label">Часовий пояс</label>
-                                        <select id="settings-sleep-timezone" class="form-control" style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 10px; border-radius: 8px; font-family: inherit;">
-                                            <option value="Europe/Kyiv">Київ (Europe/Kyiv)</option>
-                                            <option value="Europe/Berlin">Європа (Europe/Berlin)</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="form-group" style="margin: 0;">
-                                        <label for="settings-sleep-reply" class="form-label">Повідомлення клієнту</label>
-                                        <textarea id="settings-sleep-reply" class="form-control" style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 10px; border-radius: 8px; font-family: inherit; resize: vertical; min-height: 80px;" rows="3"></textarea>
-                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">Повідомлення, яке отримає клієнт при зверненні в неробочий час.</div>
                                     </div>
                                 </div>
                             </div>
@@ -1060,7 +1034,7 @@
                                 <h4 style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #fff;">➕ Додати новий банк</h4>
                             </div>
                             <form id="add-bank-form" onsubmit="handleCreateAccordionBank(event)" style="display: flex; flex-direction: column; gap: 16px;">
-                                <div style="display: flex; gap: 20px; align-items: center; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 12px; padding: 12px;">
+                                <div class="add-bank-header-row">
                                     <!-- Logo Upload Box -->
                                     <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
                                         <div id="new-bank-logo-preview" 
@@ -1077,7 +1051,7 @@
                                     </div>
 
                                     <!-- Technical Inputs Grid -->
-                                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; flex-grow: 1; align-items: end;">
+                                    <div class="add-bank-inputs-grid">
                                         <div class="form-group" style="margin: 0;">
                                             <label for="new-bank-display-name" class="form-label">Назва банку</label>
                                             <input type="text" id="new-bank-display-name" placeholder="Напр. ізібанк" required class="form-control" style="width: 100%;">
@@ -1124,7 +1098,7 @@
                                     </svg>
                                     Медіа-інструкції для клієнта
                                 </div>
-                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 10px; margin-bottom: 16px;">
+                                <div class="bank-media-grid" style="margin-top: 10px; margin-bottom: 16px;">
                                     <!-- Download Screenshot Card -->
                                     <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden;">
                                         <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
@@ -1220,7 +1194,7 @@
                                 </div>
 
                                 <!-- Verifier Report Template and Mockup Side-by-Side -->
-                                <div style="display: grid; grid-template-columns: 1fr 340px; gap: 20px; margin-bottom: 20px; align-items: start; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 18px;">
+                                <div class="bank-ai-split-grid" style="margin-bottom: 20px;">
                                     <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
                                         <div class="bank-settings-section-title" style="margin: 0; font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; min-height: 20px;">
                                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-primary);">
@@ -1239,21 +1213,22 @@
 Line {line_id} Return: {line_phone} | {bank}
 
 {code}</textarea>
-                                        <span style="font-size: 0.72rem; color: rgba(255,255,255,0.4); line-height: 1.3;">
-                                            Ви можете редагувати цей текст. Доступні змінні для підстановки:
-                                            <br>
-                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px; display: inline-block; margin-top: 4px;">{pib}</code>, 
-                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{dob}</code>, 
-                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{ipn}</code>, 
-                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{phone}</code>, 
-                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{username}</code>, 
-                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{line}</code>, 
-                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{line_id}</code>, 
-                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{line_phone}</code>, 
-                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{code}</code>, 
-                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{card}</code>, 
-                                            <code style="color: var(--accent-primary); background: rgba(255,255,255,0.03); padding: 1px 4px; border-radius: 4px;">{bank}</code>
-                                        </span>
+                                        <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px; width: 100%;">
+                                            <span style="font-size: 0.75rem; color: rgba(255,255,255,0.35); font-weight: 500;">💡 Доступні змінні (натисніть для вставки):</span>
+                                            <div class="tag-pills-container">
+                                                <div class="tag-pill" onclick="insertPlaceholderTag('new-bank', '{pib}')">{pib}</div>
+                                                <div class="tag-pill" onclick="insertPlaceholderTag('new-bank', '{dob}')">{dob}</div>
+                                                <div class="tag-pill" onclick="insertPlaceholderTag('new-bank', '{ipn}')">{ipn}</div>
+                                                <div class="tag-pill" onclick="insertPlaceholderTag('new-bank', '{phone}')">{phone}</div>
+                                                <div class="tag-pill" onclick="insertPlaceholderTag('new-bank', '{username}')">{username}</div>
+                                                <div class="tag-pill" onclick="insertPlaceholderTag('new-bank', '{line}')">{line}</div>
+                                                <div class="tag-pill" onclick="insertPlaceholderTag('new-bank', '{line_id}')">{line_id}</div>
+                                                <div class="tag-pill" onclick="insertPlaceholderTag('new-bank', '{line_phone}')">{line_phone}</div>
+                                                <div class="tag-pill" onclick="insertPlaceholderTag('new-bank', '{code}')">{code}</div>
+                                                <div class="tag-pill" onclick="insertPlaceholderTag('new-bank', '{card}')">{card}</div>
+                                                <div class="tag-pill" onclick="insertPlaceholderTag('new-bank', '{bank}')">{bank}</div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <!-- Telegram Mockup Bubble -->
@@ -1284,9 +1259,11 @@ Line {line_id} Return: {line_phone} | {bank}
                                         <textarea id="new-bank-desc" placeholder="Наприклад: Додаток має темну тему, помаранчеві кольори, скляні плашки..." class="form-control" rows="2" style="width: 100%; resize: none; overflow-y: hidden; min-height: 80px; font-family: inherit;" oninput="autoGrowTextarea(this)"></textarea>
                                     </div>
                                 </div>
-                                <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
-                                    <button type="button" class="btn btn-secondary" onclick="hideAddAccordionBank()" style="padding: 10px 20px;">Скасувати</button>
-                                    <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 600;">Створити банк</button>
+                                <div class="bank-action-buttons-row" style="margin-top: 10px; border-top: none; padding-top: 0; width: 100%;">
+                                    <div class="bank-action-right-group" style="margin-left: auto; justify-content: flex-end;">
+                                        <button type="button" class="btn btn-secondary" onclick="hideAddAccordionBank()" style="padding: 10px 20px;">Скасувати</button>
+                                        <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 600;">Створити банк</button>
+                                    </div>
                                 </div>
                             </form>
                         </div>
@@ -1392,12 +1369,12 @@ Line {line_id} Return: {line_phone} | {bank}
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=9.16"></script>
+    <script src="/static/js/main.js?v=9.21"></script>
     <script src="/static/js/control.js?v=9.19"></script>
     <script src="/static/js/chat.js?v=9.15"></script>
     <script src="/static/js/stats.js?v=9.15"></script>
-    <script src="/static/js/settings.js?v=9.15"></script>
-    <script src="/static/js/settings-banks.js?v=9.65"></script>
+    <script src="/static/js/settings.js?v=9.17"></script>
+    <script src="/static/js/settings-banks.js?v=9.70"></script>
 
     <script>
         window.getScreenshotsHTML = function(pathsStr) {
