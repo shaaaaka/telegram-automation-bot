@@ -17,6 +17,7 @@ class RegistrationStates(StatesGroup):
     waiting_own_number_confirm = State()
     waiting_amobank_instruction_confirm = State()
     waiting_lviv_success_confirm = State()
+    waiting_deletion_proof = State()
 async def register_reg_msg(state: FSMContext, msg_id: int):
     data = await state.get_data()
     msg_ids = data.get("registration_msg_ids", [])
@@ -70,7 +71,6 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
         return
 
     username = session.get('username')
-    await state.clear()
 
     # Розпарсимо PIB, DOB, IPN з client_data
     ipn_match = re.search(r'ІПН:\s*(\d+)', session['client_data'])
@@ -97,9 +97,50 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
 
     phone_number = session.get('client_phone', text if 'text' in locals() else '')
     
-    # Спробуємо завантажити шаблон для отримання report_template
+    # Спробуємо завантажити шаблон для отримання report_template та вимоги видалення
     template_data = await db.get_bank_template_db(bank_name)
     custom_tpl = template_data.get('report_template') if template_data else None
+    
+    deletion_req = template_data.get('deletion_requirement', 'none') if template_data else 'none'
+    has_deletion_proof = data.get('deletion_proof_media')
+    
+    if deletion_req in ['screenshot', 'video'] and not has_deletion_proof:
+        # Збережемо дані для анкети у стані FSM
+        await state.update_data(
+            client_password=client_password,
+            success_photo_id=success_photo_id,
+            card_photo_id=card_photo_id,
+            client_card=client_card
+        )
+        
+        await state.set_state(RegistrationStates.waiting_deletion_proof)
+        
+        proof_type_str = "скріншот" if deletion_req == 'screenshot' else "відео"
+        prompt_msg = f"Дякую! А тепер для завершення верифікації надішліть, будь ласка, {proof_type_str} видалення додатку {bank_name}."
+        
+        deletion_instr = template_data.get('deletion_screenshot_path') if template_data else None
+        if deletion_instr:
+            import os
+            clean_path = deletion_instr.lstrip('/')
+            abs_instr_path = os.path.join("web", clean_path)
+            if os.path.exists(abs_instr_path):
+                from aiogram.types import FSInputFile
+                try:
+                    await bot.send_photo(
+                        chat_id=client_id,
+                        photo=FSInputFile(abs_instr_path),
+                        caption=prompt_msg
+                    )
+                    return
+                except Exception as err:
+                    import logging
+                    logging.error(f"Error sending deletion instruction image: {err}")
+        
+        await bot.send_message(
+            chat_id=client_id,
+            text=prompt_msg
+        )
+        return
     
     if custom_tpl:
         # Використовуємо кастомний шаблон звіту
@@ -137,6 +178,10 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
         if client_password:
             anketa_text += f"{client_password}"
             
+    if has_deletion_proof:
+        proof_label = "скріншот" if deletion_req == 'screenshot' else "відео"
+        anketa_text += f"\n🗑️ Доказ видалення ({proof_label}): отримано"
+        
     anketa_text = anketa_text.strip()
     
     from bot.config import get_anketa_chat_id, get_admin_id
@@ -144,27 +189,35 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
     
     try:
         is_bank_kd = bank_name and "bank.kd" in bank_name.lower()
-        if success_photo_id and card_photo_id and is_bank_kd:
-            from aiogram.types import InputMediaPhoto
-            media = [
-                InputMediaPhoto(media=success_photo_id, caption=anketa_text),
-                InputMediaPhoto(media=card_photo_id)
-            ]
-            await bot.send_media_group(
-                chat_id=target_chat,
-                media=media
-            )
-        elif success_photo_id:
-            await bot.send_photo(
-                chat_id=target_chat,
-                photo=success_photo_id,
-                caption=anketa_text
-            )
+        media = []
+        if success_photo_id:
+            from aiogram.types import InputMediaPhoto, InputMediaVideo
+            media.append(InputMediaPhoto(media=success_photo_id, caption=anketa_text))
+            
+            if card_photo_id and is_bank_kd:
+                media.append(InputMediaPhoto(media=card_photo_id))
+                
+            if has_deletion_proof:
+                deletion_type = data.get('deletion_proof_type', 'photo')
+                if deletion_type == 'video':
+                    media.append(InputMediaVideo(media=has_deletion_proof))
+                else:
+                    media.append(InputMediaPhoto(media=has_deletion_proof))
+                    
+            if len(media) > 1:
+                await bot.send_media_group(chat_id=target_chat, media=media)
+            else:
+                await bot.send_photo(chat_id=target_chat, photo=success_photo_id, caption=anketa_text)
         else:
-            await bot.send_message(
-                chat_id=target_chat,
-                text=anketa_text
-            )
+            if has_deletion_proof:
+                deletion_type = data.get('deletion_proof_type', 'photo')
+                if deletion_type == 'video':
+                    await bot.send_message(chat_id=target_chat, text=anketa_text)
+                    await bot.send_video(chat_id=target_chat, video=has_deletion_proof)
+                else:
+                    await bot.send_photo(chat_id=target_chat, photo=has_deletion_proof, caption=anketa_text)
+            else:
+                await bot.send_message(chat_id=target_chat, text=anketa_text)
     except Exception as e:
         logger.error("Помилка відправки анкети: %s", e)
         try:
@@ -174,6 +227,8 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
             )
         except Exception:
             pass
+
+    await state.clear()
 
     # Закриваємо поточний банк у сесії
     result = await db.complete_current_bank(client_id, 'success')

@@ -112,14 +112,17 @@ async def update_template_endpoint(
     description: str = Form(""),
     display_name: str = Form(None),
     is_active: int = Form(1),
+    deletion_requirement: str = Form("none"),
     logo_file: Optional[UploadFile] = File(None),
     screenshot_files: List[UploadFile] = File(default=[]),
     download_screenshot_file: Optional[UploadFile] = File(None),
     success_screenshot_file: Optional[UploadFile] = File(None),
+    deletion_screenshot_file: Optional[UploadFile] = File(None),
     logo_removed: bool = Form(False),
     screenshots_removed: bool = Form(False),
     download_screenshot_removed: bool = Form(False),
-    success_screenshot_removed: bool = Form(False)
+    success_screenshot_removed: bool = Form(False),
+    deletion_screenshot_removed: bool = Form(False)
 ):
     """Оновлення або додавання шаблону банку з файлами"""
     try:
@@ -160,6 +163,11 @@ async def update_template_endpoint(
         if success_screenshot_removed and existing_template:
             safe_delete_file(existing_template.get('success_screenshot_path'))
             clear_success_screenshot = True
+
+        clear_deletion_screenshot = False
+        if deletion_screenshot_removed and existing_template:
+            safe_delete_file(existing_template.get('deletion_screenshot_path'))
+            clear_deletion_screenshot = True
 
         logo_path = None
         if logo_file and logo_file.filename:
@@ -221,6 +229,19 @@ async def update_template_endpoint(
             success_screenshot_path = f"/static/images/uploaded/instructions/{filename}"
             clear_success_screenshot = False
             
+        deletion_screenshot_path = None
+        if deletion_screenshot_file and deletion_screenshot_file.filename:
+            # If replacing, delete old one first
+            if existing_template and existing_template.get('deletion_screenshot_path'):
+                safe_delete_file(existing_template.get('deletion_screenshot_path'))
+            ext = os.path.splitext(deletion_screenshot_file.filename)[1] or ".jpg"
+            filename = f"{key}_deletion{ext}"
+            file_path = os.path.join(UPLOAD_INSTRUCTIONS_DIR, filename)
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(deletion_screenshot_file.file, buffer)
+            deletion_screenshot_path = f"/static/images/uploaded/instructions/{filename}"
+            clear_deletion_screenshot = False
+            
         await db.save_bank_template(
             key=key,
             command=command,
@@ -230,6 +251,8 @@ async def update_template_endpoint(
             screenshot_path=screenshot_path,
             download_screenshot_path=download_screenshot_path,
             success_screenshot_path=success_screenshot_path,
+            deletion_requirement=deletion_requirement,
+            deletion_screenshot_path=deletion_screenshot_path,
             report_template=report_template,
             ai_rules=ai_rules,
             required_screenshots=required_screenshots,
@@ -239,7 +262,8 @@ async def update_template_endpoint(
             clear_download_screenshot=clear_download_screenshot,
             clear_success_screenshot=clear_success_screenshot,
             clear_screenshots=clear_screenshots,
-            clear_logo=clear_logo
+            clear_logo=clear_logo,
+            clear_deletion_screenshot=clear_deletion_screenshot
         )
         return {"status": "success"}
     except Exception as e:

@@ -1168,3 +1168,36 @@ async def process_lviv_success_confirm(message: Message, state: FSMContext, bot:
     else:
         await state.clear()
         await handle_client_data_manual(message, state, bot)
+
+@router.message(RegistrationStates.waiting_deletion_proof, F.chat.type == "private")
+async def process_deletion_proof(message: Message, state: FSMContext, bot: Bot):
+    data = await state.get_data()
+    bank_name = data.get('bank_name') or "Банк"
+    template_data = await db.get_bank_template_db(bank_name)
+    deletion_req = template_data.get('deletion_requirement', 'none') if template_data else 'none'
+    proof_label = "скріншот" if deletion_req == 'screenshot' else "відео"
+    
+    media_id = None
+    media_type = None
+    
+    if message.photo:
+        media_id = message.photo[-1].file_id
+        media_type = 'photo'
+    elif message.video:
+        media_id = message.video.file_id
+        media_type = 'video'
+    elif message.document:
+        mime = message.document.mime_type or ""
+        if mime.startswith('image/'):
+            media_id = message.document.file_id
+            media_type = 'photo'
+        elif mime.startswith('video/'):
+            media_id = message.document.file_id
+            media_type = 'video'
+            
+    if not media_id:
+        await message.answer(f"Будь ласка, надішліть саме {proof_label} видалення додатку {bank_name} для підтвердження.")
+        return
+        
+    await state.update_data(deletion_proof_media=media_id, deletion_proof_type=media_type)
+    await continue_after_phone(message, state, bot, message.from_user.id)

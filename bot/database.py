@@ -192,7 +192,9 @@ async def init_db():
             ("required_screenshots", "INTEGER DEFAULT 1"),
             ("description", "TEXT"),
             ("display_name", "TEXT"),
-            ("is_active", "INTEGER DEFAULT 1")
+            ("is_active", "INTEGER DEFAULT 1"),
+            ("deletion_requirement", "TEXT DEFAULT 'none'"),
+            ("deletion_screenshot_path", "TEXT")
         ]:
             try:
                 await db.execute(f"ALTER TABLE bank_templates ADD COLUMN {col} {col_def}")
@@ -858,7 +860,9 @@ async def get_all_bank_templates() -> dict:
                     'required_screenshots': row['required_screenshots'] if 'required_screenshots' in row.keys() else 1,
                     'description': row['description'] if 'description' in row.keys() else row['key'],
                     'display_name': row['display_name'] if ('display_name' in row.keys() and row['display_name']) else row['key'],
-                    'is_active': row['is_active'] if 'is_active' in row.keys() else 1
+                    'is_active': row['is_active'] if 'is_active' in row.keys() else 1,
+                    'deletion_requirement': row['deletion_requirement'] if 'deletion_requirement' in row.keys() else 'none',
+                    'deletion_screenshot_path': row['deletion_screenshot_path'] if 'deletion_screenshot_path' in row.keys() else None
                 } for row in rows
             }
 
@@ -875,18 +879,20 @@ async def save_bank_template(
     ai_rules: str = None,
     required_screenshots: int = 1,
     description: str = None,
-    display_name: str = None,
+    deletion_requirement: str = 'none',
+    deletion_screenshot_path: str = None,
     is_active: int = 1,
     clear_download_screenshot: bool = False,
     clear_success_screenshot: bool = False,
     clear_screenshots: bool = False,
-    clear_logo: bool = False
+    clear_logo: bool = False,
+    clear_deletion_screenshot: bool = False
 ):
     """Збереження або оновлення шаблону банку"""
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("""
-            INSERT INTO bank_templates (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description, display_name, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO bank_templates (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description, display_name, is_active, deletion_requirement, deletion_screenshot_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(key) DO UPDATE SET
                 command = excluded.command,
                 text = excluded.text,
@@ -900,8 +906,10 @@ async def save_bank_template(
                 required_screenshots = excluded.required_screenshots,
                 description = COALESCE(excluded.description, bank_templates.description),
                 display_name = excluded.display_name,
-                is_active = excluded.is_active
-        """, (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description, display_name, is_active))
+                is_active = excluded.is_active,
+                deletion_requirement = excluded.deletion_requirement,
+                deletion_screenshot_path = COALESCE(excluded.deletion_screenshot_path, bank_templates.deletion_screenshot_path)
+        """, (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description, display_name, is_active, deletion_requirement, deletion_screenshot_path))
         
         if clear_logo:
             await db.execute("UPDATE bank_templates SET logo_path = NULL WHERE key = ?", (key,))
@@ -911,6 +919,8 @@ async def save_bank_template(
             await db.execute("UPDATE bank_templates SET download_screenshot_path = NULL WHERE key = ?", (key,))
         if clear_success_screenshot:
             await db.execute("UPDATE bank_templates SET success_screenshot_path = NULL WHERE key = ?", (key,))
+        if clear_deletion_screenshot:
+            await db.execute("UPDATE bank_templates SET deletion_screenshot_path = NULL WHERE key = ?", (key,))
             
         await db.commit()
 
