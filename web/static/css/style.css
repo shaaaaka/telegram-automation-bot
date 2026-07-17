@@ -1378,7 +1378,7 @@ textarea:focus {
     display: flex;
     justify-content: center;
     width: 100%;
-    max-width: 200px;
+    max-width: 240px;
     margin: 0 auto;
 }
 
