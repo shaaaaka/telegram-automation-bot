@@ -5202,8 +5202,23 @@ div.empty-state span:first-child {
     color: #fff;
     cursor: pointer;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 100;
+    
+    /* Animation transitions */
+    opacity: 0;
+    transform: translateY(20px) scale(0.8);
+    pointer-events: none;
+    transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.25s ease,
+                border-color 0.25s ease,
+                box-shadow 0.25s ease;
+}
+
+.chat-scroll-bottom-btn.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
 }
 
 .chat-scroll-bottom-btn:hover {

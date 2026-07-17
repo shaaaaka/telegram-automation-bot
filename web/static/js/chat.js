@@ -21,7 +21,7 @@ function showScrollBottomButton(increment = 0) {
     
     unreadMessagesInCurrentChat += increment;
     
-    btn.style.display = 'flex';
+    btn.classList.add('visible');
     if (unreadMessagesInCurrentChat > 0) {
         badge.style.display = 'flex';
         badge.textContent = unreadMessagesInCurrentChat;
@@ -33,7 +33,7 @@ function showScrollBottomButton(increment = 0) {
 function hideScrollBottomButton() {
     const btn = document.getElementById('chat-scroll-bottom-btn');
     const badge = document.getElementById('chat-scroll-bottom-badge');
-    if (btn) btn.style.display = 'none';
+    if (btn) btn.classList.remove('visible');
     if (badge) badge.style.display = 'none';
     unreadMessagesInCurrentChat = 0;
 }
@@ -470,7 +470,7 @@ async function selectChatClient(clientId) {
             </div>
         </div>
         <!-- Floating Scroll to Bottom Button -->
-        <div class="chat-scroll-bottom-btn" id="chat-scroll-bottom-btn" onclick="scrollChatToBottomWithReset()" style="display: none;">
+        <div class="chat-scroll-bottom-btn" id="chat-scroll-bottom-btn" onclick="scrollChatToBottomWithReset()">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <polyline points="19 12 12 19 5 12"></polyline>
