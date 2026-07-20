@@ -322,53 +322,58 @@ function renderAIExamples(examples) {
         return;
     }
     
-    examples.forEach(ex => {
+    examples.forEach((ex, idx) => {
         const item = document.createElement('div');
         item.style.display = 'flex';
         item.style.flexDirection = 'column';
-        item.style.padding = '14px 16px';
+        item.style.padding = '14px 18px';
         item.style.background = 'rgba(255,255,255,0.015)';
         item.style.border = '1px solid rgba(255,255,255,0.04)';
         item.style.borderRadius = '12px';
-        item.style.gap = '8px';
+        item.style.gap = '12px';
         
         item.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; width: 100%;">
-                <div style="display: flex; flex-direction: column; gap: 8px; flex-grow: 1; min-width: 0;">
-                    <!-- Drop message bubble -->
-                    <div style="background: rgba(255, 255, 255, 0.025); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px;">
-                        <div style="font-size: 0.72rem; color: rgba(255, 255, 255, 0.45); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 5px;">
-                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            Клієнт (Дроп)
-                        </div>
-                        <div style="font-size: 0.88rem; color: #e2e8f0; line-height: 1.45;">
-                            ${ex.client_message}
-                        </div>
-                    </div>
-
-                    <!-- Bot response bubble -->
-                    <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.07) 0%, rgba(124, 58, 237, 0.02) 100%); border: 1px solid rgba(168, 85, 247, 0.2); border-left: 3px solid #a855f7; border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px;">
-                        <div style="font-size: 0.72rem; color: #c084fc; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 5px;">
-                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#c084fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="15" x2="23" y2="15"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="15" x2="4" y2="15"/></svg>
-                            Відповідь ШІ-Бота
-                        </div>
-                        <div style="font-size: 0.88rem; color: #f1f5f9; line-height: 1.45;">
-                            ${ex.bot_response}
-                        </div>
-                    </div>
+            <!-- Top card header with title & controls -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 8px;">
+                <div style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: rgba(255,255,255,0.4); letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Приклад #${idx + 1}
                 </div>
-
-                <!-- Action controls -->
-                <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0; margin-top: 4px;">
-                    <label class="switch-container" style="display: flex; align-items: center; cursor: pointer;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <label class="switch-container" style="display: flex; align-items: center; cursor: pointer; margin: 0;">
                         <div class="switch">
                             <input type="checkbox" ${ex.is_active === 1 ? 'checked' : ''} onchange="toggleAIExample(${ex.id}, this)">
                             <span class="slider"></span>
                         </div>
                     </label>
                     <div style="display: flex; gap: 6px;">
-                        <button class="btn btn-secondary btn-sm" onclick="editAIExample(${ex.id}, \`${ex.client_message.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/"/g, '&quot;')}\`, \`${ex.bot_response.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/"/g, '&quot;')}\`)" style="padding: 6px 10px; font-size: 0.78rem; display: inline-flex; align-items: center;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-                        <button class="btn btn-secondary btn-sm" onclick="deleteAIExample(${ex.id})" style="padding: 6px 10px; font-size: 0.78rem; border-color: rgba(239, 68, 68, 0.2); color: #ef4444; display: inline-flex; align-items: center;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
+                        <button class="btn btn-secondary btn-sm" onclick="editAIExample(${ex.id}, \`${ex.client_message.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/"/g, '&quot;')}\`, \`${ex.bot_response.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/"/g, '&quot;')}\`)" style="padding: 5px 9px; font-size: 0.78rem; display: inline-flex; align-items: center;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                        <button class="btn btn-secondary btn-sm" onclick="deleteAIExample(${ex.id})" style="padding: 5px 9px; font-size: 0.78rem; border-color: rgba(239, 68, 68, 0.2); color: #ef4444; display: inline-flex; align-items: center;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dialogue bubbles section -->
+            <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                <!-- Drop message bubble -->
+                <div style="background: rgba(255, 255, 255, 0.025); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px;">
+                    <div style="font-size: 0.72rem; color: rgba(255, 255, 255, 0.45); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 5px;">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        Клієнт (Дроп)
+                    </div>
+                    <div style="font-size: 0.88rem; color: #e2e8f0; line-height: 1.45;">
+                        ${ex.client_message}
+                    </div>
+                </div>
+
+                <!-- Bot response bubble -->
+                <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.07) 0%, rgba(124, 58, 237, 0.02) 100%); border: 1px solid rgba(168, 85, 247, 0.2); border-left: 3px solid #a855f7; border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px;">
+                    <div style="font-size: 0.72rem; color: #c084fc; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 5px;">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#c084fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="15" x2="23" y2="15"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="15" x2="4" y2="15"/></svg>
+                        Відповідь ШІ-Бота
+                    </div>
+                    <div style="font-size: 0.88rem; color: #f1f5f9; line-height: 1.45;">
+                        ${ex.bot_response}
                     </div>
                 </div>
             </div>
