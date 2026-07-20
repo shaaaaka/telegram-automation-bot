@@ -17,6 +17,10 @@ async function loadAISettings() {
         
         // 3. Render Examples List
         renderAIExamples(data.examples || []);
+
+        // 4. Restore active subtab
+        const savedSubtab = localStorage.getItem('active_ai_subtab') || 'params';
+        switchAISubtab(savedSubtab, false);
     } catch (err) {
         showToast("Помилка завантаження налаштувань ШІ", "danger");
     }
@@ -382,12 +386,16 @@ function renderAIExamples(examples) {
     });
 }
 
-function switchAISubtab(subtabName) {
+function switchAISubtab(subtabName, save = true) {
+    if (save) {
+        localStorage.setItem('active_ai_subtab', subtabName);
+    }
+
     // 1. Update active button classes
     document.querySelectorAll('.ai-tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    const activeBtn = document.querySelector(`.ai-tab-btn[onclick="switchAISubtab('${subtabName}')"]`);
+    const activeBtn = document.querySelector(`.ai-tab-btn[onclick*="switchAISubtab('${subtabName}')"]`);
     if (activeBtn) activeBtn.classList.add('active');
 
     // 2. Show/hide subpanes
