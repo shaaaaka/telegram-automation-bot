@@ -57,7 +57,7 @@ async function saveAISettings(event) {
 
 function showAddRuleForm() {
     document.getElementById('ai-rule-add-form').style.display = 'flex';
-    document.getElementById('ai-rule-form-title').innerText = "➕ Нове правило для ШІ";
+    document.getElementById('ai-rule-form-title').innerText = "Нове правило для ШІ";
     document.getElementById('edit-rule-id').value = "";
     document.getElementById('ai-rule-text').value = "";
     document.getElementById('ai-rule-category').value = "general";
@@ -70,7 +70,7 @@ function hideAddRuleForm() {
 
 function editAIRule(id, text, category) {
     document.getElementById('ai-rule-add-form').style.display = 'flex';
-    document.getElementById('ai-rule-form-title').innerText = "✏️ Редагувати правило";
+    document.getElementById('ai-rule-form-title').innerText = "Редагувати правило";
     document.getElementById('edit-rule-id').value = id;
     document.getElementById('ai-rule-text').value = text;
     document.getElementById('ai-rule-category').value = category;
@@ -202,8 +202,8 @@ function renderAIRules(rules) {
                     </div>
                 </label>
                 <div style="display: flex; gap: 6px;">
-                    <button class="btn btn-secondary btn-sm" onclick="editAIRule(${rule.id}, \`${rule.rule_text.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/"/g, '&quot;')}\`, '${rule.category}')" style="padding: 4px 8px; font-size: 0.78rem;">✏️</button>
-                    <button class="btn btn-secondary btn-sm" onclick="deleteAIRule(${rule.id})" style="padding: 4px 8px; font-size: 0.78rem; border-color: rgba(239, 68, 68, 0.2); color: #ef4444;">🗑️</button>
+                    <button class="btn btn-secondary btn-sm" onclick="editAIRule(${rule.id}, \`${rule.rule_text.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/"/g, '&quot;')}\`, '${rule.category}')" style="padding: 5px 9px; font-size: 0.78rem; display: inline-flex; align-items: center;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                    <button class="btn btn-secondary btn-sm" onclick="deleteAIRule(${rule.id})" style="padding: 5px 9px; font-size: 0.78rem; border-color: rgba(239, 68, 68, 0.2); color: #ef4444; display: inline-flex; align-items: center;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
                 </div>
             </div>
         `;
@@ -215,7 +215,7 @@ function renderAIRules(rules) {
 
 function showAddExampleForm() {
     document.getElementById('ai-example-add-form').style.display = 'flex';
-    document.getElementById('ai-example-form-title').innerText = "➕ Новий приклад для ШІ";
+    document.getElementById('ai-example-form-title').innerText = "Новий приклад для ШІ";
     document.getElementById('edit-example-id').value = "";
     document.getElementById('ai-example-q').value = "";
     document.getElementById('ai-example-a').value = "";
@@ -228,7 +228,7 @@ function hideAddExampleForm() {
 
 function editAIExample(id, clientMsg, botResp) {
     document.getElementById('ai-example-add-form').style.display = 'flex';
-    document.getElementById('ai-example-form-title').innerText = "✏️ Редагувати приклад";
+    document.getElementById('ai-example-form-title').innerText = "Редагувати приклад";
     document.getElementById('edit-example-id').value = id;
     document.getElementById('ai-example-q').value = clientMsg;
     document.getElementById('ai-example-a').value = botResp;
@@ -335,11 +335,13 @@ function renderAIExamples(examples) {
         item.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; width: 100%;">
                 <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1; min-width: 0;">
-                    <div style="font-size: 0.85rem; color: rgba(255, 255, 255, 0.45); font-weight: 500;">
-                        👤 Дроп: <span style="color: rgba(255,255,255,0.9); font-weight: normal;">${ex.client_message}</span>
+                    <div style="font-size: 0.85rem; color: rgba(255, 255, 255, 0.45); font-weight: 500; display: flex; align-items: center; gap: 6px;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        Дроп: <span style="color: rgba(255,255,255,0.9); font-weight: normal;">${ex.client_message}</span>
                     </div>
-                    <div style="font-size: 0.85rem; color: #a855f7; font-weight: 500;">
-                        🤖 Бот: <span style="color: rgba(255,255,255,0.9); font-weight: normal;">${ex.bot_response}</span>
+                    <div style="font-size: 0.85rem; color: #a855f7; font-weight: 500; display: flex; align-items: center; gap: 6px;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="15" x2="23" y2="15"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="15" x2="4" y2="15"/></svg>
+                        Бот: <span style="color: rgba(255,255,255,0.9); font-weight: normal;">${ex.bot_response}</span>
                     </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 14px; flex-shrink: 0; margin-top: 2px;">
@@ -350,8 +352,8 @@ function renderAIExamples(examples) {
                         </div>
                     </label>
                     <div style="display: flex; gap: 6px;">
-                        <button class="btn btn-secondary btn-sm" onclick="editAIExample(${ex.id}, \`${ex.client_message.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/"/g, '&quot;')}\`, \`${ex.bot_response.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/"/g, '&quot;')}\`)" style="padding: 4px 8px; font-size: 0.78rem;">✏️</button>
-                        <button class="btn btn-secondary btn-sm" onclick="deleteAIExample(${ex.id})" style="padding: 4px 8px; font-size: 0.78rem; border-color: rgba(239, 68, 68, 0.2); color: #ef4444;">🗑️</button>
+                        <button class="btn btn-secondary btn-sm" onclick="editAIExample(${ex.id}, \`${ex.client_message.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/"/g, '&quot;')}\`, \`${ex.bot_response.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/"/g, '&quot;')}\`)" style="padding: 5px 9px; font-size: 0.78rem; display: inline-flex; align-items: center;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                        <button class="btn btn-secondary btn-sm" onclick="deleteAIExample(${ex.id})" style="padding: 5px 9px; font-size: 0.78rem; border-color: rgba(239, 68, 68, 0.2); color: #ef4444; display: inline-flex; align-items: center;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
                     </div>
                 </div>
             </div>
