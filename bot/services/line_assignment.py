@@ -4,7 +4,7 @@ from aiogram import Bot
 from aiogram.types import FSInputFile, ReplyKeyboardRemove, InlineKeyboardButton
 
 import bot.database as db
-from bot.config import get_template_photo, DEFAULT_BANK_ORDER
+from bot.config import get_template_photo, DEFAULT_BANK_ORDER, normalize_bank_name
 
 logger = logging.getLogger(__name__)
 
@@ -53,10 +53,10 @@ async def get_all_banks_for_selection() -> list:
     active_banks = []
     for bank in combined_banks:
         is_active = True
-        name_norm = bank.lower().replace(" ", "").replace("-", "").replace(".", "")
+        name_norm = normalize_bank_name(bank)
         for key, val in templates.items():
-            key_norm = key.lower().replace(" ", "").replace("-", "").replace(".", "")
-            if key_norm in name_norm or name_norm in key_norm:
+            key_norm = normalize_bank_name(key)
+            if key_norm == name_norm or key_norm in name_norm or name_norm in key_norm:
                 if val.get('is_active') == 0:
                     is_active = False
                 break
@@ -105,30 +105,44 @@ async def send_line_assignment_messages(client_id: int, line_id: int, bot: Bot, 
             import os
             key, template = await db.get_bank_template_with_key_db(bank_name)
             if template:
-                # Send download screenshot if present, otherwise send download text
-                if template.get('download_screenshot_path'):
-                    rel_download_path = template['download_screenshot_path'].lstrip('/')
-                    download_photo_path = os.path.join("web", rel_download_path)
-                    if os.path.exists(download_photo_path):
+                # Send download screenshots if present, otherwise send download text
+                download_paths_str = template.get('download_screenshot_path')
+                download_paths = [p.strip() for p in download_paths_str.split(",") if p.strip()] if download_paths_str else []
+                
+                valid_local_paths = []
+                for p in download_paths:
+                    rel_path = p.lstrip('/')
+                    local_path = os.path.join("web", rel_path)
+                    if os.path.exists(local_path):
+                        valid_local_paths.append(local_path)
+                
+                if valid_local_paths:
+                    download_text = template.get('text') or "Спершу завантажте цей додаток:"
+                    if len(valid_local_paths) == 1:
                         try:
-                            download_text = template.get('text') or "Спершу завантажте цей додаток:"
                             await bot.send_photo(
                                 chat_id=client_id,
-                                photo=FSInputFile(download_photo_path),
+                                photo=FSInputFile(valid_local_paths[0]),
                                 caption=download_text
                             )
                         except Exception as e:
                             logger.error("Помилка надсилання фото додатку для завантаження: %s", e)
                     else:
                         try:
+                            from aiogram.types import InputMediaPhoto
+                            media = []
+                            for idx, p in enumerate(valid_local_paths):
+                                caption = download_text if idx == 0 else None
+                                media.append(InputMediaPhoto(media=FSInputFile(p), caption=caption))
+                            await bot.send_media_group(chat_id=client_id, media=media)
+                        except Exception as e:
+                            logger.error("Помилка надсилання групи фото додатку для завантаження: %s", e)
+                else:
+                    if template.get('text'):
+                        try:
                             await bot.send_message(chat_id=client_id, text=template['text'])
                         except Exception as e:
                             logger.error("Помилка надсилання тексту додатку для завантаження: %s", e)
-                else:
-                    try:
-                        await bot.send_message(chat_id=client_id, text=template['text'])
-                    except Exception as e:
-                        logger.error("Помилка надсилання тексту додатку для завантаження: %s", e)
 
             await bot.send_message(
                 chat_id=client_id,

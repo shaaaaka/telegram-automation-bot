@@ -253,26 +253,29 @@ async def get_support_response(user_text: str = None, image_bytes: bytes = None,
         messages.extend(chat_history)
 
     # Завантажуємо зразок успішної реєстрації з БД (якщо є)
-    success_image_bytes = None
+    success_images = []
     if current_bank_name and image_bytes:
         try:
             bank_template = await db.get_bank_template_db(current_bank_name)
             if bank_template and bank_template.get('success_screenshot_path'):
                 import os
-                rel_path = bank_template['success_screenshot_path'].lstrip('/')
-                local_path = os.path.join("web", rel_path)
-                if os.path.exists(local_path):
-                    with open(local_path, "rb") as f:
-                        success_image_bytes = f.read()
+                paths_str = bank_template['success_screenshot_path']
+                paths = [p.strip() for p in paths_str.split(',') if p.strip()]
+                for p in paths:
+                    rel_path = p.lstrip('/')
+                    local_path = os.path.join("web", rel_path)
+                    if os.path.exists(local_path):
+                        with open(local_path, "rb") as f:
+                            success_images.append(f.read())
         except Exception as e:
-            logger.error(f"Error loading success screenshot template: {e}")
+            logger.error(f"Error loading success screenshot templates: {e}")
 
     content = []
     if user_text:
         content.append({"type": "text", "text": user_text})
 
     if image_bytes:
-        if success_image_bytes:
+        if success_images:
             content.append({"type": "text", "text": "КЛІЄНТСЬКИЙ СКРІНШОТ (надісланий користувачем для перевірки):"})
         base64_image = base64.b64encode(image_bytes).decode('utf-8')
         content.append({
@@ -282,15 +285,16 @@ async def get_support_response(user_text: str = None, image_bytes: bytes = None,
             }
         })
 
-    if success_image_bytes:
-        content.append({"type": "text", "text": "ЕТАЛОННИЙ ЗРАЗОК УСПІШНОЇ РЕЄСТРАЦІЇ (як має виглядати правильний фінальний екран для цього банку):"})
-        base64_success_image = base64.b64encode(success_image_bytes).decode('utf-8')
-        content.append({
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/jpeg;base64,{base64_success_image}"
-            }
-        })
+    if success_images:
+        content.append({"type": "text", "text": "ЕТАЛОННІ ЗРАЗКИ УСПІШНОЇ РЕЄСТРАЦІЇ (як має виглядати правильний фінальний екран для цього банку):"})
+        for img_bytes in success_images:
+            base64_success_image = base64.b64encode(img_bytes).decode('utf-8')
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{base64_success_image}"
+                }
+            })
 
     if not content:
         return "Будь ласка, напишіть ваше запитання або надішліть скріншот помилки."
@@ -466,10 +470,18 @@ async def verify_deletion_proof(media_bytes: bytes, media_type: str) -> tuple[bo
                 "type": "text", 
                 "text": (
                     "Проаналізуй надані зображення/кадри відео. Це доказ видалення мобільного додатку "
-                    "клієнтом з телефону (показ процесу видалення або відсутність іконки додатку після видалення). "
+                    "клієнтом з телефону. Доказ має бути скріншотом або відео з офіційного магазину додатків: "
+                    "App Store (для iPhone/iOS) або Google Play Market (для Android), на якому чітко видно, "
+                    "що для цього додатку доступна кнопка встановлення («Завантажити», «Встановити», «Get», хмарка зі стрілкою тощо), "
+                    "що свідчить про те, що додаток видалено.\n\n"
+                    "ПРАВИЛА ОЦІНКИ:\n"
+                    "1. Якщо на зображенні/відео видно екрани App Store або Play Market з кнопкою для встановлення додатка (а не кнопкою «Відкрити» / «Open»), то видалення підтверджено. Поверни ТАК.\n"
+                    "2. Якщо надіслано скріншот робочого столу (головного меню, home screen), де просто немає іконки додатку — це НЕ вважається надійним доказом. Поверни НІ та вкажи причину: «Будь ласка, надішліть скріншот саме з App Store або Play Market, де видно кнопку встановлення додатку, а не робочий стіл.»\n"
+                    "3. Якщо додаток все ще встановлено (видно кнопку «Відкрити», «Оновити» або додаток запущено) — поверни НІ та вкажи причину: «Додаток все ще встановлено на телефоні.»\n"
+                    "4. В інших випадках, коли видалення не видно або надіслано сторонній скріншот — поверни НІ та вкажи коротку причину.\n\n"
                     "Дай відповідь у наступному форматі:\n"
                     "Рядок 1: Тільки одне слово ТАК або НІ (чи підтверджено видалення додатку)\n"
-                    "Рядок 2: Коротке пояснення причини українською мовою."
+                    "Рядок 2: Коротке пояснення причини українською мовою для клієнта."
                 )
             }
         ]

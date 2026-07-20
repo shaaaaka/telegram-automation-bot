@@ -522,11 +522,11 @@ function renderSessions(sessions) {
                         if (status === 'success') {
                             chipClasses += ' success-done';
                             statusIcon = '<span class="chip-status-icon">✓</span>';
-                            onclickAttr = '';
+                            onclickAttr = `onclick="confirmResetBankStatus(${session.client_id}, '${bank}')"`;
                         } else if (status === 'failure' || status === 'banned') {
                             chipClasses += ' failure-done';
                             statusIcon = '<span class="chip-status-icon">✗</span>';
-                            onclickAttr = '';
+                            onclickAttr = `onclick="confirmResetBankStatus(${session.client_id}, '${bank}')"`;
                         } else {
                             chipClasses += ' released-done';
                             statusIcon = '<span class="chip-status-icon">↻</span>';
@@ -755,6 +755,27 @@ function renderSessions(sessions) {
     }
 
     updateTimers();
+}
+
+// Confirm and reset verification status of a bank for a client
+async function confirmResetBankStatus(clientId, bank) {
+    const confirmed = await showConfirm(`Скинути статус верифікації для банку ${bank}?`, 'warning');
+    if (confirmed) {
+        try {
+            const res = await fetch(`/api/sessions/${clientId}/banks/reset?bank=${encodeURIComponent(bank)}`, {
+                method: 'POST'
+            });
+            if (res.ok) {
+                showToast(`Статус ${bank} успішно скинуто`, "success");
+                pollData();
+            } else {
+                showToast("Помилка при спробі скинути статус банку", "error");
+            }
+        } catch (err) {
+            console.error("Failed to reset bank status:", err);
+            showToast("Не вдалося зв'язатися з сервером", "error");
+        }
+    }
 }
 
 // Toggle client selected bank
@@ -1050,18 +1071,46 @@ function openChatModal(clientId, event) {
     selectChatClient(clientId);
 }
 
-// Lightbox view for image verification previews
+// Lightbox view for image/video verification previews
 function openLightbox(src) {
     const overlay = document.getElementById('image-lightbox');
     const img = document.getElementById('lightbox-img');
-    if (overlay && img) {
-        img.src = src;
-        overlay.classList.add('active');
+    const video = document.getElementById('lightbox-video');
+    if (!overlay) return;
+
+    // Check if source is a video file or base64 data-url with video mime
+    const isVideo = src.toLowerCase().endsWith('.mp4') || 
+                    src.toLowerCase().endsWith('.mov') || 
+                    src.toLowerCase().endsWith('.avi') || 
+                    src.toLowerCase().endsWith('.webm') ||
+                    src.startsWith('data:video/');
+
+    if (isVideo) {
+        if (img) img.style.display = 'none';
+        if (video) {
+            video.src = src;
+            video.style.display = 'block';
+            video.play().catch(() => {});
+        }
+    } else {
+        if (video) {
+            video.pause();
+            video.style.display = 'none';
+        }
+        if (img) {
+            img.src = src;
+            img.style.display = 'block';
+        }
     }
+    overlay.classList.add('active');
 }
 
 function closeLightbox() {
     const overlay = document.getElementById('image-lightbox');
+    const video = document.getElementById('lightbox-video');
+    if (video) {
+        video.pause();
+    }
     if (overlay) {
         overlay.classList.remove('active');
     }

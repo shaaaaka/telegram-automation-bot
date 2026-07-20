@@ -488,14 +488,18 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
     markup = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
     # Сповіщаємо адміна в Telegram
+    import html
+    escaped_username = html.escape(username) if username else "Невідомий"
+    escaped_client_data = html.escape(client_data)
+    escaped_warning = html.escape(warning_text) if warning_text else ""
     admin_msg = (
         f"Новий клієнт на верифікацію!\n"
-        f"• Telegram: @{username} (ID: {client_id})\n"
-        f"• Дані:\n```\n{client_data}\n```\n"
-        f"Оберіть банки, які має пройти клієнт:{warning_text}"
+        f"• Telegram: @{escaped_username} (ID: {client_id})\n"
+        f"• Дані:\n<pre>{escaped_client_data}</pre>\n"
+        f"Оберіть банки, які має пройти клієнт:{escaped_warning}"
     )
     
-    await bot.send_message(chat_id=get_admin_id(), text=admin_msg, reply_markup=markup, parse_mode="Markdown")
+    await bot.send_message(chat_id=get_admin_id(), text=admin_msg, reply_markup=markup, parse_mode="HTML")
 @router.callback_query(F.data == "restart_reg")
 async def handle_restart_reg(callback: CallbackQuery, state: FSMContext):
     """Обробник скасування та заповнення анкети заново"""
@@ -724,8 +728,16 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
         if "[SUCCESS_VERIFICATION]" in response:
             bank_label = current_bank_name if current_bank_name else "банк"
             await state.update_data(support_requests_count=0)
+            
+            success_text = None
+            if current_bank_name:
+                template = await db.get_bank_template_db(current_bank_name)
+                if template and template.get('success_text'):
+                    success_text = template['success_text']
+            
+            prompt_msg = success_text or f"Чудово! Будь ласка, надішліть скріншот, який підтверджує успішну реєстрацію в {bank_label}."
             await message.answer(
-                f"Чудово! Будь ласка, надішліть скріншот, який підтверджує успішну реєстрацію в {bank_label}.",
+                prompt_msg,
                 reply_markup=ReplyKeyboardRemove()
             )
             return
@@ -1227,8 +1239,9 @@ async def process_deletion_proof(message: Message, state: FSMContext, bot: Bot):
         else:
             await message.answer(
                 f"❌ На жаль, ШІ не зміг підтвердити видалення додатку.\n\n"
-                f"**Причина:** {reason}\n\n"
-                f"Будь ласка, надішліть {proof_label} ще раз."
+                f"<b>Причина:</b> {reason}\n\n"
+                f"Будь ласка, надішліть {proof_label} ще раз.",
+                parse_mode="HTML"
             )
             
     except Exception as e:

@@ -507,30 +507,17 @@ function renderBankAccordion(templates, activeKey) {
                     <div id="bank-tab-content-${key}-media" class="bank-tab-content" style="${activeSubTab === 'media' ? '' : 'display: none;'}">
                         <div class="bank-media-grid">
                             <!-- Download Screenshot Card -->
-                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 245px;">
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 330px;">
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
                                     <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Який банк завантажити</span>
-                                    <span id="download-screenshot-filename-${key}" class="file-upload-filename-pill ${template.download_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">${template.download_screenshot_path ? 'Файл завантажено' : 'Файл не обрано'}</span>
+                                    <span id="download-screenshot-filename-${key}" class="file-upload-filename-pill ${template.download_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">${template.download_screenshot_path ? 'Файли завантажено' : 'Файл не обрано'}</span>
                                 </div>
                                 
                                 <div id="download-screenshot-preview-${key}" 
-                                     class="bank-media-preview-box" 
-                                     style="width: ${template.download_screenshot_path ? 'auto' : '100px'}; height: ${template.download_screenshot_path ? 'auto' : '150px'}; border-radius: 12px; border: ${template.download_screenshot_path ? '1px solid rgba(255,255,255,0.08)' : '2px dashed rgba(255,255,255,0.12)'}; background: ${template.download_screenshot_path ? 'transparent' : 'rgba(255,255,255,0.02)'}; display: flex; align-items: center; justify-content: center; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); cursor: ${template.download_screenshot_path ? 'pointer' : 'default'}; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.2); flex-shrink: 0; overflow: hidden;"
-                                     ${template.download_screenshot_path ? `onclick="openLightbox('${template.download_screenshot_path}')"` : ''}>
-                                    ${!template.download_screenshot_path ? `
-                                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                                            <path d="M12 6v8M9 11l3 3 3-3"/>
-                                            <line x1="9" y1="17" x2="15" y2="17"/>
-                                        </svg>
-                                    ` : `
-                                        <img src="${template.download_screenshot_path}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;">
-                                        <div class="hover-zoom-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 12px;">
-                                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-                                        </div>
-                                    `}
+                                     style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
+                                     ${getMediaGroupHTML(template.download_screenshot_path, 'download')}
                                 </div>
-
+ 
                                 <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
                                     <input type="hidden" id="bank-acc-download-screenshot-removed-${key}" value="0">
                                     <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
@@ -538,9 +525,9 @@ function renderBankAccordion(templates, activeKey) {
                                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                                             </svg>
-                                            Обрати скріншот
+                                            Обрати скріншоти
                                         </label>
-                                        <input type="file" id="bank-acc-download-screenshot-${key}" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'download-screenshot-preview-${key}', 'download-screenshot-filename-${key}', false)" data-original="${template.download_screenshot_path || ''}">
+                                        <input type="file" id="bank-acc-download-screenshot-${key}" accept="image/*" multiple style="display: none;" onchange="handleMultipleFilePreview(this, 'download-screenshot-preview-${key}', 'download-screenshot-filename-${key}')" data-original="${template.download_screenshot_path || ''}">
                                     </div>
                                     <button type="button" id="download-screenshot-reset-${key}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${key}', 'download-screenshot')">Відхилити</button>
                                     <button type="button" id="download-screenshot-delete-${key}" class="btn-delete-media" style="display: ${template.download_screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${key}', 'download-screenshot')">
@@ -551,18 +538,23 @@ function renderBankAccordion(templates, activeKey) {
                                         Вилучити фото
                                     </button>
                                 </div>
+
+                                <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: center;">
+                                    <span style="font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Текст інструкції</span>
+                                    <textarea id="bank-acc-text-${key}" class="form-control auto-grow-textarea" rows="2" style="font-size: 0.78rem; text-align: center; resize: none; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #fff; padding: 6px 10px; width: 100%; box-sizing: border-box; min-height: 50px;" placeholder="Введіть текст інструкції..." required>${template.text || ''}</textarea>
+                                </div>
                             </div>
  
                             <!-- Instruction Screenshot Card -->
-                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 245px;">
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 330px;">
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
                                     <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Скріншот-інструкція як проходити</span>
-                                    <span id="screenshot-filename-${key}" class="file-upload-filename-pill ${template.screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">${template.screenshot_path ? 'Файл завантажено' : 'Файл не обрано'}</span>
+                                    <span id="screenshot-filename-${key}" class="file-upload-filename-pill ${template.screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">${template.screenshot_path ? 'Файли завантажено' : 'Файл не обрано'}</span>
                                 </div>
                                 
                                 <div id="screenshot-preview-${key}" 
                                      style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
-                                     ${getScreenshotsHTML(template.screenshot_path)}
+                                     ${getMediaGroupHTML(template.screenshot_path, 'screenshot')}
                                 </div>
  
                                 <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
@@ -585,30 +577,23 @@ function renderBankAccordion(templates, activeKey) {
                                         Вилучити фото
                                     </button>
                                 </div>
+
+                                <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: center;">
+                                    <span style="font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Опис кроків</span>
+                                    <textarea id="bank-acc-instruction-text-${key}" class="form-control auto-grow-textarea" rows="2" style="font-size: 0.78rem; text-align: center; resize: none; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #fff; padding: 6px 10px; width: 100%; box-sizing: border-box; min-height: 50px;" placeholder="Опис кроків проходження...">${template.instruction_text || ''}</textarea>
+                                </div>
                             </div>
  
                             <!-- Success Screenshot Card -->
-                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 245px;">
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 330px;">
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
                                     <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Зразок успішного екрану</span>
-                                    <span id="success-screenshot-filename-${key}" class="file-upload-filename-pill ${template.success_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">${template.success_screenshot_path ? 'Файл завантажено' : 'Файл не обрано'}</span>
+                                    <span id="success-screenshot-filename-${key}" class="file-upload-filename-pill ${template.success_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">${template.success_screenshot_path ? 'Файли завантажено' : 'Файл не обрано'}</span>
                                 </div>
                                 
                                 <div id="success-screenshot-preview-${key}" 
-                                     class="bank-media-preview-box" 
-                                     style="width: ${template.success_screenshot_path ? 'auto' : '100px'}; height: ${template.success_screenshot_path ? 'auto' : '150px'}; border-radius: 12px; border: ${template.success_screenshot_path ? '1px solid rgba(255,255,255,0.08)' : '2px dashed rgba(255,255,255,0.12)'}; background: ${template.success_screenshot_path ? 'transparent' : 'rgba(255,255,255,0.02)'}; display: flex; align-items: center; justify-content: center; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); cursor: ${template.success_screenshot_path ? 'pointer' : 'default'}; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.2); flex-shrink: 0; overflow: hidden;"
-                                     ${template.success_screenshot_path ? `onclick="openLightbox('${template.success_screenshot_path}')"` : ''}>
-                                    ${!template.success_screenshot_path ? `
-                                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                                            <polyline points="9 11 11 13 15 9"/>
-                                        </svg>
-                                    ` : `
-                                        <img src="${template.success_screenshot_path}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;">
-                                        <div class="hover-zoom-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 12px;">
-                                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-                                        </div>
-                                    `}
+                                     style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
+                                     ${getMediaGroupHTML(template.success_screenshot_path, 'success')}
                                 </div>
  
                                 <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
@@ -618,9 +603,9 @@ function renderBankAccordion(templates, activeKey) {
                                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                                             </svg>
-                                            Обрати скріншот
+                                            Обрати скріншоти
                                         </label>
-                                        <input type="file" id="bank-acc-success-screenshot-${key}" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'success-screenshot-preview-${key}', 'success-screenshot-filename-${key}', false)" data-original="${template.success_screenshot_path || ''}">
+                                        <input type="file" id="bank-acc-success-screenshot-${key}" accept="image/*" multiple style="display: none;" onchange="handleMultipleFilePreview(this, 'success-screenshot-preview-${key}', 'success-screenshot-filename-${key}')" data-original="${template.success_screenshot_path || ''}">
                                     </div>
                                     <button type="button" id="success-screenshot-reset-${key}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${key}', 'success-screenshot')">Відхилити</button>
                                     <button type="button" id="success-screenshot-delete-${key}" class="btn-delete-media" style="display: ${template.success_screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${key}', 'success-screenshot')">
@@ -631,43 +616,44 @@ function renderBankAccordion(templates, activeKey) {
                                         Вилучити фото
                                     </button>
                                 </div>
+
+                                <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: center;">
+                                    <span style="font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Текст при успіху</span>
+                                    <textarea id="bank-acc-success-text-${key}" class="form-control auto-grow-textarea" rows="2" style="font-size: 0.78rem; text-align: center; resize: none; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #fff; padding: 6px 10px; width: 100%; box-sizing: border-box; min-height: 50px;" placeholder="Текст запиту успішного екрану...">${template.success_text || ''}</textarea>
+                                </div>
                             </div>
+
                             <!-- Deletion Screenshot Card -->
-                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; justify-content: space-between; gap: 14px; position: relative; overflow: hidden; min-height: 245px; transition: all 0.3s ease;">
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; justify-content: space-between; gap: 14px; position: relative; overflow: hidden; min-height: 330px; transition: all 0.3s ease;">
+                                <div id="deletion-disabled-overlay-${key}" style="position: absolute; inset: 0; background: rgba(15,23,36,0.85); display: ${(template.deletion_requirement || 'none') === 'none' ? 'flex' : 'none'}; flex-direction: column; align-items: center; justify-content: center; gap: 8px; z-index: 10; backdrop-filter: blur(4px); transition: all 0.3s ease;">
+                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                    </svg>
+                                    <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5);">Вимогу відключено</span>
+                                </div>
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
                                     <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Зразок видалення додатку</span>
                                     <span id="deletion-screenshot-filename-${key}" class="file-upload-filename-pill ${template.deletion_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">
-                                        ${template.deletion_screenshot_path ? 'Файл завантажено' : 'Файл не обрано'}
+                                        ${template.deletion_screenshot_path ? 'Файли завантажено' : 'Файл не обрано'}
                                     </span>
                                 </div>
                                 
                                 <div id="deletion-screenshot-preview-${key}" 
-                                     class="bank-media-preview-box" 
-                                     style="width: ${template.deletion_screenshot_path ? 'auto' : '100px'}; height: ${template.deletion_screenshot_path ? 'auto' : '150px'}; border-radius: 12px; border: ${template.deletion_screenshot_path ? '1px solid rgba(255,255,255,0.08)' : '2px dashed rgba(255,255,255,0.12)'}; background: ${template.deletion_screenshot_path ? 'transparent' : 'rgba(255,255,255,0.02)'}; display: flex; align-items: center; justify-content: center; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); cursor: ${template.deletion_screenshot_path ? 'pointer' : 'default'}; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.2); flex-shrink: 0; overflow: hidden;"
-                                     ${template.deletion_screenshot_path ? `onclick="openLightbox('${template.deletion_screenshot_path}')"` : ''}>
-                                    ${!template.deletion_screenshot_path ? `
-                                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                                            <path d="M9 7h6M10 7V6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M7 9h10M8 9l1 9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l1-9"/>
-                                        </svg>
-                                    ` : `
-                                        <img src="${template.deletion_screenshot_path}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;">
-                                        <div class="hover-zoom-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 12px;">
-                                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-                                        </div>
-                                    `}
+                                     style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
+                                     ${getMediaGroupHTML(template.deletion_screenshot_path, 'deletion')}
                                 </div>
  
                                 <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
                                     <input type="hidden" id="bank-acc-deletion-screenshot-removed-${key}" value="0">
                                     <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
-                                        <label for="bank-acc-deletion-screenshot-${key}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
+                                        <label id="deletion-screenshot-label-${key}" for="bank-acc-deletion-screenshot-${key}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
                                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                                             </svg>
-                                            Обрати скріншот
+                                            ${template.deletion_requirement === 'screenshot' ? 'Обрати скріншот' : (template.deletion_requirement === 'video' ? 'Обрати відео' : 'Обрати скріншоти/відео')}
                                         </label>
-                                        <input type="file" id="bank-acc-deletion-screenshot-${key}" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'deletion-screenshot-preview-${key}', 'deletion-screenshot-filename-${key}', false)" data-original="${template.deletion_screenshot_path || ''}">
+                                        <input type="file" id="bank-acc-deletion-screenshot-${key}" accept="${template.deletion_requirement === 'screenshot' ? 'image/*' : (template.deletion_requirement === 'video' ? 'video/*' : 'image/*,video/*')}" multiple style="display: none;" onchange="handleMultipleFilePreview(this, 'deletion-screenshot-preview-${key}', 'deletion-screenshot-filename-${key}')" data-original="${template.deletion_screenshot_path || ''}">
                                     </div>
                                     <button type="button" id="deletion-screenshot-reset-${key}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${key}', 'deletion-screenshot')">Відхилити</button>
                                     <button type="button" id="deletion-screenshot-delete-${key}" class="btn-delete-media" style="display: ${template.deletion_screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${key}', 'deletion-screenshot')">
@@ -677,6 +663,11 @@ function renderBankAccordion(templates, activeKey) {
                                         </svg>
                                         Вилучити фото
                                     </button>
+                                </div>
+
+                                <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: center;">
+                                    <span style="font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Текст для видалення</span>
+                                    <textarea id="bank-acc-deletion-text-${key}" class="form-control auto-grow-textarea" rows="2" style="font-size: 0.78rem; text-align: center; resize: none; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #fff; padding: 6px 10px; width: 100%; box-sizing: border-box; min-height: 50px;" placeholder="Текст запиту видалення додатку...">${template.deletion_text || ''}</textarea>
                                 </div>
                             </div>
                         </div>
@@ -703,10 +694,6 @@ function renderBankAccordion(templates, activeKey) {
                             </div>
                         </div>
 
-                        <div class="form-group" style="margin-top: 16px;">
-                            <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Текст інструкції для клієнта</label>
-                            <textarea id="bank-acc-text-${key}" required class="form-control auto-grow-textarea" rows="2" style="width: 100%; font-family: inherit;">${template.text || ''}</textarea>
-                        </div>
                     </div>
 
                     <!-- TAB 3: AI & Verifier -->
@@ -748,7 +735,7 @@ function renderBankAccordion(templates, activeKey) {
                                 </div>
                                 
                                 <div class="telegram-message-bubble" style="background: #182533; border-radius: 10px; padding: 10px 12px; width: 100%; max-width: 320px; box-shadow: 0 1px 2px rgba(0,0,0,0.3); position: relative; display: flex; flex-direction: column; gap: 8px;">
-                                    <div id="telegram-mockup-image-${key}" style="width: 100%; height: 150px; border-radius: 6px; background: ${template.success_screenshot_path ? `url('${template.success_screenshot_path}')` : 'rgba(255,255,255,0.03)'} no-repeat center/cover; display: ${template.success_screenshot_path ? 'block' : 'none'}; border: 1px solid rgba(255,255,255,0.06);"></div>
+                                    <div id="telegram-mockup-image-${key}" style="width: 100%; height: 150px; border-radius: 6px; background: ${template.success_screenshot_path ? `url('${template.success_screenshot_path.split(',')[0].trim()}')` : 'rgba(255,255,255,0.03)'} no-repeat center/cover; display: ${template.success_screenshot_path ? 'block' : 'none'}; border: 1px solid rgba(255,255,255,0.06);"></div>
                                     <div id="telegram-mockup-text-${key}" style="font-size: 0.82rem; color: #fff; line-height: 1.4; white-space: pre-line;">${window.getTelegramMockupHtml(template.report_template, key)}</div>
                                     <div style="font-size: 0.65rem; color: #7f91a4; align-self: flex-end; margin-top: -4px;">14:38 ✓✓</div>
                                 </div>
@@ -973,11 +960,12 @@ async function handleCreateAccordionBank(event) {
     const ai_rules = document.getElementById('new-bank-airules').value.trim();
     const report_template = document.getElementById('new-bank-report-tpl').value;
     const required_screenshots = parseInt(document.getElementById('new-bank-req-scr').value) || 1;
+    const instruction_text = document.getElementById('new-bank-instruction-text').value.trim();
+    const success_text = document.getElementById('new-bank-success-text').value.trim();
 
     const formData = new FormData();
     formData.append('key', key);
     formData.append('description', description);
-    formData.append('display_name', display_name);
     formData.append('display_name', display_name);
     formData.append('command', command);
     formData.append('text', text);
@@ -986,6 +974,8 @@ async function handleCreateAccordionBank(event) {
     formData.append('report_template', report_template);
     formData.append('required_screenshots', required_screenshots);
     formData.append('is_active', 1);
+    formData.append('instruction_text', instruction_text);
+    formData.append('success_text', success_text);
 
     const logoInput = document.getElementById('new-bank-logo');
     if (logoInput && logoInput.files.length > 0) {
@@ -999,11 +989,15 @@ async function handleCreateAccordionBank(event) {
     }
     const downloadScreenshotInput = document.getElementById('new-bank-download-screenshot');
     if (downloadScreenshotInput && downloadScreenshotInput.files.length > 0) {
-        formData.append('download_screenshot_file', downloadScreenshotInput.files[0]);
+        for (let i = 0; i < downloadScreenshotInput.files.length; i++) {
+            formData.append('download_screenshot_files', downloadScreenshotInput.files[i]);
+        }
     }
     const successScreenshotInput = document.getElementById('new-bank-success-screenshot');
     if (successScreenshotInput && successScreenshotInput.files.length > 0) {
-        formData.append('success_screenshot_file', successScreenshotInput.files[0]);
+        for (let i = 0; i < successScreenshotInput.files.length; i++) {
+            formData.append('success_screenshot_files', successScreenshotInput.files[i]);
+        }
     }
 
     try {
@@ -1037,13 +1031,16 @@ async function saveAccordionBankSettings(event, key) {
     const ai_rules = document.getElementById(`bank-acc-airules-${key}`).value.trim();
     const report_template = document.getElementById(`bank-acc-report-tpl-${key}`).value;
     const required_screenshots = parseInt(document.getElementById(`bank-acc-req-scr-${key}`).value) || 1;
+    const instruction_text = document.getElementById(`bank-acc-instruction-text-${key}`).value.trim();
+    const success_text = document.getElementById(`bank-acc-success-text-${key}`).value.trim();
+    const deletion_text = document.getElementById(`bank-acc-deletion-text-${key}`).value.trim();
+
     const isActiveInput = document.getElementById(`bank-acc-active-${key}`);
     const is_active = isActiveInput ? (isActiveInput.checked ? 1 : 0) : 1;
 
     const formData = new FormData();
     formData.append('key', key);
     formData.append('description', description);
-    formData.append('display_name', display_name);
     formData.append('display_name', display_name);
     formData.append('command', command);
     formData.append('text', text);
@@ -1052,6 +1049,9 @@ async function saveAccordionBankSettings(event, key) {
     formData.append('report_template', report_template);
     formData.append('required_screenshots', required_screenshots);
     formData.append('is_active', is_active);
+    formData.append('instruction_text', instruction_text);
+    formData.append('success_text', success_text);
+    formData.append('deletion_text', deletion_text);
 
     const deletionReqInput = document.getElementById(`bank-acc-deletion-req-${key}`);
     const deletion_requirement = deletionReqInput ? deletionReqInput.value : 'none';
@@ -1059,19 +1059,19 @@ async function saveAccordionBankSettings(event, key) {
 
     const downloadRemovedInput = document.getElementById(`bank-acc-download-screenshot-removed-${key}`);
     const download_removed = downloadRemovedInput ? downloadRemovedInput.value : '0';
-    formData.append('download_screenshot_removed', download_removed === '1');
+    formData.append('download_screenshot_removed', download_removed === '1' ? '1' : '0');
 
     const screenshotsRemovedInput = document.getElementById(`bank-acc-screenshot-removed-${key}`);
     const screenshots_removed = screenshotsRemovedInput ? screenshotsRemovedInput.value : '0';
-    formData.append('screenshots_removed', screenshots_removed === '1');
+    formData.append('screenshots_removed', screenshots_removed === '1' ? '1' : '0');
 
     const successRemovedInput = document.getElementById(`bank-acc-success-screenshot-removed-${key}`);
     const success_removed = successRemovedInput ? successRemovedInput.value : '0';
-    formData.append('success_screenshot_removed', success_removed === '1');
+    formData.append('success_screenshot_removed', success_removed === '1' ? '1' : '0');
 
     const deletionRemovedInput = document.getElementById(`bank-acc-deletion-screenshot-removed-${key}`);
     const deletion_removed = deletionRemovedInput ? deletionRemovedInput.value : '0';
-    formData.append('deletion_screenshot_removed', deletion_removed === '1');
+    formData.append('deletion_screenshot_removed', deletion_removed === '1' ? '1' : '0');
 
     const logoInput = document.getElementById(`bank-acc-logo-${key}`);
     if (logoInput && logoInput.files.length > 0) {
@@ -1085,15 +1085,21 @@ async function saveAccordionBankSettings(event, key) {
     }
     const downloadScreenshotInput = document.getElementById(`bank-acc-download-screenshot-${key}`);
     if (downloadScreenshotInput && downloadScreenshotInput.files.length > 0) {
-        formData.append('download_screenshot_file', downloadScreenshotInput.files[0]);
+        for (let i = 0; i < downloadScreenshotInput.files.length; i++) {
+            formData.append('download_screenshot_files', downloadScreenshotInput.files[i]);
+        }
     }
     const successScreenshotInput = document.getElementById(`bank-acc-success-screenshot-${key}`);
     if (successScreenshotInput && successScreenshotInput.files.length > 0) {
-        formData.append('success_screenshot_file', successScreenshotInput.files[0]);
+        for (let i = 0; i < successScreenshotInput.files.length; i++) {
+            formData.append('success_screenshot_files', successScreenshotInput.files[i]);
+        }
     }
     const deletionScreenshotInput = document.getElementById(`bank-acc-deletion-screenshot-${key}`);
     if (deletionScreenshotInput && deletionScreenshotInput.files.length > 0) {
-        formData.append('deletion_screenshot_file', deletionScreenshotInput.files[0]);
+        for (let i = 0; i < deletionScreenshotInput.files.length; i++) {
+            formData.append('deletion_screenshot_files', deletionScreenshotInput.files[i]);
+        }
     }
 
     try {
@@ -1393,7 +1399,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
 window.removeSavedImage = function(key, type) {
     const hiddenRemoved = document.getElementById(`bank-acc-${type}-removed-${key}`);
     if (hiddenRemoved) {
@@ -1424,16 +1429,18 @@ window.removeSavedImage = function(key, type) {
     
     const preview = document.getElementById(`${type}-preview-${key}`);
     if (preview) {
-        preview.style.width = '100px';
-        preview.style.height = '150px';
-        preview.style.border = '2px dashed rgba(255,255,255,0.12)';
-        preview.style.background = 'rgba(255,255,255,0.02)';
-        preview.style.cursor = 'default';
-        preview.style.backgroundImage = 'none';
+        preview.style.width = '';
+        preview.style.height = '';
+        preview.style.border = '';
+        preview.style.background = '';
+        preview.style.cursor = '';
+        preview.style.boxShadow = '';
+        preview.style.overflow = '';
         preview.removeAttribute('onclick');
         
+        let iconHTML = '';
         if (type === 'download-screenshot') {
-            preview.innerHTML = `
+            iconHTML = `
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
                     <path d="M12 6v8M9 11l3 3 3-3"/>
@@ -1441,14 +1448,14 @@ window.removeSavedImage = function(key, type) {
                 </svg>
             `;
         } else if (type === 'deletion-screenshot') {
-            preview.innerHTML = `
+            iconHTML = `
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
                     <path d="M9 7h6M10 7V6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M7 9h10M8 9l1 9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l1-9"/>
                 </svg>
             `;
         } else if (type === 'success-screenshot') {
-            preview.innerHTML = `
+            iconHTML = `
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
                     <polyline points="9 11 11 13 15 9"/>
@@ -1461,18 +1468,22 @@ window.removeSavedImage = function(key, type) {
                 mockupEl.style.backgroundImage = 'none';
             }
         } else if (type === 'screenshot') {
-            preview.innerHTML = `
-                <div class="bank-media-preview-box placeholder" 
-                     style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center;">
-                    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                        <line x1="9" y1="7" x2="15" y2="7"/>
-                        <line x1="9" y1="11" x2="15" y2="11"/>
-                        <line x1="9" y1="15" x2="13" y2="15"/>
-                    </svg>
-                </div>
+            iconHTML = `
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                    <line x1="9" y1="7" x2="15" y2="7"/>
+                    <line x1="9" y1="11" x2="15" y2="11"/>
+                    <line x1="9" y1="15" x2="13" y2="15"/>
+                </svg>
             `;
         }
+        
+        preview.innerHTML = `
+            <div class="bank-media-preview-box placeholder" 
+                 style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center;">
+                ${iconHTML}
+            </div>
+        `;
     }
     
     // Mark accordion as changed
@@ -1510,6 +1521,33 @@ window.selectDeletionTab = function(key, val) {
             }
         }
     });
+
+    // Dynamically update the upload label text and input file accept property
+    const labelEl = document.getElementById(`deletion-screenshot-label-${key}`);
+    const inputEl = document.getElementById(`bank-acc-deletion-screenshot-${key}`);
+    if (labelEl && inputEl) {
+        const labelHTML = `
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+            </svg>
+        `;
+        if (val === 'screenshot') {
+            labelEl.innerHTML = labelHTML + " Обрати скріншот";
+            inputEl.accept = "image/*";
+        } else if (val === 'video') {
+            labelEl.innerHTML = labelHTML + " Обрати відео";
+            inputEl.accept = "video/*";
+        } else {
+            labelEl.innerHTML = labelHTML + " Обрати скріншоти/відео";
+            inputEl.accept = "image/*,video/*";
+        }
+    }
+
+    // Toggle disabled overlay
+    const overlayEl = document.getElementById(`deletion-disabled-overlay-${key}`);
+    if (overlayEl) {
+        overlayEl.style.display = val === 'none' ? 'flex' : 'none';
+    }
     
     if (typeof window.checkAccordionFormChanges === 'function') {
         window.checkAccordionFormChanges(key);

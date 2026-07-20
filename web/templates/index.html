@@ -1121,19 +1121,22 @@
                                 </div>
                                 <div class="bank-media-grid" style="margin-top: 10px; margin-bottom: 16px;">
                                     <!-- Download Screenshot Card -->
-                                    <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden;">
+                                    <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 330px;">
                                         <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
                                             <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Який банк завантажити</span>
                                             <span id="new-download-screenshot-filename" class="file-upload-filename-pill" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem; color: var(--accent-primary);">Файл не обрано</span>
                                         </div>
                                         
                                         <div id="new-bank-download-screenshot-preview" 
-                                             class="bank-media-preview-box" 
-                                             style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); cursor: default; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-                                            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                                                <line x1="12" y1="18" x2="12.01" y2="18"/>
-                                            </svg>
+                                             style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
+                                            <div class="bank-media-preview-box placeholder" 
+                                                 style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center;">
+                                                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                                                    <path d="M12 6v8M9 11l3 3 3-3"/>
+                                                    <line x1="9" y1="17" x2="15" y2="17"/>
+                                                </svg>
+                                            </div>
                                         </div>
 
                                         <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
@@ -1142,16 +1145,21 @@
                                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                                                     </svg>
-                                                    Обрати скріншот
+                                                    Обрати скріншоти
                                                 </label>
-                                                <input type="file" id="new-bank-download-screenshot" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'new-bank-download-screenshot-preview', 'new-download-screenshot-filename', false)" data-original="">
+                                                <input type="file" id="new-bank-download-screenshot" accept="image/*" multiple style="display: none;" onchange="handleMultipleFilePreview(this, 'new-bank-download-screenshot-preview', 'new-download-screenshot-filename')" data-original="">
                                             </div>
                                             <button type="button" id="new-download-screenshot-reset" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('new-bank', 'download-screenshot')">Відхилити</button>
+                                        </div>
+
+                                        <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: center;">
+                                            <span style="font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Текст інструкції</span>
+                                            <textarea id="new-bank-text" class="form-control" rows="2" style="font-size: 0.78rem; text-align: center; resize: none; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #fff; padding: 6px 10px; width: 100%; box-sizing: border-box; min-height: 50px;" placeholder="Введіть текст інструкції..." required></textarea>
                                         </div>
                                     </div>
 
                                     <!-- Instruction Screenshot Card -->
-                                    <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 245px;">
+                                    <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 330px;">
                                         <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
                                             <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Скріншот-інструкція як проходити</span>
                                             <span id="new-screenshot-filename" class="file-upload-filename-pill" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem; color: var(--accent-primary);">Файл не обрано</span>
@@ -1180,23 +1188,29 @@
                                             </div>
                                             <button type="button" id="new-screenshot-reset" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('new-bank', 'screenshot')">Відхилити</button>
                                         </div>
+
+                                        <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: center;">
+                                            <span style="font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Опис кроків</span>
+                                            <textarea id="new-bank-instruction-text" class="form-control" rows="2" style="font-size: 0.78rem; text-align: center; resize: none; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #fff; padding: 6px 10px; width: 100%; box-sizing: border-box; min-height: 50px;" placeholder="Опис кроків проходження..."></textarea>
+                                        </div>
                                     </div>
 
                                     <!-- Success Screenshot Card -->
-                                    <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 245px;">
+                                    <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 330px;">
                                         <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
                                             <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Зразок успішного екрану</span>
                                             <span id="new-success-screenshot-filename" class="file-upload-filename-pill" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem; color: var(--accent-primary);">Файл не обрано</span>
                                         </div>
                                         
                                         <div id="new-bank-success-screenshot-preview" 
-                                             class="bank-media-preview-box" 
-                                             style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); cursor: default; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-                                            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                                                <circle cx="12" cy="10" r="3"/>
-                                                <path d="M12 18H12.01"/>
-                                            </svg>
+                                             style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
+                                            <div class="bank-media-preview-box placeholder" 
+                                                 style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center;">
+                                                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                                                    <polyline points="9 11 11 13 15 9"/>
+                                                </svg>
+                                            </div>
                                         </div>
 
                                         <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
@@ -1205,11 +1219,16 @@
                                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                                                     </svg>
-                                                    Обрати скріншот
+                                                    Обрати скріншоти
                                                 </label>
-                                                <input type="file" id="new-bank-success-screenshot" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'new-bank-success-screenshot-preview', 'new-success-screenshot-filename', false)" data-original="">
+                                                <input type="file" id="new-bank-success-screenshot" accept="image/*" multiple style="display: none;" onchange="handleMultipleFilePreview(this, 'new-bank-success-screenshot-preview', 'new-success-screenshot-filename')" data-original="">
                                             </div>
                                             <button type="button" id="new-success-screenshot-reset" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('new-bank', 'success-screenshot')">Відхилити</button>
+                                        </div>
+
+                                        <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: center;">
+                                            <span style="font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Текст при успіху</span>
+                                            <textarea id="new-bank-success-text" class="form-control" rows="2" style="font-size: 0.78rem; text-align: center; resize: none; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #fff; padding: 6px 10px; width: 100%; box-sizing: border-box; min-height: 50px;" placeholder="Текст запиту успішного екрану..."></textarea>
                                         </div>
                                     </div>
                                 </div>
@@ -1267,10 +1286,6 @@ Line {line_id} Return: {line_phone} | {bank}
                                     </div>
                                 </div>
                                 <div style="display: flex; flex-direction: column; gap: 16px;">
-                                    <div class="form-group" style="margin: 0;">
-                                        <label for="new-bank-text" class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Текст інструкції для клієнта</label>
-                                        <textarea id="new-bank-text" placeholder="Текст заготовки..." required class="form-control" rows="2" style="width: 100%; resize: none; overflow-y: hidden; min-height: 80px; font-family: inherit;" oninput="autoGrowTextarea(this)"></textarea>
-                                    </div>
                                     <div class="form-group" style="margin: 0;">
                                         <label for="new-bank-airules" class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Специфічні правила ШІ для банку</label>
                                         <textarea id="new-bank-airules" placeholder="Наприклад: Перевіряти ліміт переказів не менше 50 000 грн..." class="form-control" rows="3" style="width: 100%; resize: none; overflow-y: hidden; min-height: 80px; font-family: inherit;" oninput="autoGrowTextarea(this)"></textarea>
@@ -1369,6 +1384,7 @@ Line {line_id} Return: {line_phone} | {bank}
     <!-- Image Lightbox Modal -->
     <div id="image-lightbox" class="lightbox-overlay" onclick="closeLightbox()">
         <img id="lightbox-img" class="lightbox-image" src="" alt="Full Screen Preview" onclick="event.stopPropagation()">
+        <video id="lightbox-video" class="lightbox-video" src="" controls style="max-width: 90%; max-height: 90vh; border-radius: 8px; display: none; outline: none; box-shadow: 0 10px 40px rgba(0,0,0,0.5);" onclick="event.stopPropagation()"></video>
     </div>
 
     <!-- Модалка відправки фото -->
@@ -1391,39 +1407,88 @@ Line {line_id} Return: {line_phone} | {bank}
     </div>
 
     <script src="/static/js/main.js?v=9.25"></script>
-    <script src="/static/js/control.js?v=9.20"></script>
+    <script src="/static/js/control.js?v=9.22"></script>
     <script src="/static/js/chat.js?v=9.21"></script>
     <script src="/static/js/stats.js?v=9.15"></script>
     <script src="/static/js/settings.js?v=9.17"></script>
     <script src="/static/js/settings-banks.js?v=9.82"></script>
 
     <script>
-        window.getScreenshotsHTML = function(pathsStr) {
+        window.getMediaGroupHTML = function(pathsStr, placeholderType = 'instruction') {
             if (!pathsStr) {
-                return `
-                    <div class="bank-media-preview-box placeholder" 
-                         style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center;">
+                let iconHTML = '';
+                if (placeholderType === 'download') {
+                    iconHTML = `
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                            <path d="M12 6v8M9 11l3 3 3-3"/>
+                            <line x1="9" y1="17" x2="15" y2="17"/>
+                        </svg>
+                    `;
+                } else if (placeholderType === 'success') {
+                    iconHTML = `
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                            <polyline points="9 11 11 13 15 9"/>
+                        </svg>
+                    `;
+                } else if (placeholderType === 'deletion') {
+                    iconHTML = `
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                            <path d="M9 7h6M10 7V6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M7 9h10M8 9l1 9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l1-9"/>
+                        </svg>
+                    `;
+                } else {
+                    iconHTML = `
                         <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
                             <line x1="9" y1="7" x2="15" y2="7"/>
                             <line x1="9" y1="11" x2="15" y2="11"/>
                             <line x1="9" y1="15" x2="13" y2="15"/>
                         </svg>
+                    `;
+                }
+                return `
+                    <div class="bank-media-preview-box placeholder" 
+                         style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center;">
+                        ${iconHTML}
                     </div>
                 `;
             }
             const paths = pathsStr.split(',').map(p => p.trim()).filter(p => p);
-            return paths.map(path => `
-                <div class="bank-media-preview-box" 
-                     style="border-radius: 12px; position: relative; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; overflow: hidden;"
-                     onclick="openLightbox('${path}')">
-                    <img src="${path}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;">
-                    <div class="hover-zoom-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 12px;">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+            return paths.map(path => {
+                const isVideo = path.toLowerCase().endsWith('.mp4') || 
+                                path.toLowerCase().endsWith('.mov') || 
+                                path.toLowerCase().endsWith('.avi') || 
+                                path.toLowerCase().endsWith('.webm');
+                let mediaHTML = '';
+                if (isVideo) {
+                    mediaHTML = `
+                        <video src="${path}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;" muted loop playsinline></video>
+                        <div class="hover-zoom-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 12px;">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                        </div>
+                    `;
+                } else {
+                    mediaHTML = `
+                        <img src="${path}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;">
+                        <div class="hover-zoom-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 12px;">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                        </div>
+                    `;
+                }
+                return `
+                    <div class="bank-media-preview-box" 
+                         style="border-radius: 12px; position: relative; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; overflow: hidden;"
+                         onclick="openLightbox('${path}')">
+                        ${mediaHTML}
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         };
+
+        window.getScreenshotsHTML = window.getMediaGroupHTML;
 
         window.handleMultipleFilePreview = function(input, previewContainerId, filenameLabelId) {
             const files = input.files;
@@ -1439,15 +1504,13 @@ Line {line_id} Return: {line_phone} | {bank}
                     label.classList.remove('selected');
                 }
                 if (resetBtnEl) resetBtnEl.style.display = 'none';
-                container.innerHTML = `
-                    <div class="bank-media-preview-box placeholder" 
-                         style="width: 100px; height: 150px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center;">
-                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                            <line x1="12" y1="18" x2="12.01" y2="18"/>
-                        </svg>
-                    </div>
-                `;
+                
+                let placeholderType = 'instruction';
+                if (previewContainerId.includes('download')) placeholderType = 'download';
+                else if (previewContainerId.includes('success')) placeholderType = 'success';
+                else if (previewContainerId.includes('deletion')) placeholderType = 'deletion';
+                
+                container.innerHTML = window.getMediaGroupHTML('', placeholderType);
                 return;
             }
 
@@ -1463,17 +1526,41 @@ Line {line_id} Return: {line_phone} | {bank}
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const dataUrl = e.target.result;
-                    const itemHTML = `
-                        <div class="bank-media-preview-box" 
-                             style="border-radius: 12px; position: relative; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; overflow: hidden;"
-                             onclick="openLightbox('${dataUrl}')">
+                    const isVideo = file.type.startsWith('video/');
+                    let mediaHTML = '';
+                    if (isVideo) {
+                        mediaHTML = `
+                            <video src="${dataUrl}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;" muted loop playsinline></video>
+                            <div class="hover-zoom-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 12px;">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                            </div>
+                        `;
+                    } else {
+                        mediaHTML = `
                             <img src="${dataUrl}" style="max-width: 150px; max-height: 150px; width: auto; height: auto; border-radius: 12px; object-fit: contain; display: block;">
                             <div class="hover-zoom-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 12px;">
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
                             </div>
+                        `;
+                    }
+                    const itemHTML = `
+                        <div class="bank-media-preview-box" 
+                             style="border-radius: 12px; position: relative; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; overflow: hidden;"
+                             onclick="openLightbox('${dataUrl}')">
+                            ${mediaHTML}
                         </div>
                     `;
                     container.insertAdjacentHTML('beforeend', itemHTML);
+                    
+                    // Update Telegram mockup image if success screenshot (first file)
+                    if (i === 0 && previewContainerId.includes('success-screenshot-preview')) {
+                        const mockupId = (previewContainerId.includes('new-bank')) ? 'new-telegram-mockup-image' : previewContainerId.replace('success-screenshot-preview', 'telegram-mockup-image');
+                        const mockupEl = document.getElementById(mockupId);
+                        if (mockupEl) {
+                            mockupEl.style.display = 'block';
+                            mockupEl.style.backgroundImage = `url('${dataUrl}')`;
+                        }
+                    }
                 };
                 reader.readAsDataURL(file);
             }

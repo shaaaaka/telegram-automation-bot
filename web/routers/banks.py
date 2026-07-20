@@ -2,6 +2,7 @@
 from fastapi import APIRouter
 
 import bot.database as db
+from bot.config import normalize_bank_name
 
 
 router = APIRouter()
@@ -20,10 +21,10 @@ async def get_banks():
     active_banks = []
     for bank in merged_banks:
         is_active = True
-        name_norm = bank.lower().replace(" ", "").replace("-", "").replace(".", "")
+        name_norm = normalize_bank_name(bank)
         for key, val in templates.items():
-            key_norm = key.lower().replace(" ", "").replace("-", "").replace(".", "")
-            if key_norm in name_norm or name_norm in key_norm:
+            key_norm = normalize_bank_name(key)
+            if key_norm == name_norm or key_norm in name_norm or name_norm in key_norm:
                 if val.get('is_active') == 0:
                     is_active = False
                 break

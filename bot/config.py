@@ -83,21 +83,32 @@ BANK_TEMPLATES = {
 # Порядок відображення банків за замовчуванням
 DEFAULT_BANK_ORDER = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"]
 
+def normalize_bank_name(name: str) -> str:
+    if not name:
+        return ""
+    # Нормалізуємо назву: нижній регістр, без пробілів, тире та крапок
+    res = name.lower().replace(" ", "").replace("-", "").replace(".", "")
+    # Видаляємо слово 'bank' для кращої сумісності (наприклад, BankLviv -> lviv, lvivbank -> lviv)
+    res = res.replace("bank", "")
+    return res
+
 def get_bank_template(bank_name: str):
     if not bank_name:
         return None
-    name_norm = bank_name.lower().replace(" ", "").replace("-", "")
+    name_norm = normalize_bank_name(bank_name)
     for key, val in BANK_TEMPLATES.items():
-        if key in name_norm or name_norm in key:
+        key_norm = normalize_bank_name(key)
+        if key_norm == name_norm or key_norm in name_norm or name_norm in key_norm:
             return val
     return None
 
 def get_bank_template_with_key(bank_name: str):
     if not bank_name:
         return None, None
-    name_norm = bank_name.lower().replace(" ", "").replace("-", "")
+    name_norm = normalize_bank_name(bank_name)
     for key, val in BANK_TEMPLATES.items():
-        if key in name_norm or name_norm in key:
+        key_norm = normalize_bank_name(key)
+        if key_norm == name_norm or key_norm in name_norm or name_norm in key_norm:
             return key, val
     return None, None
 
@@ -119,28 +130,28 @@ def get_template_photo(key: str):
 async def get_expected_code_length(bank_name: str) -> int | None:
     if not bank_name:
         return None
-    name_norm = bank_name.lower().replace(" ", "").replace("-", "").replace(".", "")
+    name_norm = normalize_bank_name(bank_name)
     
     try:
         from bot import database as db
         templates = await db.get_all_bank_templates()
         for key, val in templates.items():
-            key_norm = key.lower().replace(" ", "").replace("-", "").replace(".", "")
-            if key_norm in name_norm or name_norm in key_norm:
+            key_norm = normalize_bank_name(key)
+            if key_norm == name_norm or key_norm in name_norm or name_norm in key_norm:
                 if 'code_length' in val and val['code_length'] is not None:
                     return int(val['code_length'])
     except Exception:
         pass
 
     norm_lengths = {
-        "bankkd": 5,
-        "izibank": 4,
+        "kd": 5,
+        "izi": 4,
         "alliance": 4,
-        "lvivbank": 4,
-        "amobank": 6
+        "lviv": 4,
+        "amo": 6
     }
     for key, length in norm_lengths.items():
-        if key in name_norm or name_norm in key:
+        if key == name_norm or key in name_norm or name_norm in key:
             return length
     return None
 

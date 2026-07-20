@@ -115,18 +115,57 @@ async def update_template_endpoint(
     deletion_requirement: str = Form("none"),
     logo_file: Optional[UploadFile] = File(None),
     screenshot_files: List[UploadFile] = File(default=[]),
+    download_screenshot_files: List[UploadFile] = File(default=[]),
+    success_screenshot_files: List[UploadFile] = File(default=[]),
+    deletion_screenshot_files: List[UploadFile] = File(default=[]),
     download_screenshot_file: Optional[UploadFile] = File(None),
     success_screenshot_file: Optional[UploadFile] = File(None),
     deletion_screenshot_file: Optional[UploadFile] = File(None),
-    logo_removed: bool = Form(False),
-    screenshots_removed: bool = Form(False),
-    download_screenshot_removed: bool = Form(False),
-    success_screenshot_removed: bool = Form(False),
-    deletion_screenshot_removed: bool = Form(False)
+    logo_removed: str = Form("false"),
+    screenshots_removed: str = Form("false"),
+    download_screenshot_removed: str = Form("false"),
+    success_screenshot_removed: str = Form("false"),
+    deletion_screenshot_removed: str = Form("false"),
+    instruction_text: Optional[str] = Form(None),
+    success_text: Optional[str] = Form(None),
+    deletion_text: Optional[str] = Form(None)
 ):
     """Оновлення або додавання шаблону банку з файлами"""
     try:
-        logger.info(f"update_template_endpoint key={key} logo_removed={logo_removed} screenshots_removed={screenshots_removed} download_screenshot_removed={download_screenshot_removed} success_screenshot_removed={success_screenshot_removed}")
+        # Convert to boolean manually to be 100% robust
+        def is_removed(val) -> bool:
+            if isinstance(val, bool):
+                return val
+            if not val:
+                return False
+            val_str = str(val).lower().strip()
+            return val_str in ("true", "1", "yes")
+
+        is_logo_removed = is_removed(logo_removed)
+        is_screenshots_removed = is_removed(screenshots_removed)
+        is_download_screenshot_removed = is_removed(download_screenshot_removed)
+        is_success_screenshot_removed = is_removed(success_screenshot_removed)
+        is_deletion_screenshot_removed = is_removed(deletion_screenshot_removed)
+
+        # Write debug log
+        try:
+            debug_path = "debug_api.txt"
+            with open(debug_path, "a", encoding="utf-8") as debug_file:
+                debug_file.write(f"key={key}\n")
+                debug_file.write(f"logo_removed={logo_removed} (parsed={is_logo_removed})\n")
+                debug_file.write(f"screenshots_removed={screenshots_removed} (parsed={is_screenshots_removed})\n")
+                debug_file.write(f"download_screenshot_removed={download_screenshot_removed} (parsed={is_download_screenshot_removed})\n")
+                debug_file.write(f"success_screenshot_removed={success_screenshot_removed} (parsed={is_success_screenshot_removed})\n")
+                debug_file.write(f"deletion_screenshot_removed={deletion_screenshot_removed} (parsed={is_deletion_screenshot_removed})\n")
+                debug_file.write(f"download_screenshot_files count={len(download_screenshot_files)}\n")
+                debug_file.write(f"success_screenshot_files count={len(success_screenshot_files)}\n")
+                debug_file.write(f"screenshot_files count={len(screenshot_files)}\n")
+                debug_file.write(f"deletion_screenshot_files count={len(deletion_screenshot_files)}\n")
+                debug_file.write("-" * 40 + "\n")
+        except Exception as debug_err:
+            pass
+
+        logger.info(f"update_template_endpoint key={key} logo_removed={is_logo_removed} screenshots_removed={is_screenshots_removed} download_screenshot_removed={is_download_screenshot_removed} success_screenshot_removed={is_success_screenshot_removed}")
         # Load existing template first to delete old files if they are being replaced or removed
         existing_template = await db.get_bank_template_db(key)
         
@@ -142,12 +181,12 @@ async def update_template_endpoint(
 
         # Handle removals
         clear_logo = False
-        if logo_removed and existing_template:
+        if is_logo_removed and existing_template:
             safe_delete_file(existing_template.get('logo_path'))
             clear_logo = True
             
         clear_screenshots = False
-        if screenshots_removed and existing_template:
+        if is_screenshots_removed and existing_template:
             old_paths_str = existing_template.get('screenshot_path')
             if old_paths_str:
                 for p in old_paths_str.split(','):
@@ -155,18 +194,27 @@ async def update_template_endpoint(
             clear_screenshots = True
             
         clear_download_screenshot = False
-        if download_screenshot_removed and existing_template:
-            safe_delete_file(existing_template.get('download_screenshot_path'))
+        if is_download_screenshot_removed and existing_template:
+            old_paths_str = existing_template.get('download_screenshot_path')
+            if old_paths_str:
+                for p in old_paths_str.split(','):
+                    safe_delete_file(p.strip())
             clear_download_screenshot = True
             
         clear_success_screenshot = False
-        if success_screenshot_removed and existing_template:
-            safe_delete_file(existing_template.get('success_screenshot_path'))
+        if is_success_screenshot_removed and existing_template:
+            old_paths_str = existing_template.get('success_screenshot_path')
+            if old_paths_str:
+                for p in old_paths_str.split(','):
+                    safe_delete_file(p.strip())
             clear_success_screenshot = True
 
         clear_deletion_screenshot = False
-        if deletion_screenshot_removed and existing_template:
-            safe_delete_file(existing_template.get('deletion_screenshot_path'))
+        if is_deletion_screenshot_removed and existing_template:
+            old_paths_str = existing_template.get('deletion_screenshot_path')
+            if old_paths_str:
+                for p in old_paths_str.split(','):
+                    safe_delete_file(p.strip())
             clear_deletion_screenshot = True
 
         logo_path = None
@@ -203,43 +251,73 @@ async def update_template_endpoint(
             screenshot_path = ",".join(paths)
             clear_screenshots = False
 
-        download_screenshot_path = None
+        # Collect download files
+        valid_download_files = [f for f in download_screenshot_files if f and f.filename]
         if download_screenshot_file and download_screenshot_file.filename:
-            # If replacing, delete old one first
+            valid_download_files.append(download_screenshot_file)
+            
+        download_screenshot_path = None
+        if valid_download_files:
             if existing_template and existing_template.get('download_screenshot_path'):
-                safe_delete_file(existing_template.get('download_screenshot_path'))
-            ext = os.path.splitext(download_screenshot_file.filename)[1] or ".jpg"
-            filename = f"{key}_download{ext}"
-            file_path = os.path.join(UPLOAD_INSTRUCTIONS_DIR, filename)
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(download_screenshot_file.file, buffer)
-            download_screenshot_path = f"/static/images/uploaded/instructions/{filename}"
+                old_paths_str = existing_template.get('download_screenshot_path')
+                if old_paths_str:
+                    for p in old_paths_str.split(','):
+                        safe_delete_file(p.strip())
+            paths = []
+            for i, f in enumerate(valid_download_files):
+                ext = os.path.splitext(f.filename)[1] or ".jpg"
+                filename = f"{key}_download{i+1}{ext}"
+                file_path = os.path.join(UPLOAD_INSTRUCTIONS_DIR, filename)
+                with open(file_path, "wb") as buffer:
+                    shutil.copyfileobj(f.file, buffer)
+                paths.append(f"/static/images/uploaded/instructions/{filename}")
+            download_screenshot_path = ",".join(paths)
             clear_download_screenshot = False
 
-        success_screenshot_path = None
+        # Collect success files
+        valid_success_files = [f for f in success_screenshot_files if f and f.filename]
         if success_screenshot_file and success_screenshot_file.filename:
-            # If replacing, delete old one first
+            valid_success_files.append(success_screenshot_file)
+            
+        success_screenshot_path = None
+        if valid_success_files:
             if existing_template and existing_template.get('success_screenshot_path'):
-                safe_delete_file(existing_template.get('success_screenshot_path'))
-            ext = os.path.splitext(success_screenshot_file.filename)[1] or ".jpg"
-            filename = f"{key}_success{ext}"
-            file_path = os.path.join(UPLOAD_INSTRUCTIONS_DIR, filename)
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(success_screenshot_file.file, buffer)
-            success_screenshot_path = f"/static/images/uploaded/instructions/{filename}"
+                old_paths_str = existing_template.get('success_screenshot_path')
+                if old_paths_str:
+                    for p in old_paths_str.split(','):
+                        safe_delete_file(p.strip())
+            paths = []
+            for i, f in enumerate(valid_success_files):
+                ext = os.path.splitext(f.filename)[1] or ".jpg"
+                filename = f"{key}_success{i+1}{ext}"
+                file_path = os.path.join(UPLOAD_INSTRUCTIONS_DIR, filename)
+                with open(file_path, "wb") as buffer:
+                    shutil.copyfileobj(f.file, buffer)
+                paths.append(f"/static/images/uploaded/instructions/{filename}")
+            success_screenshot_path = ",".join(paths)
             clear_success_screenshot = False
             
-        deletion_screenshot_path = None
+        # Collect deletion files
+        valid_deletion_files = [f for f in deletion_screenshot_files if f and f.filename]
         if deletion_screenshot_file and deletion_screenshot_file.filename:
-            # If replacing, delete old one first
+            valid_deletion_files.append(deletion_screenshot_file)
+            
+        deletion_screenshot_path = None
+        if valid_deletion_files:
             if existing_template and existing_template.get('deletion_screenshot_path'):
-                safe_delete_file(existing_template.get('deletion_screenshot_path'))
-            ext = os.path.splitext(deletion_screenshot_file.filename)[1] or ".jpg"
-            filename = f"{key}_deletion{ext}"
-            file_path = os.path.join(UPLOAD_INSTRUCTIONS_DIR, filename)
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(deletion_screenshot_file.file, buffer)
-            deletion_screenshot_path = f"/static/images/uploaded/instructions/{filename}"
+                old_paths_str = existing_template.get('deletion_screenshot_path')
+                if old_paths_str:
+                    for p in old_paths_str.split(','):
+                        safe_delete_file(p.strip())
+            paths = []
+            for i, f in enumerate(valid_deletion_files):
+                ext = os.path.splitext(f.filename)[1] or ".jpg"
+                filename = f"{key}_deletion{i+1}{ext}"
+                file_path = os.path.join(UPLOAD_INSTRUCTIONS_DIR, filename)
+                with open(file_path, "wb") as buffer:
+                    shutil.copyfileobj(f.file, buffer)
+                paths.append(f"/static/images/uploaded/instructions/{filename}")
+            deletion_screenshot_path = ",".join(paths)
             clear_deletion_screenshot = False
             
         await db.save_bank_template(
@@ -263,7 +341,10 @@ async def update_template_endpoint(
             clear_success_screenshot=clear_success_screenshot,
             clear_screenshots=clear_screenshots,
             clear_logo=clear_logo,
-            clear_deletion_screenshot=clear_deletion_screenshot
+            clear_deletion_screenshot=clear_deletion_screenshot,
+            instruction_text=instruction_text,
+            success_text=success_text,
+            deletion_text=deletion_text
         )
         return {"status": "success"}
     except Exception as e:

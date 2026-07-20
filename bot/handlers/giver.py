@@ -276,8 +276,6 @@ async def send_first_code_helper_delayed(bot: Bot, client_id: int, line_id: int,
                     logging.error(f"Error sending bank.kd card choice instruction photo: {e}")
             return
 
-        text = "Реєструйте як наче під себе робите"
-        
         # Динамічно завантажуємо шаблон з бази даних
         template = await db.get_bank_template_db(bank_name)
         screenshot_paths = []
@@ -285,8 +283,12 @@ async def send_first_code_helper_delayed(bot: Bot, client_id: int, line_id: int,
             screenshot_paths_str = template.get('screenshot_path')
             screenshot_paths = [p.strip() for p in screenshot_paths_str.split(",") if p.strip()]
 
-        if screenshot_paths:
-            text += ", або якщо що, то ось готовий шаблон реєстрації:"
+        if template and template.get('instruction_text'):
+            text = template['instruction_text']
+        else:
+            text = "Реєструйте як наче під себе робите"
+            if screenshot_paths:
+                text += ", або якщо що, то ось готовий шаблон реєстрації:"
             
         # Надсилаємо текст клієнту
         await bot.send_message(chat_id=client_id, text=text)

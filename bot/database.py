@@ -2,7 +2,7 @@ import aiosqlite
 import contextvars
 import asyncio
 import logging
-from bot.config import DB_FILE, DEFAULT_BANK_ORDER
+from bot.config import DB_FILE, DEFAULT_BANK_ORDER, normalize_bank_name
 
 current_sender = contextvars.ContextVar("current_sender", default="bot")
 chat_message_callbacks = []
@@ -178,7 +178,10 @@ async def init_db():
                 report_template TEXT,
                 ai_rules TEXT,
                 required_screenshots INTEGER DEFAULT 1,
-                description TEXT
+                description TEXT,
+                instruction_text TEXT,
+                success_text TEXT,
+                deletion_text TEXT
             )
         """)
         for col, col_def in [
@@ -194,7 +197,10 @@ async def init_db():
             ("display_name", "TEXT"),
             ("is_active", "INTEGER DEFAULT 1"),
             ("deletion_requirement", "TEXT DEFAULT 'none'"),
-            ("deletion_screenshot_path", "TEXT")
+            ("deletion_screenshot_path", "TEXT"),
+            ("instruction_text", "TEXT"),
+            ("success_text", "TEXT"),
+            ("deletion_text", "TEXT")
         ]:
             try:
                 await db.execute(f"ALTER TABLE bank_templates ADD COLUMN {col} {col_def}")
@@ -862,7 +868,10 @@ async def get_all_bank_templates() -> dict:
                     'display_name': row['display_name'] if ('display_name' in row.keys() and row['display_name']) else row['key'],
                     'is_active': row['is_active'] if 'is_active' in row.keys() else 1,
                     'deletion_requirement': row['deletion_requirement'] if 'deletion_requirement' in row.keys() else 'none',
-                    'deletion_screenshot_path': row['deletion_screenshot_path'] if 'deletion_screenshot_path' in row.keys() else None
+                    'deletion_screenshot_path': row['deletion_screenshot_path'] if 'deletion_screenshot_path' in row.keys() else None,
+                    'instruction_text': row['instruction_text'] if 'instruction_text' in row.keys() else None,
+                    'success_text': row['success_text'] if 'success_text' in row.keys() else None,
+                    'deletion_text': row['deletion_text'] if 'deletion_text' in row.keys() else None
                 } for row in rows
             }
 
@@ -887,13 +896,16 @@ async def save_bank_template(
     clear_success_screenshot: bool = False,
     clear_screenshots: bool = False,
     clear_logo: bool = False,
-    clear_deletion_screenshot: bool = False
+    clear_deletion_screenshot: bool = False,
+    instruction_text: str = None,
+    success_text: str = None,
+    deletion_text: str = None
 ):
     """Збереження або оновлення шаблону банку"""
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("""
-            INSERT INTO bank_templates (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description, display_name, is_active, deletion_requirement, deletion_screenshot_path)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO bank_templates (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description, display_name, is_active, deletion_requirement, deletion_screenshot_path, instruction_text, success_text, deletion_text)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(key) DO UPDATE SET
                 command = excluded.command,
                 text = excluded.text,
@@ -909,8 +921,11 @@ async def save_bank_template(
                 display_name = excluded.display_name,
                 is_active = excluded.is_active,
                 deletion_requirement = excluded.deletion_requirement,
-                deletion_screenshot_path = COALESCE(excluded.deletion_screenshot_path, bank_templates.deletion_screenshot_path)
-        """, (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description, display_name, is_active, deletion_requirement, deletion_screenshot_path))
+                deletion_screenshot_path = COALESCE(excluded.deletion_screenshot_path, bank_templates.deletion_screenshot_path),
+                instruction_text = excluded.instruction_text,
+                success_text = excluded.success_text,
+                deletion_text = excluded.deletion_text
+        """, (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description, display_name, is_active, deletion_requirement, deletion_screenshot_path, instruction_text, success_text, deletion_text))
         
         if clear_logo:
             await db.execute("UPDATE bank_templates SET logo_path = NULL WHERE key = ?", (key,))
@@ -936,10 +951,10 @@ async def get_bank_template_db(bank_name: str):
     if not bank_name:
         return None
     templates = await get_all_bank_templates()
-    name_norm = bank_name.lower().replace(" ", "").replace("-", "")
+    name_norm = normalize_bank_name(bank_name)
     for key, val in templates.items():
-        key_norm = key.lower().replace(" ", "").replace("-", "")
-        if key_norm in name_norm or name_norm in key_norm:
+        key_norm = normalize_bank_name(key)
+        if key_norm == name_norm or key_norm in name_norm or name_norm in key_norm:
             return val
     return None
 
@@ -948,10 +963,10 @@ async def get_bank_template_with_key_db(bank_name: str):
     if not bank_name:
         return None, None
     templates = await get_all_bank_templates()
-    name_norm = bank_name.lower().replace(" ", "").replace("-", "")
+    name_norm = normalize_bank_name(bank_name)
     for key, val in templates.items():
-        key_norm = key.lower().replace(" ", "").replace("-", "")
-        if key_norm in name_norm or name_norm in key_norm:
+        key_norm = normalize_bank_name(key)
+        if key_norm == name_norm or key_norm in name_norm or name_norm in key_norm:
             return key, val
     return None, None
 
@@ -965,17 +980,17 @@ async def get_bank_display_name(bank_name: str) -> str:
     if tpl and tpl.get('display_name'):
         return tpl['display_name']
     
-    name_norm = bank_name.lower().replace(" ", "").replace("-", "").replace(".", "")
+    name_norm = normalize_bank_name(bank_name)
     mapping = {
-        "izibank": "IziBank",
-        "amobank": "AmoBank",
-        "lvivbank": "LvivBank",
-        "bankkd": "bank.kd",
+        "izi": "IziBank",
+        "amo": "AmoBank",
+        "lviv": "LvivBank",
+        "kd": "bank.kd",
         "alliance": "Alliance"
     }
     
     for key, val in mapping.items():
-        if key in name_norm or name_norm in key:
+        if key == name_norm or key in name_norm or name_norm in key:
             return val
             
     return bank_name[0].upper() + bank_name[1:] if len(bank_name) > 0 else bank_name

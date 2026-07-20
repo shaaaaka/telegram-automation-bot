@@ -230,6 +230,66 @@ async def readd_session_bank(client_id: int, bank: str):
     await db.update_session_banks(client_id, new_selected_str, new_remaining_str)
     return {"status": "success", "remaining_banks": new_remaining_str, "selected_banks": new_selected_str}
 
+@router.post("/api/sessions/{client_id}/banks/reset")
+async def reset_session_bank(client_id: int, bank: str):
+    """Скидання статусу верифікації банку (видалення з верифікацій та повернення в чергу)"""
+    session = await db.get_session(client_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    async with aiosqlite.connect(DB_FILE) as conn:
+        # 1. Видаляємо записи з bank_verifications для цього банку та клієнта
+        await conn.execute("""
+            DELETE FROM bank_verifications 
+            WHERE client_id = ? AND bank = ?
+        """, (client_id, bank))
+        await conn.commit()
+        
+    # 2. Додаємо банк назад до remaining_banks та selected_banks у sessions
+    remaining_str = session['remaining_banks']
+    remaining = remaining_str.split(",") if remaining_str else []
+    selected_str = session['selected_banks']
+    selected = selected_str.split(",") if selected_str else []
+    
+    if bank not in remaining:
+        remaining.append(bank)
+    if bank not in selected:
+        selected.append(bank)
+        
+    new_remaining_str = ",".join(remaining)
+    new_selected_str = ",".join(selected)
+    
+    # 3. Очищаємо цей банк зі списку notified_banks
+    notified = session.get('notified_banks') or ''
+    notified_list = [b.strip() for b in notified.split(",") if b.strip()]
+    
+    from bot.config import normalize_bank_name
+    target_norm = normalize_bank_name(bank)
+    notified_list = [b for b in notified_list if normalize_bank_name(b) != target_norm]
+    new_notified_str = ",".join(notified_list)
+    
+    # 4. Якщо сесія завершена або очікує на закриття, повертаємо в статус 'registered'
+    current_status = session.get('status')
+    new_status = current_status
+    if current_status in ('completed', 'closed'):
+        new_status = 'registered'
+        
+    async with aiosqlite.connect(DB_FILE) as conn:
+        await conn.execute("""
+            UPDATE sessions 
+            SET selected_banks = ?, remaining_banks = ?, notified_banks = ?, status = ?
+            WHERE client_id = ?
+        """, (new_selected_str, new_remaining_str, new_notified_str, new_status, client_id))
+        await conn.commit()
+        
+    return {
+        "status": "success", 
+        "remaining_banks": new_remaining_str, 
+        "selected_banks": new_selected_str,
+        "notified_banks": new_notified_str,
+        "new_session_status": new_status
+    }
+
 @router.post("/api/sessions/{client_id}/assign")
 async def assign_line(client_id: int, body: LineAssignment, background_tasks: BackgroundTasks):
     """Призначення телефонної лінії для клієнта через веб-інтерфейс"""
