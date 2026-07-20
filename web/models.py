@@ -58,9 +58,11 @@ class BankTemplateUpdate(BaseModel):
 class AIRuleCreate(BaseModel):
     rule_text: str
     category: str = "general"
+    is_active: Optional[int] = 1
 class AIExampleCreate(BaseModel):
     client_message: str
     bot_response: str
+    is_active: Optional[int] = 1
 class AISettingsUpdate(BaseModel):
     ai_income_limit: str
     ai_turnover_limit: str

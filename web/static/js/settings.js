@@ -93,7 +93,7 @@ async function loadSettings() {
 
         // Restore active settings subtab
         let savedSubtab = localStorage.getItem('active_settings_subtab') || 'general';
-        if (!['general', 'banks', 'chats'].includes(savedSubtab)) {
+        if (!['general', 'banks', 'chats', 'ai'].includes(savedSubtab)) {
             savedSubtab = 'general';
         }
         switchSettingsSubtab(savedSubtab);
@@ -224,10 +224,15 @@ function switchSettingsSubtab(subtabId) {
     // 3. Show/hide global save button container
     const saveBtn = document.getElementById('settings-save-btn-container');
     if (saveBtn) {
-        if (subtabId === 'banks') {
+        if (subtabId === 'banks' || subtabId === 'ai') {
             saveBtn.style.display = 'none';
         } else {
             saveBtn.style.display = 'flex';
         }
+    }
+
+    // 4. Load AI settings if active
+    if (subtabId === 'ai' && typeof loadAISettings === 'function') {
+        loadAISettings();
     }
 }

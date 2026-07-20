@@ -790,6 +790,23 @@
                         </div>
                         <span>Телеграм чати та ID</span>
                     </button>
+                    <button type="button" class="settings-subtab-btn" onclick="switchSettingsSubtab('ai')">
+                        <div class="subtab-icon-wrapper">
+                            <svg class="subtab-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                                <rect x="9" y="9" width="6" height="6"></rect>
+                                <line x1="9" y1="1" x2="9" y2="4"></line>
+                                <line x1="15" y1="1" x2="15" y2="4"></line>
+                                <line x1="9" y1="20" x2="9" y2="23"></line>
+                                <line x1="15" y1="20" x2="15" y2="23"></line>
+                                <line x1="20" y1="9" x2="23" y2="9"></line>
+                                <line x1="20" y1="15" x2="23" y2="15"></line>
+                                <line x1="1" y1="9" x2="4" y2="9"></line>
+                                <line x1="1" y1="15" x2="4" y2="15"></line>
+                            </svg>
+                        </div>
+                        <span>Налаштування ШІ</span>
+                    </button>
                 </div>
 
                 <!-- Правий контент-лейаут -->
@@ -1323,6 +1340,130 @@ Line {line_id} Return: {line_phone} | {bank}
                             </div>
                         </div>
                     </div> <!-- Close settings-content-banks -->
+
+                    <!-- Вкладка 5: Налаштування ШІ (Поза загальною формою) -->
+                    <div id="settings-content-ai" class="settings-subtab-content" style="height: 100%;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
+                            <h3 style="margin: 0; font-size: 1.2rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                <svg class="subtab-svg" style="color: var(--accent-primary); width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                                    <rect x="9" y="9" width="6" height="6"></rect>
+                                    <line x1="9" y1="1" x2="9" y2="4"></line>
+                                    <line x1="15" y1="1" x2="15" y2="4"></line>
+                                    <line x1="9" y1="20" x2="9" y2="23"></line>
+                                    <line x1="15" y1="20" x2="15" y2="23"></line>
+                                    <line x1="20" y1="9" x2="23" y2="9"></line>
+                                    <line x1="20" y1="15" x2="23" y2="15"></line>
+                                    <line x1="1" y1="9" x2="4" y2="9"></line>
+                                    <line x1="1" y1="15" x2="4" y2="15"></line>
+                                </svg>
+                                Налаштування ШІ
+                            </h3>
+                        </div>
+
+                        <!-- 1. Базові параметри ШІ -->
+                        <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); padding: 24px; border-radius: 16px; margin-bottom: 24px; display: flex; flex-direction: column; gap: 20px; backdrop-filter: blur(10px);">
+                            <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">⚙️ Базові ліміти та паролі в діалогах</h4>
+                            <form id="ai-params-form" onsubmit="saveAISettings(event)" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 0;">
+                                <div class="form-group" style="margin: 0;">
+                                    <label for="ai-settings-income" class="form-label">Дохід для анкети (грн)</label>
+                                    <input type="text" id="ai-settings-income" class="form-control" required style="width: 100%;">
+                                    <div class="form-hint" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Який дохід рекомендувати дропу при реєстрації.</div>
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label for="ai-settings-turnover" class="form-label">Оборот для анкети (грн)</label>
+                                    <input type="text" id="ai-settings-turnover" class="form-control" required style="width: 100%;">
+                                    <div class="form-hint" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Який оборот рекомендувати дропу при реєстрації.</div>
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label for="ai-settings-pwd-kd" class="form-label">ПІН-код для bank.kd</label>
+                                    <input type="text" id="ai-settings-pwd-kd" class="form-control" required style="width: 100%;">
+                                    <div class="form-hint" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">ПІН-код/пароль за замовчуванням для банку bank.kd.</div>
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label for="ai-settings-pwd-other" class="form-label">ПІН-код для інших банків</label>
+                                    <input type="text" id="ai-settings-pwd-other" class="form-control" required style="width: 100%;">
+                                    <div class="form-hint" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">ПІН-коди/паролі для решти банків.</div>
+                                </div>
+                                <div class="grid-span-2" style="display: flex; justify-content: flex-end; margin-top: 8px;">
+                                    <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 600;">Зберегти базові параметри</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- 2. Загальні правила ШІ -->
+                        <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); padding: 24px; border-radius: 16px; margin-bottom: 24px; display: flex; flex-direction: column; gap: 20px; backdrop-filter: blur(10px);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
+                                <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #fff;">📋 Загальні правила ШІ (System Prompt)</h4>
+                                <button type="button" class="btn btn-primary btn-sm" id="btn-add-ai-rule" onclick="showAddRuleForm()" style="padding: 8px 16px; font-weight: 600;">
+                                    ➕ Додати правило
+                                </button>
+                            </div>
+
+                            <!-- Форма додавання / редагування правила -->
+                            <div id="ai-rule-add-form" style="display: none; background: rgba(59, 130, 246, 0.02); border: 1px solid rgba(59, 130, 246, 0.15); padding: 18px; border-radius: 12px; flex-direction: column; gap: 14px;">
+                                <h5 id="ai-rule-form-title" style="margin: 0; font-size: 0.95rem; font-weight: 600; color: #fff;">➕ Нове правило для ШІ</h5>
+                                <input type="hidden" id="edit-rule-id" value="">
+                                <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 12px;">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label for="ai-rule-text" class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Текст правила</label>
+                                        <input type="text" id="ai-rule-text" placeholder="Наприклад: Звертатися виключно на 'ви'..." class="form-control" style="width: 100%;">
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label for="ai-rule-category" class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Категорія</label>
+                                        <select id="ai-rule-category" class="form-control" style="width: 100%; background: #111827; border: 1px solid rgba(255,255,255,0.08); color: #fff; border-radius: 8px;">
+                                            <option value="general">Загальне (general)</option>
+                                            <option value="bank_rules">Пін-коди (bank_rules)</option>
+                                            <option value="troubleshooting">Технічні проблеми (troubleshooting)</option>
+                                            <option value="limits">Виплати та ліміти (limits)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 6px;">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="hideAddRuleForm()" style="padding: 6px 14px;">Скасувати</button>
+                                    <button type="button" class="btn btn-primary btn-sm" id="btn-save-ai-rule" onclick="saveNewRule()" style="padding: 6px 16px; font-weight: 600;">Зберегти</button>
+                                </div>
+                            </div>
+
+                            <!-- Список правил -->
+                            <div id="ai-rules-list-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 450px; overflow-y: auto; padding-right: 6px;">
+                                <!-- Динамічно -->
+                            </div>
+                        </div>
+
+                        <!-- 3. Приклади діалогу (Few-Shot) -->
+                        <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); padding: 24px; border-radius: 16px; display: flex; flex-direction: column; gap: 20px; backdrop-filter: blur(10px);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
+                                <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: #fff;">💬 Навчальні приклади (Few-Shot Examples)</h4>
+                                <button type="button" class="btn btn-primary btn-sm" id="btn-add-ai-example" onclick="showAddExampleForm()" style="padding: 8px 16px; font-weight: 600;">
+                                    ➕ Додати приклад
+                                </button>
+                            </div>
+
+                            <!-- Форма додавання / редагування прикладу -->
+                            <div id="ai-example-add-form" style="display: none; background: rgba(59, 130, 246, 0.02); border: 1px solid rgba(59, 130, 246, 0.15); padding: 18px; border-radius: 12px; flex-direction: column; gap: 14px;">
+                                <h5 id="ai-example-form-title" style="margin: 0; font-size: 0.95rem; font-weight: 600; color: #fff;">➕ Новий приклад для ШІ</h5>
+                                <input type="hidden" id="edit-example-id" value="">
+                                <div class="form-group" style="margin: 0;">
+                                    <label for="ai-example-q" class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Повідомлення клієнта (запитання)</label>
+                                    <input type="text" id="ai-example-q" placeholder="Наприклад: А що писати в графі роботи?" class="form-control" style="width: 100%;">
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label for="ai-example-a" class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Бажана відповідь бота</label>
+                                    <input type="text" id="ai-example-a" placeholder="Наприклад: Пишіть, що тимчасово не працюєте, або фрілансер. Все ок." class="form-control" style="width: 100%;">
+                                </div>
+                                <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 6px;">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="hideAddExampleForm()" style="padding: 6px 14px;">Скасувати</button>
+                                    <button type="button" class="btn btn-primary btn-sm" id="btn-save-ai-example" onclick="saveNewExample()" style="padding: 6px 16px; font-weight: 600;">Зберегти</button>
+                                </div>
+                            </div>
+
+                            <!-- Список прикладів -->
+                            <div id="ai-examples-list-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 450px; overflow-y: auto; padding-right: 6px;">
+                                <!-- Динамічно -->
+                            </div>
+                        </div>
+                    </div> <!-- Close settings-content-ai -->
                 </div> <!-- Close settings-content-pane -->
             </div> <!-- Close settings-container -->
         </div> <!-- Close tab-content-settings -->
@@ -1410,8 +1551,9 @@ Line {line_id} Return: {line_phone} | {bank}
     <script src="/static/js/control.js?v=9.22"></script>
     <script src="/static/js/chat.js?v=9.21"></script>
     <script src="/static/js/stats.js?v=9.15"></script>
-    <script src="/static/js/settings.js?v=9.17"></script>
+    <script src="/static/js/settings.js?v=9.18"></script>
     <script src="/static/js/settings-banks.js?v=9.82"></script>
+    <script src="/static/js/settings-ai.js?v=9.23"></script>
 
     <script>
         window.getMediaGroupHTML = function(pathsStr, placeholderType = 'instruction') {

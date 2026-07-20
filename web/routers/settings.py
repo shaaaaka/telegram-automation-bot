@@ -359,3 +359,119 @@ async def delete_template_endpoint(key: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete bank template: {str(e)}")
 
+@router.get("/api/settings/ai")
+async def get_ai_settings():
+    """Отримання налаштувань ШІ, списку правил та прикладів діалогу"""
+    try:
+        # Отримуємо базові ліміти
+        income = await db.get_setting("ai_income_limit", "25000")
+        turnover = await db.get_setting("ai_turnover_limit", "30000")
+        pwd_kd = await db.get_setting("ai_password_kd", "12345")
+        pwd_other = await db.get_setting("ai_password_other", "1111, 1234 або 1232")
+        
+        # Отримуємо правила та приклади
+        rules = await db.get_all_ai_rules()
+        examples = await db.get_all_ai_examples()
+        
+        return {
+            "ai_income_limit": income,
+            "ai_turnover_limit": turnover,
+            "ai_password_kd": pwd_kd,
+            "ai_password_other": pwd_other,
+            "rules": rules,
+            "examples": examples
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get AI settings: {str(e)}")
+
+@router.post("/api/settings/ai")
+async def save_ai_settings_endpoint(body: AISettingsUpdate):
+    """Збереження базових лімітів та паролів ШІ"""
+    try:
+        await db.set_setting("ai_income_limit", body.ai_income_limit)
+        await db.set_setting("ai_turnover_limit", body.ai_turnover_limit)
+        await db.set_setting("ai_password_kd", body.ai_password_kd)
+        await db.set_setting("ai_password_other", body.ai_password_other)
+        
+        # Оновимо кеш налаштувань
+        set_cached_setting("ai_income_limit", body.ai_income_limit)
+        set_cached_setting("ai_turnover_limit", body.ai_turnover_limit)
+        set_cached_setting("ai_password_kd", body.ai_password_kd)
+        set_cached_setting("ai_password_other", body.ai_password_other)
+        
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save AI settings: {str(e)}")
+
+@router.post("/api/settings/ai/rules")
+async def create_ai_rule(body: AIRuleCreate):
+    """Додавання нового правила ШІ"""
+    try:
+        rule_id = await db.add_ai_rule(body.rule_text, body.category, body.is_active)
+        return {"status": "success", "id": rule_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add AI rule: {str(e)}")
+
+@router.put("/api/settings/ai/rules/{rule_id}")
+async def update_ai_rule_endpoint(rule_id: int, body: AIRuleCreate):
+    """Оновлення існуючого правила ШІ"""
+    try:
+        await db.update_ai_rule(rule_id, body.rule_text, body.category, body.is_active)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update AI rule: {str(e)}")
+
+@router.post("/api/settings/ai/rules/{rule_id}/toggle")
+async def toggle_ai_rule_endpoint(rule_id: int, is_active: Optional[int] = None):
+    """Перемикання активності правила ШІ"""
+    try:
+        await db.toggle_ai_rule(rule_id, is_active)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to toggle AI rule: {str(e)}")
+
+@router.delete("/api/settings/ai/rules/{rule_id}")
+async def delete_ai_rule_endpoint(rule_id: int):
+    """Видалення правила ШІ"""
+    try:
+        await db.delete_ai_rule(rule_id)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete AI rule: {str(e)}")
+
+@router.post("/api/settings/ai/examples")
+async def create_ai_example(body: AIExampleCreate):
+    """Додавання нового прикладу діалогу ШІ"""
+    try:
+        example_id = await db.add_ai_example(body.client_message, body.bot_response, body.is_active)
+        return {"status": "success", "id": example_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add AI example: {str(e)}")
+
+@router.put("/api/settings/ai/examples/{example_id}")
+async def update_ai_example_endpoint(example_id: int, body: AIExampleCreate):
+    """Оновлення існуючого прикладу діалогу ШІ"""
+    try:
+        await db.update_ai_example(example_id, body.client_message, body.bot_response, body.is_active)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update AI example: {str(e)}")
+
+@router.post("/api/settings/ai/examples/{example_id}/toggle")
+async def toggle_ai_example_endpoint(example_id: int, is_active: Optional[int] = None):
+    """Перемикання активності прикладу діалогу ШІ"""
+    try:
+        await db.toggle_ai_example(example_id, is_active)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to toggle AI example: {str(e)}")
+
+@router.delete("/api/settings/ai/examples/{example_id}")
+async def delete_ai_example_endpoint(example_id: int):
+    """Видалення прикладу діалогу ШІ"""
+    try:
+        await db.delete_ai_example(example_id)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete AI example: {str(e)}")
+

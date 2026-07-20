@@ -1245,6 +1245,46 @@ async def delete_ai_example(example_id: int) -> bool:
         await db.commit()
         return True
 
+async def update_ai_rule(rule_id: int, rule_text: str, category: str, is_active: int) -> bool:
+    """Оновлення тексту, категорії та статусу правила ШІ"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("""
+            UPDATE ai_rules 
+            SET rule_text = ?, category = ?, is_active = ?
+            WHERE id = ?
+        """, (rule_text, category, is_active, rule_id))
+        await db.commit()
+        return True
+
+async def update_ai_example(example_id: int, client_message: str, bot_response: str, is_active: int) -> bool:
+    """Оновлення прикладу діалогу ШІ"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("""
+            UPDATE ai_examples
+            SET client_message = ?, bot_response = ?, is_active = ?
+            WHERE id = ?
+        """, (client_message, bot_response, is_active, example_id))
+        await db.commit()
+        return True
+
+async def toggle_ai_example(example_id: int, is_active: int = None) -> bool:
+    """Увімкнення/вимкнення прикладу діалогу ШІ"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        if is_active is None:
+            await db.execute("""
+                UPDATE ai_examples 
+                SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END
+                WHERE id = ?
+            """, (example_id,))
+        else:
+            await db.execute("""
+                UPDATE ai_examples 
+                SET is_active = ?
+                WHERE id = ?
+            """, (is_active, example_id))
+        await db.commit()
+        return True
+
 
 # --- Блокування користувачів (Ban System) ---
 
