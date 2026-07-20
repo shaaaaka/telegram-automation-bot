@@ -359,3 +359,21 @@ function renderAIExamples(examples) {
         container.appendChild(item);
     });
 }
+
+function switchAISubtab(subtabName) {
+    // 1. Update active button classes
+    document.querySelectorAll('.ai-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const activeBtn = document.querySelector(`.ai-tab-btn[onclick="switchAISubtab('${subtabName}')"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // 2. Show/hide subpanes
+    document.querySelectorAll('.ai-subpane').forEach(pane => {
+        pane.style.display = 'none';
+    });
+    const activePane = document.getElementById(`ai-subpane-${subtabName}`);
+    if (activePane) {
+        activePane.style.display = 'flex';
+    }
+}
