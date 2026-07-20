@@ -1184,8 +1184,11 @@ async def process_lviv_success_confirm(message: Message, state: FSMContext, bot:
 @router.message(RegistrationStates.waiting_deletion_proof, F.chat.type == "private")
 async def process_deletion_proof(message: Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
-    bank_name = data.get('bank_name') or "Банк"
-    template_data = await db.get_bank_template_db(bank_name)
+    raw_bank = data.get('bank_name')
+    template_data = await db.get_bank_template_db(raw_bank) if raw_bank else None
+    
+    # Визначаємо гарне відображення назви банку
+    bank_name = (template_data.get('display_name') if template_data and template_data.get('display_name') else raw_bank) or "банку"
     deletion_req = template_data.get('deletion_requirement', 'none') if template_data else 'none'
     proof_label = "скріншот" if deletion_req == 'screenshot' else "відео"
     
@@ -1222,9 +1225,9 @@ async def process_deletion_proof(message: Message, state: FSMContext, bot: Bot):
         await bot.download_file(file_info.file_path, file_buffer)
         media_bytes = file_buffer.getvalue()
         
-        # Викликаємо ШІ-верифікацію
+        # Викликаємо ШІ-верифікацію із передачею конкретної назви банку
         from bot.openai_client import verify_deletion_proof as ai_verify
-        is_valid, reason = await ai_verify(media_bytes, media_type)
+        is_valid, reason = await ai_verify(media_bytes, media_type, bank_name=bank_name)
         
         # Видаляємо статус-повідомлення
         try:

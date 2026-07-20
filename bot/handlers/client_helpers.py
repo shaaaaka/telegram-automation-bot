@@ -107,6 +107,7 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
     if deletion_req in ['screenshot', 'video'] and not has_deletion_proof:
         # Збережемо дані для анкети у стані FSM
         await state.update_data(
+            bank_name=bank_name,
             client_password=client_password,
             success_photo_id=success_photo_id,
             card_photo_id=card_photo_id,
