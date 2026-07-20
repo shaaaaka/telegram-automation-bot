@@ -1215,7 +1215,7 @@ async def process_deletion_proof(message: Message, state: FSMContext, bot: Bot):
         return
 
     # Надсилаємо статус перевірки
-    status_msg = await message.answer("Перевіряю ваш доказ видалення за допомогою ШІ, зачекайте, будь ласка... 🔄")
+    status_msg = await message.answer("Хвилинку")
     
     try:
         # Завантажуємо медіа
@@ -1236,16 +1236,14 @@ async def process_deletion_proof(message: Message, state: FSMContext, bot: Bot):
             pass
             
         if is_valid:
-            await message.answer(f"Чудово! ШІ підтвердив видалення додатку {bank_name}. 🎉")
             await state.update_data(deletion_proof_media=media_id, deletion_proof_type=media_type)
             await continue_after_phone(message, state, bot, message.from_user.id)
         else:
-            await message.answer(
-                f"❌ На жаль, ШІ не зміг підтвердити видалення додатку.\n\n"
-                f"<b>Причина:</b> {reason}\n\n"
-                f"Будь ласка, надішліть {proof_label} ще раз.",
-                parse_mode="HTML"
-            )
+            fail_text = f"{proof_label.capitalize()} не прийнято."
+            if reason:
+                fail_text += f" {reason}"
+            fail_text += f" Надішліть інший {proof_label}, будь ласка."
+            await message.answer(fail_text)
             
     except Exception as e:
         logger.error(f"Помилка при авто-перевірці доказу: {e}")
