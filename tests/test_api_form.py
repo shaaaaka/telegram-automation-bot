@@ -132,31 +132,44 @@ def test_retain_existing_files():
 
 
 def test_ai_settings_endpoints():
-    # 1. GET AI Settings
-    response = client.get("/api/settings/ai")
-    assert response.status_code == 200
-    data = response.json()
-    assert "ai_income_limit" in data
-    assert "rules" in data
-    assert "examples" in data
+    # Save current settings to restore later
+    orig_res = client.get("/api/settings/ai")
+    orig_data = orig_res.json() if orig_res.status_code == 200 else {}
 
-    # 2. POST AI settings updates
-    body = {
-        "ai_income_limit": "26000",
-        "ai_turnover_limit": "31000",
-        "ai_password_kd": "54321",
-        "ai_password_other": "9999"
-    }
-    response = client.post("/api/settings/ai", json=body)
-    assert response.status_code == 200
+    try:
+        # 1. GET AI Settings
+        response = client.get("/api/settings/ai")
+        assert response.status_code == 200
+        data = response.json()
+        assert "ai_income_limit" in data
+        assert "rules" in data
+        assert "examples" in data
 
-    # Verify updated settings
-    response = client.get("/api/settings/ai")
-    data = response.json()
-    assert data["ai_income_limit"] == "26000"
-    assert data["ai_turnover_limit"] == "31000"
-    assert data["ai_password_kd"] == "54321"
-    assert data["ai_password_other"] == "9999"
+        # 2. POST AI settings updates
+        body = {
+            "ai_income_limit": "26000",
+            "ai_turnover_limit": "31000",
+            "ai_password_kd": "54321",
+            "ai_password_other": "9999"
+        }
+        response = client.post("/api/settings/ai", json=body)
+        assert response.status_code == 200
+
+        # Verify updated settings
+        response = client.get("/api/settings/ai")
+        data = response.json()
+        assert data["ai_income_limit"] == "26000"
+        assert data["ai_turnover_limit"] == "31000"
+        assert data["ai_password_kd"] == "54321"
+        assert data["ai_password_other"] == "9999"
+    finally:
+        if orig_data:
+            client.post("/api/settings/ai", json={
+                "ai_income_limit": orig_data.get("ai_income_limit", "25000"),
+                "ai_turnover_limit": orig_data.get("ai_turnover_limit", "30000"),
+                "ai_password_kd": orig_data.get("ai_password_kd", "12345"),
+                "ai_password_other": orig_data.get("ai_password_other", "1111, 1234 або 1232")
+            })
 
 
 def test_ai_rules_endpoints():
