@@ -1255,3 +1255,111 @@ async def process_deletion_proof(message: Message, state: FSMContext, bot: Bot):
         await message.answer("Виникла технічна затримка під час авто-перевірки, але ваш файл збережено для ручної перевірки оператором. Продовжуємо...")
         await state.update_data(deletion_proof_media=media_id, deletion_proof_type=media_type)
         await continue_after_phone(message, state, bot, message.from_user.id)
+
+@router.callback_query(F.data.startswith("relink_choice_"))
+async def handle_relink_choice(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    parts = callback.data.split("_")
+    choice = parts[2]  # "relink" or "fresh"
+    line_id = int(parts[3])
+    bank_key = "_".join(parts[4:])
+    
+    template_data = await db.get_bank_template_db(bank_key)
+    bank_name = (template_data.get('display_name') if template_data and template_data.get('display_name') else bank_key) or bank_key
+    
+    if choice == "relink":
+        await state.update_data(is_relink=True, bank_name=bank_key, assign_line_id=line_id)
+        await state.set_state(RegistrationStates.waiting_relink_initial_screenshot)
+        
+        relink_msg = (template_data.get('relink_instruction_text') if template_data else None) or (
+            f"Надішліть, будь ласка, скріншот Головного екрану або вкладки Картки у додатку {bank_name}, щоб перевірити стан акаунту."
+        )
+        try:
+            await callback.message.edit_text(relink_msg)
+        except Exception:
+            await callback.message.answer(relink_msg)
+        await callback.answer("Обрано Перев'яз")
+    else:
+        await state.update_data(is_relink=False, bank_name=bank_key)
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+        from bot.services.line_assignment import send_assigned_phone_to_client
+        await send_assigned_phone_to_client(callback.from_user.id, line_id, bot, is_relink=False)
+        await callback.answer("Обрано Нову реєстрацію")
+
+@router.message(RegistrationStates.waiting_relink_initial_screenshot, F.chat.type == "private")
+async def process_relink_initial_screenshot(message: Message, state: FSMContext, bot: Bot):
+    media_id = None
+    media_type = None
+    
+    if message.photo:
+        media_id = message.photo[-1].file_id
+        media_type = 'photo'
+    elif message.document:
+        mime = message.document.mime_type or ""
+        if mime.startswith('image/'):
+            media_id = message.document.file_id
+            media_type = 'photo'
+
+    if not media_id:
+        await message.answer("Будь ласка, надішліть саме скріншот додатку для перевірки.")
+        return
+
+    data = await state.get_data()
+    bank_key = data.get('bank_name') or "bank"
+    line_id = data.get('assign_line_id')
+    template_data = await db.get_bank_template_db(bank_key)
+    bank_name = (template_data.get('display_name') if template_data and template_data.get('display_name') else bank_key) or bank_key
+
+    status_msg = await message.answer("Хвилинку")
+
+    try:
+        from io import BytesIO
+        file_info = await bot.get_file(media_id)
+        file_buffer = BytesIO()
+        await bot.download_file(file_info.file_path, file_buffer)
+        media_bytes = file_buffer.getvalue()
+
+        from bot.openai_client import verify_relink_initial_screenshot as ai_verify_relink
+        is_valid, reason = await ai_verify_relink(media_bytes, bank_name=bank_name)
+
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+
+        if is_valid:
+            client_id = message.from_user.id
+            
+            await state.update_data(initial_relink_photo_id=media_id)
+            
+            # Повідомляємо клієнту про успішну перевірку та надсилаємо призначений номер
+            await message.answer("Акаунт перевірено, все ок! 👍")
+            
+            from bot.services.line_assignment import send_assigned_phone_to_client
+            await send_assigned_phone_to_client(client_id, line_id, bot, is_relink=True)
+            await state.set_state(RegistrationStates.waiting_phone)
+            
+            # Сповіщаємо адміна / гівера про Перев'яз
+            from bot.config import get_admin_id
+            username = message.from_user.username or "Немає юзернейму"
+            admin_msg = (
+                f"🔄 <b>[ПЕРЕВ'ЯЗ] Початок зміни номера!</b>\n"
+                f"• Клієнт: @{username} (ID: {client_id})\n"
+                f"• Банк: {bank_name}\n"
+                f"• Стан акаунту: ✅ Активний (перевірено ШІ)\n"
+                f"• Лінія: Line {line_id}"
+            )
+            await bot.send_message(chat_id=get_admin_id(), text=admin_msg, parse_mode="HTML")
+        else:
+            await message.answer(
+                f"Скріншот не прийнято. {reason}\nНадішліть інший скріншот додатку {bank_name}, будь ласка."
+            )
+    except Exception as e:
+        logger.error(f"Помилка при авто-перевірці первинного скріншота перев'язу: {e}")
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+        await message.answer("Виникла технічна затримка під час авто-перевірки. Надішліть скріншот ще раз.")

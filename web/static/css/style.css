@@ -4962,10 +4962,17 @@ div.empty-state span:first-child {
     gap: 20px;
     margin-top: 8px;
     align-items: start;
-    background: rgba(255,255,255,0.01);
-    border: 1px solid rgba(255,255,255,0.04);
+}
+
+.bank-ai-input-card {
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.04);
     border-radius: 14px;
     padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
 }
 
 .add-bank-header-row {
@@ -5341,6 +5348,63 @@ div.empty-state span:first-child {
     justify-content: center;
     box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
     border: 1.2px solid #0b0f19;
+}
+
+.telegram-mockup-scrollable-image {
+    width: 100%;
+    height: auto;
+    position: relative;
+    overflow: hidden;
+}
+.telegram-mockup-scrollable-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Custom scrollbar for mockup image viewport */
+.telegram-mockup-scrollable-image::-webkit-scrollbar {
+    width: 4px;
+}
+.telegram-mockup-scrollable-image::-webkit-scrollbar-track {
+    background: transparent;
+}
+.telegram-mockup-scrollable-image::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+}
+.telegram-mockup-scrollable-image::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Custom scrollbar for message bubble */
+.telegram-message-bubble::-webkit-scrollbar {
+    width: 4px;
+}
+.telegram-message-bubble::-webkit-scrollbar-track {
+    background: transparent;
+}
+.telegram-message-bubble::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+}
+.telegram-message-bubble::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Custom scrollbar for mockup chat body */
+.telegram-mockup-chat-body::-webkit-scrollbar {
+    width: 5px;
+}
+.telegram-mockup-chat-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+.telegram-mockup-chat-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+}
+.telegram-mockup-chat-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
 }
 
 

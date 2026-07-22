@@ -128,7 +128,9 @@ async def update_template_endpoint(
     deletion_screenshot_removed: str = Form("false"),
     instruction_text: Optional[str] = Form(None),
     success_text: Optional[str] = Form(None),
-    deletion_text: Optional[str] = Form(None)
+    deletion_text: Optional[str] = Form(None),
+    allow_relink: int = Form(0),
+    relink_instruction_text: Optional[str] = Form(None)
 ):
     """Оновлення або додавання шаблону банку з файлами"""
     try:
@@ -344,7 +346,9 @@ async def update_template_endpoint(
             clear_deletion_screenshot=clear_deletion_screenshot,
             instruction_text=instruction_text,
             success_text=success_text,
-            deletion_text=deletion_text
+            deletion_text=deletion_text,
+            allow_relink=allow_relink,
+            relink_instruction_text=relink_instruction_text
         )
         return {"status": "success"}
     except Exception as e:

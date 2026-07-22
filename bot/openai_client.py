@@ -524,3 +524,73 @@ async def verify_deletion_proof(media_bytes: bytes, media_type: str, bank_name: 
     except Exception as e:
         logger.error(f"Error in verify_deletion_proof: {e}")
         return True, f"Помилка ШІ-верифікації: {e} (пропущено)"
+
+async def verify_relink_initial_screenshot(media_bytes: bytes, bank_name: str = None) -> tuple[bool, str]:
+    """
+    Первинна ШІ-перевірка скріншота екрана банку перед процедурою перев'язу.
+    Перевіряє, чи належить екран банку та чи не заблокована картка/акаунт.
+    Повертає (is_valid: bool, reason: str).
+    """
+    if not client:
+        return True, "ШІ-клієнт не ініціалізований (пропускаємо авто-перевірку)"
+
+    try:
+        import base64
+        b64 = base64.b64encode(media_bytes).decode('utf-8')
+
+        target_app = f"додатку «{bank_name}»" if bank_name else "мобільного додатку банку"
+
+        content = [
+            {
+                "type": "text",
+                "text": (
+                    f"Проаналізуй надане зображення (скріншот екрана). Це первинна перевірка акаунту перед процедурою перев'язу "
+                    f"(зміни номера телефону) для {target_app}.\n\n"
+                    f"ПРАВИЛА ОЦІНКИ (КРИТИЧНО СУВОРІ):\n"
+                    f"1. На скріншоті має бути зображено екран додатку {target_app}. Якщо це чужий банк або стороннє зображення — "
+                    f"поверни НІ та вкажи причину: «Надіслано скріншот іншого додатку, а не {bank_name or 'потрібного банку'}.»\n"
+                    f"2. Перевір стан акаунту та картки:\n"
+                    f"   - Акаунт/картка повинні бути діючими та не заблокованими.\n"
+                    f"   - Якщо видно червоні написи про заблокування, арешт коштів, обмеження чи закриття картки — "
+                    f"поверни НІ та вкажи причину: «Акаунт або картка заблокована банком, перев'яз неможливий.»\n"
+                    f"3. Якщо скріншот відповідає {target_app} і акаунт/картка в нормальному робочому стані — поверни ТАК.\n\n"
+                    f"Дай відповідь у наступному форматі:\n"
+                    f"Рядок 1: Тільки одне слово ТАК або НІ\n"
+                    f"Рядок 2: Коротке пояснення причини українською мовою."
+                )
+            },
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{b64}"
+                }
+            }
+        ]
+
+        response = await client.chat.completions.create(
+            model=OPENROUTER_MODEL,
+            messages=[
+                {"role": "user", "content": content}
+            ],
+            max_tokens=150,
+            extra_headers={
+                "HTTP-Referer": "https://github.com/shaaaaka/telegram-automation-bot",
+                "X-Title": "Verification Support Bot"
+            }
+        )
+
+        res_text = response.choices[0].message.content.strip()
+        lines = [line.strip() for line in res_text.split('\n') if line.strip()]
+
+        if not lines:
+            return False, "ШІ не повернув відповіді"
+
+        decision = lines[0].upper()
+        reason = lines[1] if len(lines) > 1 else "Оцінено ШІ"
+
+        is_valid = "ТАК" in decision or "YES" in decision
+        return is_valid, reason
+
+    except Exception as e:
+        logger.error(f"Error in verify_relink_initial_screenshot: {e}")
+        return True, f"Помилка ШІ-верифікації: {e} (пропущено)"

@@ -574,7 +574,16 @@ async def handle_assign_line(callback: CallbackQuery, bot: Bot, state: FSMContex
         )
 
     # Відправляємо клієнту інструкцію та номер
-    result = await send_line_assignment_messages(client_id, line_id, bot)
+    from aiogram.fsm.storage.base import StorageKey
+    client_state = FSMContext(
+        storage=state.storage,
+        key=StorageKey(
+            bot_id=bot.id,
+            chat_id=client_id,
+            user_id=client_id
+        )
+    )
+    result = await send_line_assignment_messages(client_id, line_id, bot, state=client_state)
     if not result:
         await callback.answer("Помилка при відправці повідомлень клієнту.", show_alert=True)
         return

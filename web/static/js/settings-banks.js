@@ -163,6 +163,20 @@ window.toggleBankActiveLabel = function(key) {
     checkAccordionFormChanges(key);
 };
 
+window.toggleRelinkInstructionVisibility = function(key) {
+    const cb = document.getElementById(`bank-acc-allow-relink-${key}`);
+    const wrapper = document.getElementById(`relink-instruction-wrapper-${key}`);
+    if (cb && wrapper) {
+        if (cb.checked) {
+            wrapper.style.display = 'flex';
+        } else {
+            wrapper.style.display = 'none';
+        }
+    }
+    // Trigger validation
+    checkAccordionFormChanges(key);
+};
+
 function autoGrowTextarea(element) {
     if (!element) return;
     element.style.height = "auto";
@@ -341,6 +355,9 @@ function renderBankAccordion(templates, activeKey) {
 
     keys.forEach(key => {
         const template = templates[key];
+        const keyAvatar = getBankIcon(key, template.logo_path);
+        const avatarHTML = `<div style="width: 30px; height: 30px; border-radius: 50%; background: ${getBankIconGradient(key, template.logo_path)}; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">${keyAvatar}</div>`;
+        const currentTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         const item = document.createElement('div');
         item.className = 'bank-accordion-item';
         item.id = `bank-accordion-item-${key}`;
@@ -498,6 +515,34 @@ function renderBankAccordion(templates, activeKey) {
                                         <input type="checkbox" id="bank-acc-active-${key}" ${template.is_active !== 0 ? 'checked' : ''} onchange="toggleBankActiveLabel('${key}')">
                                         <span class="bank-status-slider"></span>
                                     </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Relinking Settings Block (General Tab) -->
+                        <div style="margin-top: 20px; padding: 20px; background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; display: flex; flex-direction: column; gap: 16px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
+                                <div style="display: flex; flex-direction: column; gap: 4px; text-align: left;">
+                                    <div style="font-size: 0.9rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                        🔄 Режим «Перев'яз» для цього банку
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: rgba(255,255,255,0.4);">
+                                        Дозволяє клієнтам перев'язати існуючий акаунт банку до нового номера телефону
+                                    </div>
+                                </div>
+                                <label class="switch" style="margin: 0; flex-shrink: 0;">
+                                    <input type="checkbox" id="bank-acc-allow-relink-${key}" ${template.allow_relink ? 'checked' : ''} onchange="toggleRelinkInstructionVisibility('${key}')">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            
+                            <div id="relink-instruction-wrapper-${key}" style="display: ${template.allow_relink ? 'flex' : 'none'}; flex-direction: column; gap: 8px; text-align: left;">
+                                <label class="form-label" style="font-size: 0.8rem; margin: 0; color: rgba(255,255,255,0.7);">
+                                    Інструкція перев'язу для клієнта (необов'язково)
+                                </label>
+                                <textarea id="bank-acc-relink-instr-${key}" class="form-control auto-grow-textarea" rows="2" style="width: 100%; font-family: inherit; font-size: 0.8rem; line-height: 1.4;" placeholder="Наприклад: Зайдіть у Профіль -> Налаштування -> Змінити номер телефону...">${template.relink_instruction_text || ''}</textarea>
+                                <div style="font-size: 0.72rem; color: rgba(255,255,255,0.3);">
+                                    💡 Цей текст буде надіслано клієнту після того, як ШІ підтвердить успішну перевірку скріншота.
                                 </div>
                             </div>
                         </div>
@@ -700,7 +745,7 @@ function renderBankAccordion(templates, activeKey) {
                     <div id="bank-tab-content-${key}-ai" class="bank-tab-content" style="${activeSubTab === 'ai' ? '' : 'display: none;'}">
                         <!-- Verifier Report Template and Mockup Side-by-Side -->
                         <div class="bank-ai-split-grid">
-                            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; height: 100%;">
                                 <div class="bank-settings-section-title" style="margin: 0; font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; min-height: 20px;">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-primary);">
                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -708,8 +753,8 @@ function renderBankAccordion(templates, activeKey) {
                                     </svg>
                                     Шаблон повідомлення для верифікатора
                                 </div>
-                                <textarea id="bank-acc-report-tpl-${key}" class="form-control auto-grow-textarea" rows="7" style="width: 100%; font-family: monospace; font-size: 0.78rem; line-height: 1.4; resize: vertical;" oninput="updateTelegramMockupPreview('${key}')" placeholder="Шаблон звіту...">${template.report_template || `{pib}\n{dob}\n{ipn}\n{phone}\n\nДроп - @{username}\n\nLine {line_id} Return: {line_phone} | {bank}\n\n{code}`}</textarea>
-                                <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
+                                <textarea id="bank-acc-report-tpl-${key}" class="form-control auto-grow-textarea" rows="6" style="width: 100%; font-family: monospace; font-size: 0.78rem; line-height: 1.4; resize: none; height: 180px; overflow-y: auto;" oninput="updateTelegramMockupPreview('${key}')" placeholder="Шаблон звіту...">${template.report_template || `{pib}\n{dob}\n{ipn}\n{phone}\n\nДроп - @{username}\n\nLine {line_id} Return: {line_phone} | {bank}\n\n{code}`}</textarea>
+                                <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px; text-align: left;">
                                     <span style="font-size: 0.75rem; color: rgba(255,255,255,0.35); font-weight: 500;">💡 Доступні змінні (натисніть для вставки):</span>
                                     <div class="tag-pills-container">
                                         <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{pib}')">{pib}</div>
@@ -725,34 +770,76 @@ function renderBankAccordion(templates, activeKey) {
                                         <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{bank}')">{bank}</div>
                                     </div>
                                 </div>
+                                
+                                <!-- AI instructions inside left column -->
+                                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 12px; width: 100%;">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px; color: rgba(255,255,255,0.6);">Специфічні правила ШІ для банку</label>
+                                        <textarea id="bank-acc-airules-${key}" class="form-control auto-grow-textarea" rows="2" style="width: 100%; font-family: inherit; font-size: 0.78rem;" placeholder="Наприклад: Перевіряти ліміти...">${template.ai_rules || ''}</textarea>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px; color: rgba(255,255,255,0.6);">Опис вигляду банку для ШІ (як виглядає додаток, кольори)</label>
+                                        <textarea id="bank-acc-desc-${key}" class="form-control auto-grow-textarea" rows="2" style="width: 100%; font-family: inherit; font-size: 0.78rem;" placeholder="Наприклад: Додаток має...">${template.description || ''}</textarea>
+                                    </div>
+                                </div>
                             </div>
 
-                            <!-- Telegram Mockup Bubble -->
-                            <div class="telegram-mockup-wrapper" style="width: 100%; height: 100%; display: flex; flex-direction: column; text-align: left; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-                                <div style="font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 4px; min-height: 20px;">
+                            <!-- Telegram Mockup Phone Chat Container -->
+                            <div class="telegram-mockup-wrapper" style="width: 100%; display: flex; flex-direction: column; text-align: left; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; align-items: center;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 4px; min-height: 20px; width: 100%;">
                                     <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
                                     Прев'ю в Telegram
                                 </div>
                                 
-                                <div class="telegram-message-bubble" style="background: #182533; border-radius: 10px; padding: 10px 12px; width: 100%; max-width: 320px; box-shadow: 0 1px 2px rgba(0,0,0,0.3); position: relative; display: flex; flex-direction: column; gap: 8px;">
-                                    <div id="telegram-mockup-image-${key}" style="width: 100%; height: 150px; border-radius: 6px; background: ${template.success_screenshot_path ? `url('${template.success_screenshot_path.split(',')[0].trim()}')` : 'rgba(255,255,255,0.03)'} no-repeat center/cover; display: ${template.success_screenshot_path ? 'block' : 'none'}; border: 1px solid rgba(255,255,255,0.06);"></div>
-                                    <div id="telegram-mockup-text-${key}" style="font-size: 0.82rem; color: #fff; line-height: 1.4; white-space: pre-line;">${window.getTelegramMockupHtml(template.report_template, key)}</div>
-                                    <div style="font-size: 0.65rem; color: #7f91a4; align-self: flex-end; margin-top: -4px;">14:38 ✓✓</div>
+                                <!-- Chat Window Container -->
+                                <div style="background: #0e1621; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; width: 100%; max-width: 320px; flex-grow: 1; height: 100%; min-height: 420px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.4); position: relative;">
+                                    
+                                    <!-- Chat Header -->
+                                    <div style="background: #17212b; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; display: flex; align-items: center; gap: 10px; height: 48px; box-sizing: border-box; flex-shrink: 0; z-index: 5;">
+                                        ${avatarHTML}
+                                        <div style="display: flex; flex-direction: column; text-align: left; justify-content: center;">
+                                            <span style="font-size: 0.82rem; font-weight: 600; color: #fff; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">${template.display_name || key}</span>
+                                            <span style="font-size: 0.68rem; color: #708190; line-height: 1.2;">bot</span>
+                                        </div>
+                                        <div style="margin-left: auto; color: #708190; display: flex; gap: 12px; align-items: center;">
+                                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Chat Body (with Telegram message bubbles pattern) -->
+                                    <div class="telegram-mockup-chat-body" style="flex-grow: 1; padding: 12px; display: flex; flex-direction: column; gap: 10px; background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0); background-size: 16px 16px; overflow-y: auto;">
+                                         <!-- Spacer to push messages to bottom -->
+                                         <div style="flex-grow: 1;"></div>
+                                        
+                                        <!-- Message Bubble -->
+                                        <div class="telegram-message-bubble" style="background: #182533; border: 1px solid rgba(255,255,255,0.03); border-radius: 12px 12px 0 12px; width: 100%; max-width: 260px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); align-self: flex-end; display: flex; flex-direction: column; max-height: 280px; overflow-y: auto; position: relative; flex-shrink: 0;">
+                                            <div id="telegram-mockup-image-${key}" class="telegram-mockup-scrollable-image" style="display: ${template.success_screenshot_path ? 'block' : 'none'}; border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(255,255,255,0.02);">
+                                                <img src="${template.success_screenshot_path ? template.success_screenshot_path.split(',')[0].trim() : ''}" onload="const cb = this.closest('.telegram-message-bubble'); if(cb) cb.scrollTop = cb.scrollHeight;">
+                                            </div>
+                                            <div id="telegram-mockup-text-${key}" style="font-size: 0.78rem; color: #fff; line-height: 1.45; white-space: pre-line; word-break: break-word; padding: 10px 12px 12px 12px;">${window.getTelegramMockupHtml(template.report_template, key)}</div>
+                                        </div>
+                                        
+                                    </div>
+                                    
+                                    <!-- Chat Footer -->
+                                    <div style="background: #17212b; border-top: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; display: flex; align-items: center; gap: 10px; height: 44px; box-sizing: border-box; flex-shrink: 0; z-index: 5;">
+                                        <div style="color: #708190; cursor: pointer; display: flex; align-items: center;">
+                                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+                                        </div>
+                                        <div style="flex-grow: 1; background: #242f3d; border-radius: 18px; padding: 6px 12px; font-size: 0.8rem; color: #708190; display: flex; justify-content: space-between; align-items: center; height: 28px; box-sizing: border-box;">
+                                            <span>Повідомлення...</span>
+                                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="transform: rotate(45deg); cursor: pointer;"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                                        </div>
+                                        <div style="color: #5288c1; cursor: pointer; display: flex; align-items: center;">
+                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- AI instruction fields -->
-                        <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 16px;">
-                            <div class="form-group" style="margin: 0;">
-                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Специфічні правила ШІ для банку</label>
-                                <textarea id="bank-acc-airules-${key}" class="form-control auto-grow-textarea" rows="3" style="width: 100%; font-family: inherit;" placeholder="Наприклад: Перевіряти ліміти...">${template.ai_rules || ''}</textarea>
-                            </div>
-                            <div class="form-group" style="margin: 0;">
-                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Опис вигляду банку для ШІ (як виглядає додаток, кольори)</label>
-                                <textarea id="bank-acc-desc-${key}" class="form-control auto-grow-textarea" rows="2" style="width: 100%; font-family: inherit;" placeholder="Наприклад: Додаток має темну тему, помаранчеві кольори, скляні плашки...">${template.description || ''}</textarea>
-                            </div>
-                        </div>
+                        
                     </div>
 
                     <div class="bank-action-buttons-row">
@@ -942,6 +1029,10 @@ function hideAddAccordionBank() {
         if (mockupImg) {
             mockupImg.style.display = 'none';
             mockupImg.style.backgroundImage = 'none';
+            const innerImg = mockupImg.querySelector('img');
+            if (innerImg) {
+                innerImg.src = '';
+            }
         }
         const mockupKey = document.getElementById('new-telegram-mockup-bank-key');
         if (mockupKey) {
@@ -1056,6 +1147,15 @@ async function saveAccordionBankSettings(event, key) {
     const deletionReqInput = document.getElementById(`bank-acc-deletion-req-${key}`);
     const deletion_requirement = deletionReqInput ? deletionReqInput.value : 'none';
     formData.append('deletion_requirement', deletion_requirement);
+
+    const allowRelinkInput = document.getElementById(`bank-acc-allow-relink-${key}`);
+    const allow_relink = allowRelinkInput && allowRelinkInput.checked ? 1 : 0;
+    formData.append('allow_relink', allow_relink);
+
+    const relinkInstrInput = document.getElementById(`bank-acc-relink-instr-${key}`);
+    if (relinkInstrInput) {
+        formData.append('relink_instruction_text', relinkInstrInput.value.trim());
+    }
 
     const downloadRemovedInput = document.getElementById(`bank-acc-download-screenshot-removed-${key}`);
     const download_removed = downloadRemovedInput ? downloadRemovedInput.value : '0';
@@ -1203,6 +1303,11 @@ window.handleFilePreview = function(input, previewId, labelId, isLogo) {
                 if (mockupEl) {
                     mockupEl.style.display = 'block';
                     mockupEl.style.backgroundImage = `url('${e.target.result}')`;
+                    const innerImg = mockupEl.querySelector('img');
+                    if (innerImg) {
+                        innerImg.src = e.target.result;
+                        innerImg.style.display = 'block';
+                    }
                 }
             }
         };
@@ -1354,9 +1459,18 @@ window.resetFileSelection = function(key, type) {
                 if (originalPath) {
                     mockupEl.style.display = 'block';
                     mockupEl.style.backgroundImage = `url('${originalPath}')`;
+                    const innerImg = mockupEl.querySelector('img');
+                    if (innerImg) {
+                        innerImg.src = originalPath;
+                        innerImg.style.display = 'block';
+                    }
                 } else {
                     mockupEl.style.display = 'none';
                     mockupEl.style.backgroundImage = 'none';
+                    const innerImg = mockupEl.querySelector('img');
+                    if (innerImg) {
+                        innerImg.src = '';
+                    }
                 }
             }
         } else if (type === 'screenshot') {
@@ -1389,6 +1503,14 @@ window.updateTelegramMockupPreview = function(key) {
     if (!textarea || !previewTextEl) return;
     
     previewTextEl.innerHTML = window.getTelegramMockupHtml(textarea.value, key);
+    
+    // Automatically scroll to the bottom of the message bubble
+    const bubble = previewTextEl.closest('.telegram-message-bubble');
+    if (bubble) {
+        setTimeout(() => {
+            bubble.scrollTop = bubble.scrollHeight;
+        }, 50);
+    }
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1396,8 +1518,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (newBankKeyInput) {
         newBankKeyInput.addEventListener('input', function() {
             window.updateTelegramMockupPreview('new-bank');
+            
+            // Update new bank mockup title dynamically
+            const titleEl = document.getElementById('new-telegram-mockup-title');
+            if (titleEl) {
+                titleEl.textContent = this.value || 'Новий Банк';
+            }
+            
+            // Update new bank mockup avatar dynamically
+            const avatarEl = document.getElementById('new-telegram-mockup-avatar');
+            if (avatarEl) {
+                avatarEl.textContent = (this.value || 'NB').substring(0, 2).toUpperCase();
+            }
         });
     }
+    
+
 });
 window.removeSavedImage = function(key, type) {
     const hiddenRemoved = document.getElementById(`bank-acc-${type}-removed-${key}`);
@@ -1466,6 +1602,10 @@ window.removeSavedImage = function(key, type) {
             if (mockupEl) {
                 mockupEl.style.display = 'none';
                 mockupEl.style.backgroundImage = 'none';
+                const innerImg = mockupEl.querySelector('img');
+                if (innerImg) {
+                    innerImg.src = '';
+                }
             }
         } else if (type === 'screenshot') {
             iconHTML = `

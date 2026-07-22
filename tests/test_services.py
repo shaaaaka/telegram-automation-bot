@@ -89,3 +89,45 @@ async def test_send_line_assignment_messages_rollback(test_db):
     session = await db.get_session(12345)
     assert session["line_id"] is None
     assert session["status"] == "registered"
+
+class FakeState:
+    def __init__(self):
+        self.data = {}
+        self.state = None
+
+    async def get_data(self):
+        return self.data
+
+    async def update_data(self, **kwargs):
+        self.data.update(kwargs)
+
+    async def set_state(self, state):
+        self.state = state
+
+async def test_send_line_assignment_messages_relink(test_db):
+    # Save a template for izibank with allow_relink = 1
+    await db.save_bank_template(
+        key="izibank",
+        command="/izibank",
+        text="Instruction text",
+        allow_relink=1,
+        relink_instruction_text="Relink instruction"
+    )
+
+    await db.assign_line_to_session(12345, 1)
+
+    fake_bot = FakeBot()
+    fake_state = FakeState()
+    result = await send_line_assignment_messages(12345, 1, fake_bot, state=fake_state)
+
+    assert result is not None
+    assert result["client_msg_id"] == 10
+
+    # The client should have received choice prompt
+    send_texts = [call[2] for call in fake_bot.calls if call[0] == "send_message"]
+    assert any("\u0440\u0435\u0454\u0441\u0442\u0440\u0430\u0446" in t for t in send_texts)
+    
+    # State should be updated
+    assert fake_state.state is not None
+    assert "relink_choice_msg_id" in fake_state.data
+    assert fake_state.data["bank_name"] == "izibank"

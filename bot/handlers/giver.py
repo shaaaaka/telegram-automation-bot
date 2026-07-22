@@ -243,10 +243,13 @@ async def send_first_code_helper_delayed(bot: Bot, client_id: int, line_id: int,
             return
             
         # Якщо користувач вже успішно зареєструвався і перейшов до відправки скріншотів чи вводу пін-коду,
-        # то допоміжне повідомлення надсилати не потрібно!
+        # або проходить перев'яз акаунту, то допоміжне повідомлення надсилати не потрібно!
         from web.core import dp
         if dp:
             state = dp.fsm.resolve_context(bot, chat_id=client_id, user_id=client_id)
+            state_data = await state.get_data()
+            if state_data.get('is_relink'):
+                return
             current_state = await state.get_state()
             if current_state in [
                 "RegistrationStates:waiting_confirm",

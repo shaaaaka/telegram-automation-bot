@@ -200,7 +200,9 @@ async def init_db():
             ("deletion_screenshot_path", "TEXT"),
             ("instruction_text", "TEXT"),
             ("success_text", "TEXT"),
-            ("deletion_text", "TEXT")
+            ("deletion_text", "TEXT"),
+            ("allow_relink", "INTEGER DEFAULT 0"),
+            ("relink_instruction_text", "TEXT")
         ]:
             try:
                 await db.execute(f"ALTER TABLE bank_templates ADD COLUMN {col} {col_def}")
@@ -871,7 +873,9 @@ async def get_all_bank_templates() -> dict:
                     'deletion_screenshot_path': row['deletion_screenshot_path'] if 'deletion_screenshot_path' in row.keys() else None,
                     'instruction_text': row['instruction_text'] if 'instruction_text' in row.keys() else None,
                     'success_text': row['success_text'] if 'success_text' in row.keys() else None,
-                    'deletion_text': row['deletion_text'] if 'deletion_text' in row.keys() else None
+                    'deletion_text': row['deletion_text'] if 'deletion_text' in row.keys() else None,
+                    'allow_relink': row['allow_relink'] if 'allow_relink' in row.keys() else 0,
+                    'relink_instruction_text': row['relink_instruction_text'] if 'relink_instruction_text' in row.keys() else None
                 } for row in rows
             }
 
@@ -899,13 +903,15 @@ async def save_bank_template(
     clear_deletion_screenshot: bool = False,
     instruction_text: str = None,
     success_text: str = None,
-    deletion_text: str = None
+    deletion_text: str = None,
+    allow_relink: int = 0,
+    relink_instruction_text: str = None
 ):
     """Збереження або оновлення шаблону банку"""
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("""
-            INSERT INTO bank_templates (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description, display_name, is_active, deletion_requirement, deletion_screenshot_path, instruction_text, success_text, deletion_text)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO bank_templates (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description, display_name, is_active, deletion_requirement, deletion_screenshot_path, instruction_text, success_text, deletion_text, allow_relink, relink_instruction_text)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(key) DO UPDATE SET
                 command = excluded.command,
                 text = excluded.text,
@@ -924,8 +930,10 @@ async def save_bank_template(
                 deletion_screenshot_path = COALESCE(excluded.deletion_screenshot_path, bank_templates.deletion_screenshot_path),
                 instruction_text = excluded.instruction_text,
                 success_text = excluded.success_text,
-                deletion_text = excluded.deletion_text
-        """, (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description, display_name, is_active, deletion_requirement, deletion_screenshot_path, instruction_text, success_text, deletion_text))
+                deletion_text = excluded.deletion_text,
+                allow_relink = excluded.allow_relink,
+                relink_instruction_text = excluded.relink_instruction_text
+        """, (key, command, text, code_length, logo_path, screenshot_path, download_screenshot_path, success_screenshot_path, report_template, ai_rules, required_screenshots, description, display_name, is_active, deletion_requirement, deletion_screenshot_path, instruction_text, success_text, deletion_text, allow_relink, relink_instruction_text))
         
         if clear_logo:
             await db.execute("UPDATE bank_templates SET logo_path = NULL WHERE key = ?", (key,))

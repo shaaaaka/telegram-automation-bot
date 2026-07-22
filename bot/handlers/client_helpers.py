@@ -18,6 +18,8 @@ class RegistrationStates(StatesGroup):
     waiting_amobank_instruction_confirm = State()
     waiting_lviv_success_confirm = State()
     waiting_deletion_proof = State()
+    waiting_relink_choice = State()
+    waiting_relink_initial_screenshot = State()
 async def register_reg_msg(state: FSMContext, msg_id: int):
     data = await state.get_data()
     msg_ids = data.get("registration_msg_ids", [])
@@ -211,6 +213,8 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
             
     
     anketa_text = anketa_text.strip()
+    if data.get('is_relink'):
+        anketa_text = "🔄 **[ПЕРЕВ'ЯЗ]**\n\n" + anketa_text
     
     from bot.config import get_anketa_chat_id, get_admin_id
     target_chat = get_anketa_chat_id() or get_admin_id()
@@ -799,6 +803,8 @@ async def trigger_sms_code_request(client_id: int, bot: Bot, state: FSMContext, 
             giver_msg = giver_format.format(line_id=line_num, bank_name=display_bank)
         except Exception:
             giver_msg = f"Запрос {line_num} {display_bank}"
+    if state_data.get('is_relink'):
+        giver_msg = giver_msg.replace("Запрос", "Запрос перев'яз")
 
     # Надсилаємо запит постачальнику кодів (Giver)
     from bot.config import get_giver_chat_id, get_admin_id

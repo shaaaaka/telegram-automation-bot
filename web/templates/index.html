@@ -1279,7 +1279,7 @@
 
                                 <!-- Verifier Report Template and Mockup Side-by-Side -->
                                 <div class="bank-ai-split-grid" style="margin-bottom: 20px;">
-                                    <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                                    <div class="bank-ai-input-card">
                                         <div class="bank-settings-section-title" style="margin: 0; font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; min-height: 20px;">
                                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-primary);">
                                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -1287,7 +1287,7 @@
                                             </svg>
                                             Шаблон повідомлення для верифікатора
                                         </div>
-                                        <textarea id="new-bank-report-tpl" class="form-control auto-grow-textarea" rows="7" style="width: 100%; font-family: monospace; font-size: 0.78rem; line-height: 1.4; resize: none; overflow-y: hidden;" oninput="updateTelegramMockupPreview('new-bank'); autoGrowTextarea(this);" placeholder="Шаблон звіту...">{pib}
+                                        <textarea id="new-bank-report-tpl" class="form-control auto-grow-textarea" rows="5" style="width: 100%; font-family: monospace; font-size: 0.78rem; line-height: 1.4; resize: none; height: 180px;" oninput="updateTelegramMockupPreview('new-bank');" placeholder="Шаблон звіту...">{pib}
 {dob}
 {ipn}
 {phone}
@@ -1313,32 +1313,75 @@ Line {line_id} Return: {line_phone} | {bank}
                                                 <div class="tag-pill" onclick="insertPlaceholderTag('new-bank', '{bank}')">{bank}</div>
                                             </div>
                                         </div>
+                                        
+                                        <!-- AI instructions inside left column -->
+                                        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 12px; width: 100%;">
+                                            <div class="form-group" style="margin: 0;">
+                                                <label for="new-bank-airules" class="form-label" style="font-size: 0.8rem; margin-bottom: 6px; color: rgba(255,255,255,0.6);">Специфічні правила ШІ для банку</label>
+                                                <textarea id="new-bank-airules" placeholder="Наприклад: Перевіряти ліміт переказів не менше 50 000 грн..." class="form-control" rows="2" style="width: 100%; resize: none; font-family: inherit; font-size: 0.78rem;" oninput="autoGrowTextarea(this)"></textarea>
+                                            </div>
+                                            <div class="form-group" style="margin: 0;">
+                                                <label for="new-bank-desc" class="form-label" style="font-size: 0.8rem; margin-bottom: 6px; color: rgba(255,255,255,0.6);">Опис вигляду банку для ШІ (як виглядає додаток, кольори)</label>
+                                                <textarea id="new-bank-desc" placeholder="Наприклад: Додаток має темну тему, помаранчеві кольори, скляні плашки..." class="form-control" rows="2" style="width: 100%; resize: none; font-family: inherit; font-size: 0.78rem;" oninput="autoGrowTextarea(this)"></textarea>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <!-- Telegram Mockup Bubble -->
-                                    <div class="telegram-mockup-wrapper" style="width: 100%; height: 100%; display: flex; flex-direction: column; text-align: left; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-                                        <div style="font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 4px; min-height: 20px;">
+                                    <!-- Telegram Mockup Phone Chat Container -->
+                                    <div class="telegram-mockup-wrapper" style="width: 100%; display: flex; flex-direction: column; text-align: left; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; align-items: center;">
+                                        <div style="font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 4px; min-height: 20px; width: 100%;">
                                             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
                                             Прев'ю в Telegram
                                         </div>
                                         
-                                        <div class="telegram-message-bubble" style="background: #182533; border-radius: 10px; padding: 10px 12px; width: 100%; max-width: 320px; box-shadow: 0 1px 2px rgba(0,0,0,0.3); position: relative; display: flex; flex-direction: column; gap: 8px;">
-                                            <div id="new-telegram-mockup-image" style="width: 100%; height: 150px; border-radius: 6px; background: rgba(255,255,255,0.03) no-repeat center/cover; display: none; border: 1px solid rgba(255,255,255,0.06);"></div>
-                                            <div id="new-telegram-mockup-text" style="font-size: 0.82rem; color: #fff; line-height: 1.4; white-space: pre-line;"></div>
-                                            <div style="font-size: 0.65rem; color: #7f91a4; align-self: flex-end; margin-top: -4px;">14:38 ✓✓</div>
+                                        <!-- Chat Window Container -->
+                                        <div style="background: #0e1621; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; width: 100%; max-width: 320px; height: 420px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.4); position: relative;">
+                                            
+                                            <!-- Chat Header -->
+                                            <div style="background: #17212b; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; display: flex; align-items: center; gap: 10px; height: 48px; box-sizing: border-box; flex-shrink: 0; z-index: 5;">
+                                                <div id="new-telegram-mockup-avatar" style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #a855f7, #7c3aed); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.85rem; color: #fff; text-transform: uppercase;">NB</div>
+                                                <div style="display: flex; flex-direction: column; text-align: left; justify-content: center;">
+                                                    <span id="new-telegram-mockup-title" style="font-size: 0.82rem; font-weight: 600; color: #fff; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">Новий Банк</span>
+                                                    <span style="font-size: 0.68rem; color: #708190; line-height: 1.2;">bot</span>
+                                                </div>
+                                                <div style="margin-left: auto; color: #708190; display: flex; gap: 12px; align-items: center;">
+                                                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                                    <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Chat Body -->
+                                            <div class="telegram-mockup-chat-body" style="flex-grow: 1; padding: 12px; display: flex; flex-direction: column; gap: 10px; background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0); background-size: 16px 16px; overflow-y: auto;">
+                                                <!-- Spacer to push messages to bottom -->
+                                                <div style="flex-grow: 1;"></div>
+                                                
+                                                <!-- Message Bubble -->
+                                                <div class="telegram-message-bubble" style="background: #182533; border: 1px solid rgba(255,255,255,0.03); border-radius: 12px 12px 0 12px; width: 100%; max-width: 260px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); align-self: flex-end; display: flex; flex-direction: column; max-height: 280px; overflow-y: auto; position: relative; flex-shrink: 0;">
+                                                    <div id="new-telegram-mockup-image" class="telegram-mockup-scrollable-image" style="display: none; border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(255,255,255,0.02);">
+                                                        <img src="" onload="const cb = this.closest('.telegram-message-bubble'); if(cb) cb.scrollTop = cb.scrollHeight;">
+                                                    </div>
+                                                    <div id="new-telegram-mockup-text" style="font-size: 0.78rem; color: #fff; line-height: 1.45; white-space: pre-line; word-break: break-word; padding: 10px 12px 12px 12px;"></div>
+                                                </div>
+                                                
+                                            </div>
+                                            
+                                            <!-- Chat Footer -->
+                                            <div style="background: #17212b; border-top: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; display: flex; align-items: center; gap: 10px; height: 44px; box-sizing: border-box; flex-shrink: 0; z-index: 5;">
+                                                <div style="color: #708190; cursor: pointer; display: flex; align-items: center;">
+                                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+                                                </div>
+                                                <div style="flex-grow: 1; background: #242f3d; border-radius: 18px; padding: 6px 12px; font-size: 0.8rem; color: #708190; display: flex; justify-content: space-between; align-items: center; height: 28px; box-sizing: border-box;">
+                                                    <span>Повідомлення...</span>
+                                                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="transform: rotate(45deg); cursor: pointer;"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                                                </div>
+                                                <div style="color: #5288c1; cursor: pointer; display: flex; align-items: center;">
+                                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div style="display: flex; flex-direction: column; gap: 16px;">
-                                    <div class="form-group" style="margin: 0;">
-                                        <label for="new-bank-airules" class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Специфічні правила ШІ для банку</label>
-                                        <textarea id="new-bank-airules" placeholder="Наприклад: Перевіряти ліміт переказів не менше 50 000 грн..." class="form-control" rows="3" style="width: 100%; resize: none; overflow-y: hidden; min-height: 80px; font-family: inherit;" oninput="autoGrowTextarea(this)"></textarea>
-                                    </div>
-                                    <div class="form-group" style="margin: 0;">
-                                        <label for="new-bank-desc" class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Опис вигляду банку для ШІ (як виглядає додаток, кольори)</label>
-                                        <textarea id="new-bank-desc" placeholder="Наприклад: Додаток має темну тему, помаранчеві кольори, скляні плашки..." class="form-control" rows="2" style="width: 100%; resize: none; overflow-y: hidden; min-height: 80px; font-family: inherit;" oninput="autoGrowTextarea(this)"></textarea>
-                                    </div>
-                                </div>
+
                                 <div class="bank-action-buttons-row" style="margin-top: 10px; border-top: none; padding-top: 0; width: 100%;">
                                     <div class="bank-action-right-group" style="margin-left: auto; justify-content: flex-end;">
                                         <button type="button" class="btn btn-secondary" onclick="hideAddAccordionBank()" style="padding: 10px 20px;">Скасувати</button>
@@ -1617,7 +1660,7 @@ Line {line_id} Return: {line_phone} | {bank}
     <script src="/static/js/chat.js?v=9.21"></script>
     <script src="/static/js/stats.js?v=9.15"></script>
     <script src="/static/js/settings.js?v=9.18"></script>
-    <script src="/static/js/settings-banks.js?v=9.82"></script>
+    <script src="/static/js/settings-banks.js?v=9.90"></script>
     <script src="/static/js/settings-ai.js?v=9.28"></script>
 
     <script>
@@ -1766,6 +1809,11 @@ Line {line_id} Return: {line_phone} | {bank}
                         if (mockupEl) {
                             mockupEl.style.display = 'block';
                             mockupEl.style.backgroundImage = `url('${dataUrl}')`;
+                            const innerImg = mockupEl.querySelector('img');
+                            if (innerImg) {
+                                innerImg.src = dataUrl;
+                                innerImg.style.display = 'block';
+                            }
                         }
                     }
                 };

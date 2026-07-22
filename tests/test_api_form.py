@@ -15,7 +15,10 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def cleanup_test_bank():
-    # Setup: do nothing
+    # Setup: initialize/migrate database schema
+    import asyncio
+    import bot.database as db
+    asyncio.run(db.init_db())
     yield
     # Teardown: delete DB template
     conn = sqlite3.connect(DB_FILE)
