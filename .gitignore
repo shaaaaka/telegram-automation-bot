@@ -14,12 +14,15 @@ bot.db
 database.db
 *.db
 *.db.bak
+*.sqlite
+*.sqlite3
 
 # Private environment variables
 .env
 
 # Local logs
 *.log
+debug_api.txt
 
 # Scratch scripts
 scratch/

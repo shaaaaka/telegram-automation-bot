@@ -7,8 +7,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+from bot.config import DB_FILE
+
 def main():
-    conn = sqlite3.connect("bot.db")
+    conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
     # Видаляємо всі сесії
