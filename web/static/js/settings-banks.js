@@ -792,7 +792,7 @@ function renderBankAccordion(templates, activeKey) {
                                 </div>
                                 
                                 <!-- Chat Window Container -->
-                                <div style="background: #0e1621; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; width: 100%; max-width: 320px; flex-grow: 1; height: 100%; min-height: 420px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.4); position: relative;">
+                                <div style="background: #0e1621; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; width: 100%; max-width: 320px; height: fit-content; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.4); position: relative;">
                                     
                                     <!-- Chat Header -->
                                     <div style="background: #17212b; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; display: flex; align-items: center; gap: 10px; height: 48px; box-sizing: border-box; flex-shrink: 0; z-index: 5;">
@@ -808,9 +808,7 @@ function renderBankAccordion(templates, activeKey) {
                                     </div>
                                     
                                     <!-- Chat Body (with Telegram message bubbles pattern) -->
-                                    <div class="telegram-mockup-chat-body" style="flex-grow: 1; padding: 12px; display: flex; flex-direction: column; gap: 10px; background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0); background-size: 16px 16px; overflow-y: auto;">
-                                         <!-- Spacer to push messages to bottom -->
-                                         <div style="flex-grow: 1;"></div>
+                                    <div class="telegram-mockup-chat-body" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0); background-size: 16px 16px; overflow-y: auto;">
                                         
                                         <!-- Message Bubble -->
                                         <div class="telegram-message-bubble" style="background: #182533; border: 1px solid rgba(255,255,255,0.03); border-radius: 12px 12px 0 12px; width: 100%; max-width: 260px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); align-self: flex-end; display: flex; flex-direction: column; max-height: 280px; overflow-y: auto; position: relative; flex-shrink: 0;">

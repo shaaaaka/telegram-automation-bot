@@ -4964,6 +4964,12 @@ div.empty-state span:first-child {
     align-items: start;
 }
 
+.telegram-mockup-wrapper {
+    position: sticky;
+    top: 20px;
+    align-self: start;
+}
+
 .bank-ai-input-card {
     background: rgba(255, 255, 255, 0.01);
     border: 1px solid rgba(255, 255, 255, 0.04);
