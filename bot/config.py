@@ -142,17 +142,6 @@ async def get_expected_code_length(bank_name: str) -> int | None:
                     return int(val['code_length'])
     except Exception:
         pass
-
-    norm_lengths = {
-        "kd": 5,
-        "izi": 4,
-        "alliance": 4,
-        "lviv": 4,
-        "amo": 6
-    }
-    for key, length in norm_lengths.items():
-        if key == name_norm or key in name_norm or name_norm in key:
-            return length
     return None
 
 # Кеш налаштувань у пам'яті (для гарячого оновлення ID чатів без перезапуску)

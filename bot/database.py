@@ -326,6 +326,14 @@ async def add_or_update_line(line_id: int, phone_number: str, bank: str):
         """, (line_id, phone_number, bank))
         await db.commit()
 
+async def get_all_lines():
+    """Отримання всіх ліній із бази даних"""
+    async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM lines ORDER BY line_id, bank") as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
 async def get_available_lines():
     """Отримання всіх вільних ліній"""
     async with aiosqlite.connect(DB_FILE) as db:
