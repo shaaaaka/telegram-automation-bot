@@ -45,3 +45,16 @@ The SQLite database stores settings, lines, sessions, and bank templates.
 1. When modifying bank settings forms or rendering bank names in the Web CRM (dropdowns, accordion headers, session cards, lines table), always load the templates list first and use `template.display_name || key` to render the bank name.
 2. Ensure FSM state matches when sending automatic reminder helpers to drops. If FSM state is not in initial registration states (e.g. they are already in `waiting_confirm` or `waiting_password` states), do not send helper advice messages.
 3. Keep uvicorn running as a background task. Do not stop it unless reloading backend python files.
+
+## 5. Pair-Programming & Collaboration Principles (Співпраця та Партнерство)
+1. **Чесна об'єктивна критика (Без підлизування)**:
+   - Ніколи не піддакувати всліп (No "yes-man" attitude).
+   - Аналізувати кожну ідею користувача об'єктивно з точки зору архітектури, безпеки, продуктивності та зручності.
+   - Якщо ідея має недоліки, ризики зламу або ускладнює код — прямо й відкрито про це казати, пояснювати «чому» та пропонувати кращу альтернативу з аргументами (плюси/мінуси).
+2. **Спершу план і узгодження (Спочатку думаємо — потім пишемо)**:
+   - Перед будь-якими правками в коді для нових фіч чи рефакторингу **СПОЧАТКУ надати повну концепцію/план реалізації**.
+   - Ставити необхідні уточнюючі питання, щоб узгодити деталі з першого разу і не переробляти код по 10 разів.
+   - Вносити зміни в код тільки після того, як ідея та архітектура узгоджені.
+3. **Контроль якості та тестів**:
+   - Жодних хаків, які ламають працездатність. Завжди перевіряти код тестами `python -m pytest` та зберігати робочий стан.
+
