@@ -60,6 +60,10 @@ window.switchBankAccordionTab = function(key, tabName, event) {
             targetContent.querySelectorAll('textarea').forEach(ta => {
                 autoGrowTextarea(ta);
             });
+            const chatBody = targetContent.querySelector('.telegram-mockup-chat-body');
+            if (chatBody) {
+                chatBody.scrollTop = chatBody.scrollHeight;
+            }
         }, 10);
     }
 };
@@ -746,7 +750,7 @@ function renderBankAccordion(templates, activeKey) {
                         <!-- Verifier Report Template and Mockup Side-by-Side -->
                         <div class="bank-ai-split-grid">
                             <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; height: 100%;">
-                                <div class="bank-settings-section-title" style="margin: 0; font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; min-height: 20px;">
+                                <div class="bank-settings-section-title" style="margin: 0 0 10px 0; font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; height: 20px; box-sizing: border-box;">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-primary);">
                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                                         <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -785,37 +789,37 @@ function renderBankAccordion(templates, activeKey) {
                             </div>
 
                             <!-- Telegram Mockup Phone Chat Container -->
-                            <div class="telegram-mockup-wrapper" style="width: 100%; display: flex; flex-direction: column; text-align: left; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; align-items: center;">
-                                <div style="font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 4px; min-height: 20px; width: 100%;">
-                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                            <div class="telegram-mockup-wrapper" style="width: 100%; display: flex; flex-direction: column; text-align: left; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; align-items: center; align-self: start; position: sticky; top: 20px;">
+                                <div style="margin: 0 0 10px 0; font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; height: 20px; box-sizing: border-box; width: 100%;">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-primary);"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
                                     Прев'ю в Telegram
                                 </div>
                                 
                                 <!-- Chat Window Container -->
-                                <div style="background: #0e1621; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; width: 100%; max-width: 320px; height: fit-content; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.4); position: relative;">
+                                <div id="telegram-mockup-container-${key}" class="telegram-mockup-chat-container" style="background: #0e1621; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; width: 100%; max-width: 360px; height: ${localStorage.getItem('telegram_mockup_custom_height') || '535px'}; min-height: 360px; max-height: 900px; resize: vertical; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.4); position: relative;" onmouseup="saveTelegramMockupCustomHeight(this)" ontouchend="saveTelegramMockupCustomHeight(this)">
                                     
                                     <!-- Chat Header -->
-                                    <div style="background: #17212b; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; display: flex; align-items: center; gap: 10px; height: 48px; box-sizing: border-box; flex-shrink: 0; z-index: 5;">
+                                    <div style="background: #17212b; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 10px 14px; display: flex; align-items: center; gap: 10px; height: 50px; box-sizing: border-box; flex-shrink: 0; z-index: 5;">
                                         ${avatarHTML}
                                         <div style="display: flex; flex-direction: column; text-align: left; justify-content: center;">
-                                            <span style="font-size: 0.82rem; font-weight: 600; color: #fff; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">${template.display_name || key}</span>
-                                            <span style="font-size: 0.68rem; color: #708190; line-height: 1.2;">bot</span>
+                                            <span style="font-size: 0.86rem; font-weight: 600; color: #fff; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;">${template.display_name || key}</span>
+                                            <span style="font-size: 0.70rem; color: #708190; line-height: 1.2;">bot</span>
                                         </div>
                                         <div style="margin-left: auto; color: #708190; display: flex; gap: 12px; align-items: center;">
-                                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                                            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
                                         </div>
                                     </div>
                                     
                                     <!-- Chat Body (with Telegram message bubbles pattern) -->
-                                    <div class="telegram-mockup-chat-body" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0); background-size: 16px 16px; overflow-y: auto;">
+                                    <div class="telegram-mockup-chat-body" style="padding: 14px; display: flex; flex-direction: column; gap: 12px; background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0); background-size: 16px 16px; overflow-y: auto; flex-grow: 1;">
                                         
                                         <!-- Message Bubble -->
-                                        <div class="telegram-message-bubble" style="background: #182533; border: 1px solid rgba(255,255,255,0.03); border-radius: 12px 12px 0 12px; width: 100%; max-width: 260px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); align-self: flex-end; display: flex; flex-direction: column; max-height: 280px; overflow-y: auto; position: relative; flex-shrink: 0;">
+                                        <div class="telegram-message-bubble" style="background: #182533; border: 1px solid rgba(255,255,255,0.03); border-radius: 14px 14px 0 14px; width: 100%; max-width: 290px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); align-self: flex-end; display: flex; flex-direction: column; position: relative; flex-shrink: 0; overflow: hidden;">
                                             <div id="telegram-mockup-image-${key}" class="telegram-mockup-scrollable-image" style="display: ${template.success_screenshot_path ? 'block' : 'none'}; border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(255,255,255,0.02);">
-                                                <img src="${template.success_screenshot_path ? template.success_screenshot_path.split(',')[0].trim() : ''}" onload="const cb = this.closest('.telegram-message-bubble'); if(cb) cb.scrollTop = cb.scrollHeight;">
+                                                <img src="${template.success_screenshot_path ? template.success_screenshot_path.split(',')[0].trim() : ''}" style="width: 100%; height: auto; display: block;" onload="const cb = this.closest('.telegram-mockup-chat-body'); if(cb) cb.scrollTop = cb.scrollHeight;">
                                             </div>
-                                            <div id="telegram-mockup-text-${key}" style="font-size: 0.78rem; color: #fff; line-height: 1.45; white-space: pre-line; word-break: break-word; padding: 10px 12px 12px 12px;">${window.getTelegramMockupHtml(template.report_template, key)}</div>
+                                            <div id="telegram-mockup-text-${key}" style="font-size: 0.82rem; color: #fff; line-height: 1.45; white-space: pre-line; word-break: break-word; padding: 12px 14px;">${window.getTelegramMockupHtml(template.report_template, key)}</div>
                                         </div>
                                         
                                     </div>
@@ -1493,6 +1497,17 @@ window.cancelAccordionEdit = async function(key) {
     }
 };
 
+window.saveTelegramMockupCustomHeight = function(el) {
+    if (el && el.style && el.style.height) {
+        localStorage.setItem('telegram_mockup_custom_height', el.style.height);
+        document.querySelectorAll('.telegram-mockup-chat-container').forEach(c => {
+            if (c !== el) {
+                c.style.height = el.style.height;
+            }
+        });
+    }
+};
+
 window.updateTelegramMockupPreview = function(key) {
     const textareaId = key === 'new-bank' ? 'new-bank-report-tpl' : `bank-acc-report-tpl-${key}`;
     const previewTextId = key === 'new-bank' ? 'new-telegram-mockup-text' : `telegram-mockup-text-${key}`;
@@ -1502,12 +1517,10 @@ window.updateTelegramMockupPreview = function(key) {
     
     previewTextEl.innerHTML = window.getTelegramMockupHtml(textarea.value, key);
     
-    // Automatically scroll to the bottom of the message bubble
-    const bubble = previewTextEl.closest('.telegram-message-bubble');
-    if (bubble) {
-        setTimeout(() => {
-            bubble.scrollTop = bubble.scrollHeight;
-        }, 50);
+    // Automatically scroll to the bottom of the chat body to reveal applicant text data
+    const chatBody = previewTextEl.closest('.telegram-mockup-chat-body');
+    if (chatBody) {
+        chatBody.scrollTop = chatBody.scrollHeight;
     }
 };
 

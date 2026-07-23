@@ -4958,7 +4958,7 @@ div.empty-state span:first-child {
 
 .bank-ai-split-grid {
     display: grid;
-    grid-template-columns: 1fr 340px;
+    grid-template-columns: 1fr 380px;
     gap: 20px;
     margin-top: 8px;
     align-items: start;
