@@ -2,7 +2,7 @@ import aiosqlite
 import contextvars
 import asyncio
 import logging
-from bot.config import DB_FILE
+import bot.database as db_mod
 
 current_sender = contextvars.ContextVar("current_sender", default="bot")
 chat_message_callbacks = []
@@ -10,7 +10,7 @@ active_subscriptions = {}
 
 async def log_verification_start(client_id: int, username: str, bank: str, phone_number: str):
     """Логування початку верифікації для лінії"""
-    async with aiosqlite.connect(DB_FILE) as db:
+    async with aiosqlite.connect(db_mod.DB_FILE) as db:
         await db.execute("""
             UPDATE sessions
             SET assigned_at = CURRENT_TIMESTAMP, last_reminder_sent_at = NULL
@@ -25,7 +25,7 @@ async def log_verification_start(client_id: int, username: str, bank: str, phone
 
 async def log_verification_end(client_id: int, bank: str, status: str):
     """Логування завершення верифікації (успіх/відмова/випуск)"""
-    async with aiosqlite.connect(DB_FILE) as db:
+    async with aiosqlite.connect(db_mod.DB_FILE) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT id, assigned_at FROM bank_verifications
@@ -45,7 +45,7 @@ async def log_verification_end(client_id: int, bank: str, status: str):
 
 async def get_client_verification_history(client_id: int):
     """Отримання історії верифікацій клієнта"""
-    async with aiosqlite.connect(DB_FILE) as db:
+    async with aiosqlite.connect(db_mod.DB_FILE) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT bank, status, assigned_at, completed_at, phone_number, duration_seconds
@@ -59,7 +59,7 @@ async def get_client_verification_history(client_id: int):
 
 async def get_statistics() -> dict:
     """Отримання агрегованої статистики для веб-панелі"""
-    async with aiosqlite.connect(DB_FILE) as db:
+    async with aiosqlite.connect(db_mod.DB_FILE) as db:
         db.row_factory = aiosqlite.Row
         
         async with db.execute("""
@@ -104,13 +104,13 @@ async def get_statistics() -> dict:
 
 async def clear_statistics():
     """Видалення всієї статистики верифікацій"""
-    async with aiosqlite.connect(DB_FILE) as db:
+    async with aiosqlite.connect(db_mod.DB_FILE) as db:
         await db.execute("DELETE FROM bank_verifications")
         await db.commit()
 
 async def log_chat_message(client_id: int, sender: str, message_text: str = None, photo_id: str = None):
     """Збереження повідомлення в історію чату"""
-    async with aiosqlite.connect(DB_FILE) as db:
+    async with aiosqlite.connect(db_mod.DB_FILE) as db:
         await db.execute("""
             INSERT INTO chat_logs (client_id, sender, message_text, photo_id)
             VALUES (?, ?, ?, ?)
@@ -125,7 +125,7 @@ async def log_chat_message(client_id: int, sender: str, message_text: str = None
 
 async def get_chat_logs(client_id: int):
     """Отримання всієї історії чату для конкретного клієнта"""
-    async with aiosqlite.connect(DB_FILE) as db:
+    async with aiosqlite.connect(db_mod.DB_FILE) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT * FROM chat_logs WHERE client_id = ? ORDER BY created_at ASC
@@ -135,6 +135,6 @@ async def get_chat_logs(client_id: int):
 
 async def clear_chat_logs(client_id: int):
     """Видалення всієї історії чату для конкретного клієнта"""
-    async with aiosqlite.connect(DB_FILE) as db:
+    async with aiosqlite.connect(db_mod.DB_FILE) as db:
         await db.execute("DELETE FROM chat_logs WHERE client_id = ?", (client_id,))
         await db.commit()
