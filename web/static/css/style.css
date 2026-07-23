@@ -3721,6 +3721,10 @@ input[type=number] {
     visibility: hidden;
 }
 
+.chat-client-info-panel.no-transition {
+    transition: none !important;
+}
+
 .chat-client-info-panel.visible {
     margin-right: 0;
     opacity: 1;
@@ -3728,11 +3732,14 @@ input[type=number] {
 }
 
 .client-panel-header {
-    padding: 16px 18px;
+    padding: 14px 20px;
+    height: 71px;
+    box-sizing: border-box;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    background: rgba(10, 14, 28, 0.4);
 }
 
 .client-panel-title {

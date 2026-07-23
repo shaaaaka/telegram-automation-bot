@@ -379,6 +379,9 @@ async function toggleAISetting(clientId) {
                         btn.title = 'ШІ працює. Натисніть, щоб вимкнути.';
                     }
                 }
+                if (session && window.renderClientInfoPanel) {
+                    window.renderClientInfoPanel(session);
+                }
             }
             renderChatSidebar();
         } else {
@@ -1779,6 +1782,11 @@ window.renderClientInfoPanel = function(session) {
         panel.classList.remove('visible');
         if (btn) btn.classList.remove('active');
     }
+    
+    // Enable manual toggle transitions after initial render
+    setTimeout(() => {
+        panel.classList.remove('no-transition');
+    }, 150);
 };
 
 

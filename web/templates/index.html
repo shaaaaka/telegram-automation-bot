@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=19.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=19.1">
 </head>
 <body>
     <div class="container">
@@ -169,6 +169,17 @@
                 <div class="chat-client-info-panel" id="chat-client-info-panel">
                     <!-- Динамічні дані клієнта -->
                 </div>
+                <script>
+                    (function() {
+                        try {
+                            const saved = localStorage.getItem('chat_client_panel_visible');
+                            const p = document.getElementById('chat-client-info-panel');
+                            if (p && (saved === 'true' || saved === null)) {
+                                p.classList.add('visible', 'no-transition');
+                            }
+                        } catch(e) {}
+                    })();
+                </script>
             </div>
         </div>
 
@@ -1662,7 +1673,7 @@ Line {line_id} Return: {line_phone} | {bank}
 
     <script src="/static/js/main.js?v=9.25"></script>
     <script src="/static/js/control.js?v=9.22"></script>
-    <script src="/static/js/chat.js?v=9.64"></script>
+    <script src="/static/js/chat.js?v=9.66"></script>
     <script src="/static/js/stats.js?v=9.15"></script>
     <script src="/static/js/settings.js?v=9.18"></script>
     <script src="/static/js/settings-banks.js?v=17.2"></script>
