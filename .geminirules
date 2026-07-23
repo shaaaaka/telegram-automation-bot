@@ -1,6 +1,17 @@
 # Antigravity Rules for Automizer (Telegram Automation Bot & CRM)
 
+> 🔴 **STRICT MANDATE (NON-NEGOTIABLE)**:
+> **НЕ РОБИТИ ЖОДНИХ ПРАВОК У КОДІ БЕЗ ПОПЕРЕДНЬОГО УЗГОДЖЕННЯ В ЧАТІ!**
+> Перед будь-якими змінами в коді проєктних файлів асистент ЗОБОВ'ЯЗАНИЙ:
+> 1. Написати **ідею та план прямо у звичайне повідомлення чату** (без авто-акцептів та складних UI-форм).
+> 2. Задати всі уточнюючі питання.
+> 3. **ЗУПИНИТИСЯ і ДОЧЕКАТИСЯ** звичайної відповіді/схвалення від користувача в чаті.
+> 4. Тільки після вашого «ОК / Роби» вносити зміни в код!
+> *(Див. COLLABORATION.md Розділ 2)*
+
 This workspace instructions file helps Antigravity agents understand the project structure, paths, database schema, and operational commands immediately upon starting a session.
+
+
 
 ## 1. System Environment & Commands
 - **Operating System**: Windows.
@@ -61,3 +72,10 @@ The SQLite database stores settings, lines, sessions, and bank templates.
 4. **Контроль якості та тестів**:
    - Жодних хаків, які ламають працездатність. Завжди перевіряти код тестами `python -m pytest` та зберігати робочий стан.
 
+## 6. Active Project Skills
+Antigravity must active and adhere to the guidelines in `.agents/skills/` during development:
+- **api-builder**: [SKILL.md](file:///d:/AntigravityProject/Automizer/.agents/skills/api-builder/SKILL.md) (FastAPI, Pydantic V2, REST/WebSocket schemas)
+- **ai-ml-developer**: [SKILL.md](file:///d:/AntigravityProject/Automizer/.agents/skills/ai-ml-developer/SKILL.md) (Async OpenAI, prompt engineering, token economy)
+- **sql-optimization**: [SKILL.md](file:///d:/AntigravityProject/Automizer/.agents/skills/sql-optimization/SKILL.md) (SQLite/aiosqlite WAL mode, indexing, parameterization)
+- **code-reviewer**: [SKILL.md](file:///d:/AntigravityProject/Automizer/.agents/skills/code-reviewer/SKILL.md) (Contract integrity, error safety, zero breaking changes)
+- **frontend-design**: [SKILL.md](file:///d:/AntigravityProject/Automizer/.agents/skills/frontend-design/SKILL.md) (Web CRM design, responsive layouts)
