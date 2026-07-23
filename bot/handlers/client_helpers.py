@@ -292,8 +292,14 @@ async def continue_after_phone(message: Message, state: FSMContext, bot: Bot, cl
         except Exception:
             pass
     else:
+        state_data = await state.get_data() if state else {}
+        if state_data.get('is_relink'):
+            msg_completion = f"Перев'яз для банку {bank_name} успішно завершено. Очікуйте наступний номер."
+        else:
+            msg_completion = f"Верифікацію для банку {bank_name} завершено. Очікуйте наступний номер."
+
         await message.answer(
-            f"Верифікацію для банку {bank_name} завершено. Очікуйте наступний номер.",
+            msg_completion,
             reply_markup=ReplyKeyboardRemove()
         )
         

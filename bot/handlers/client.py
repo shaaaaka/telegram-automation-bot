@@ -987,10 +987,17 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
                     await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
                     await state.set_state(RegistrationStates.waiting_phone)
             else:
-                success_text = (
-                    "Дякую! Усі скріншоти прийнято.\n\n"
-                    "Який пін-код чи пароль ставали на додаток?"
-                )
+                state_data = await state.get_data()
+                if state_data.get('is_relink'):
+                    success_text = (
+                        "Дякую! Усі скріншоти прийнято.\n\n"
+                        "Який пін-код стояв на застосунку?"
+                    )
+                else:
+                    success_text = (
+                        "Дякую! Усі скріншоти прийнято.\n\n"
+                        "Який пін-код чи пароль ставали на додаток?"
+                    )
                 await message.answer(success_text, reply_markup=ReplyKeyboardRemove())
                 await state.set_state(RegistrationStates.waiting_password)
             return
@@ -1279,13 +1286,16 @@ async def handle_relink_choice(callback: CallbackQuery, state: FSMContext, bot: 
             await callback.message.answer(relink_msg)
         await callback.answer("Обрано Перев'яз")
     else:
+        client_id = callback.from_user.id
         await state.update_data(is_relink=False, bank_name=bank_key)
         try:
             await callback.message.delete()
         except Exception:
             pass
         from bot.services.line_assignment import send_assigned_phone_to_client
-        await send_assigned_phone_to_client(callback.from_user.id, line_id, bot, is_relink=False)
+        await send_assigned_phone_to_client(client_id, line_id, bot, is_relink=False)
+        await db.set_session_status(client_id, 'number_assigned')
+        await state.set_state(RegistrationStates.waiting_code)
         await callback.answer("Обрано Нову реєстрацію")
 
 @router.message(RegistrationStates.waiting_relink_initial_screenshot, F.chat.type == "private")
@@ -1332,14 +1342,15 @@ async def process_relink_initial_screenshot(message: Message, state: FSMContext,
         if is_valid:
             client_id = message.from_user.id
             
-            await state.update_data(initial_relink_photo_id=media_id)
+            await state.update_data(initial_relink_photo_id=media_id, is_relink=True)
+            await db.set_session_status(client_id, 'number_assigned')
             
             # Повідомляємо клієнту про успішну перевірку та надсилаємо призначений номер
             await message.answer("Акаунт перевірено, все ок! 👍")
             
             from bot.services.line_assignment import send_assigned_phone_to_client
             await send_assigned_phone_to_client(client_id, line_id, bot, is_relink=True)
-            await state.set_state(RegistrationStates.waiting_phone)
+            await state.set_state(RegistrationStates.waiting_code)
             
             # Сповіщаємо адміна / гівера про Перев'яз
             from bot.config import get_admin_id

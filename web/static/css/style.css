@@ -3705,6 +3705,119 @@ input[type=number] {
     border-radius: 10px;
 }
 
+/* Collapsible Chat Client Info Panel */
+.chat-client-info-panel {
+    width: 320px;
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(10, 14, 28, 0.75);
+    backdrop-filter: blur(12px);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    margin-right: -320px;
+    opacity: 0;
+    visibility: hidden;
+}
+
+.chat-client-info-panel.visible {
+    margin-right: 0;
+    opacity: 1;
+    visibility: visible;
+}
+
+.client-panel-header {
+    padding: 16px 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.client-panel-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.3px;
+}
+
+.client-panel-close-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.client-panel-close-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.client-panel-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.client-panel-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+}
+
+.tg-info-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: background 0.2s ease;
+}
+
+.tg-info-item:last-child {
+    border-bottom: none;
+}
+
+.tg-info-item:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.tg-info-icon {
+    color: #a78bfa;
+    flex-shrink: 0;
+}
+
+.tg-info-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+}
+
+.tg-info-val {
+    font-size: 0.88rem;
+    color: #e2e8f0;
+    font-weight: 500;
+    word-break: normal;
+    overflow-wrap: break-word;
+    line-height: 1.3;
+}
+
+.tg-info-label {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.45);
+    font-weight: 400;
+}
+
 /* Chat Item */
 .chat-item {
     display: flex;
@@ -4097,7 +4210,9 @@ input[type=number] {
 /* Chat Window Actions Dropdown Menu */
 .chat-window-actions {
     position: relative;
-    display: inline-block;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .chat-actions-btn {
@@ -4124,6 +4239,13 @@ input[type=number] {
 
 .chat-actions-btn:active {
     background: rgba(255, 255, 255, 0.12);
+}
+
+.chat-actions-btn.active {
+    background: rgba(139, 92, 246, 0.18) !important;
+    border: 1px solid rgba(167, 139, 250, 0.4) !important;
+    color: #a78bfa !important;
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.35) !important;
 }
 
 .chat-actions-dropdown {
@@ -4899,30 +5021,33 @@ div.empty-state span:first-child {
 }
 
 .tab-btn-sub {
-    background: transparent;
-    border: 1px solid transparent;
-    color: rgba(255, 255, 255, 0.4);
-    padding: 8px 16px;
-    font-size: 0.82rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.6);
+    padding: 8px 18px;
+    font-size: 0.83rem;
     font-weight: 600;
     cursor: pointer;
-    border-radius: 8px;
-    transition: all 0.2s ease-in-out;
+    border-radius: 10px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     user-select: none;
 }
 
 .tab-btn-sub:hover {
     color: #ffffff;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.18);
+    transform: translateY(-1px);
 }
 
 .tab-btn-sub.active {
-    color: var(--accent-primary) !important;
-    background: rgba(139, 92, 246, 0.1) !important;
-    border-color: rgba(139, 92, 246, 0.15) !important;
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+    border-color: rgba(167, 139, 250, 0.5) !important;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4) !important;
 }
 
 .bank-tab-content {
@@ -5002,10 +5127,14 @@ div.empty-state span:first-child {
 .bank-action-buttons-row {
     display: flex;
     justify-content: space-between;
-    margin-top: 8px;
-    border-top: 1px solid rgba(255,255,255,0.05);
-    padding-top: 16px;
+    margin-top: 18px;
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    border-radius: 12px;
+    padding: 12px 18px;
     align-items: center;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .bank-action-right-group {
@@ -5107,28 +5236,31 @@ div.empty-state span:first-child {
     margin-bottom: 8px;
 }
 .tag-pill {
-    background: rgba(139, 92, 246, 0.08);
-    border: 1px solid rgba(139, 92, 246, 0.2);
-    color: #c084fc;
-    padding: 4px 10px;
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    color: #d8b4fe;
+    padding: 5px 12px;
     border-radius: 8px;
-    font-size: 0.74rem;
-    font-family: monospace;
+    font-size: 0.76rem;
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
     display: inline-flex;
     align-items: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
 }
 .tag-pill:hover {
-    background: rgba(139, 92, 246, 0.18);
-    border-color: rgba(139, 92, 246, 0.35);
-    color: #d8b4fe;
-    transform: translateY(-1px);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.3));
+    border-color: #a78bfa;
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
 }
 .tag-pill:active {
-    transform: translateY(0);
-    background: rgba(139, 92, 246, 0.25);
+    transform: scale(0.95);
+    background: rgba(99, 102, 241, 0.4);
 }
 
 /* --- Settings general layout 2-columns on desktop --- */

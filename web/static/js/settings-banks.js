@@ -134,6 +134,10 @@ window.checkAccordionFormChanges = function(key) {
         btnSave.disabled = false;
         btnSave.style.opacity = '1';
         btnSave.style.cursor = 'pointer';
+        btnSave.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+        btnSave.style.boxShadow = '0 4px 15px rgba(16, 185, 129, 0.4)';
+        btnSave.style.border = 'none';
+        btnSave.style.color = '#ffffff';
         if (btnCancel) {
             btnCancel.setAttribute('data-has-changes', 'true');
         }
@@ -141,6 +145,10 @@ window.checkAccordionFormChanges = function(key) {
         btnSave.disabled = true;
         btnSave.style.opacity = '0.4';
         btnSave.style.cursor = 'not-allowed';
+        btnSave.style.background = 'rgba(255,255,255,0.05)';
+        btnSave.style.boxShadow = 'none';
+        btnSave.style.border = '1px solid rgba(255,255,255,0.1)';
+        btnSave.style.color = 'rgba(255,255,255,0.6)';
         if (btnCancel) {
             btnCancel.setAttribute('data-has-changes', 'false');
         }
@@ -173,6 +181,13 @@ window.toggleRelinkInstructionVisibility = function(key) {
     if (cb && wrapper) {
         if (cb.checked) {
             wrapper.style.display = 'flex';
+            const textarea = document.getElementById(`bank-acc-relink-instr-${key}`);
+            if (textarea) {
+                setTimeout(() => {
+                    if (window.autoGrowTextarea) window.autoGrowTextarea(textarea);
+                    else if (typeof autoGrowTextarea === 'function') autoGrowTextarea(textarea);
+                }, 20);
+            }
         } else {
             wrapper.style.display = 'none';
         }
@@ -524,14 +539,22 @@ function renderBankAccordion(templates, activeKey) {
                         </div>
 
                         <!-- Relinking Settings Block (General Tab) -->
-                        <div style="margin-top: 20px; padding: 20px; background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; display: flex; flex-direction: column; gap: 16px;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
-                                <div style="display: flex; flex-direction: column; gap: 4px; text-align: left;">
-                                    <div style="font-size: 0.9rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
-                                        🔄 Режим «Перев'яз» для цього банку
+                        <div style="margin-top: 20px; padding: 18px 20px; background: linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005)); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; display: flex; flex-direction: column; gap: 16px; transition: all 0.3s ease;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+                                <div style="display: flex; align-items: center; gap: 14px; text-align: left;">
+                                    <div style="width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(99, 102, 241, 0.18)); border: 1px solid rgba(139, 92, 246, 0.3); display: flex; align-items: center; justify-content: center; color: #c084fc; flex-shrink: 0; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                        </svg>
                                     </div>
-                                    <div style="font-size: 0.75rem; color: rgba(255,255,255,0.4);">
-                                        Дозволяє клієнтам перев'язати існуючий акаунт банку до нового номера телефону
+                                    <div style="display: flex; flex-direction: column; gap: 3px;">
+                                        <div style="font-size: 0.92rem; font-weight: 600; color: #ffffff; letter-spacing: -0.2px;">
+                                            Режим «Перев'яз» для цього банку
+                                        </div>
+                                        <div style="font-size: 0.76rem; color: rgba(255,255,255,0.6); line-height: 1.35;">
+                                            Дозволяє клієнтам перев'язати існуючий акаунт банку до нового номера телефону
+                                        </div>
                                     </div>
                                 </div>
                                 <label class="switch" style="margin: 0; flex-shrink: 0;">
@@ -540,13 +563,14 @@ function renderBankAccordion(templates, activeKey) {
                                 </label>
                             </div>
                             
-                            <div id="relink-instruction-wrapper-${key}" style="display: ${template.allow_relink ? 'flex' : 'none'}; flex-direction: column; gap: 8px; text-align: left;">
-                                <label class="form-label" style="font-size: 0.8rem; margin: 0; color: rgba(255,255,255,0.7);">
+                            <div id="relink-instruction-wrapper-${key}" style="display: ${template.allow_relink ? 'flex' : 'none'}; flex-direction: column; gap: 10px; text-align: left; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 4px;">
+                                <label class="form-label" style="font-size: 0.8rem; margin: 0; color: rgba(255,255,255,0.8); font-weight: 500;">
                                     Інструкція перев'язу для клієнта (необов'язково)
                                 </label>
-                                <textarea id="bank-acc-relink-instr-${key}" class="form-control auto-grow-textarea" rows="2" style="width: 100%; font-family: inherit; font-size: 0.8rem; line-height: 1.4;" placeholder="Наприклад: Зайдіть у Профіль -> Налаштування -> Змінити номер телефону...">${template.relink_instruction_text || ''}</textarea>
-                                <div style="font-size: 0.72rem; color: rgba(255,255,255,0.3);">
-                                    💡 Цей текст буде надіслано клієнту після того, як ШІ підтвердить успішну перевірку скріншота.
+                                <textarea id="bank-acc-relink-instr-${key}" class="form-control auto-grow-textarea" rows="2" style="width: 100%; min-height: 65px; box-sizing: border-box; font-family: inherit; font-size: 0.82rem; line-height: 1.45; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; padding: 10px 12px;" placeholder="Наприклад: Зайдіть у Профіль -> Налаштування -> Змінити номер телефону...">${template.relink_instruction_text || ''}</textarea>
+                                <div style="font-size: 0.74rem; color: rgba(255,255,255,0.45); display: flex; align-items: center; gap: 6px;">
+                                    <span>💡</span>
+                                    <span>Цей текст буде надіслано клієнту після того, як ШІ підтвердить успішну перевірку скріншота.</span>
                                 </div>
                             </div>
                         </div>

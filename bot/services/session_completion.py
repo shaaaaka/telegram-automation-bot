@@ -27,6 +27,10 @@ async def send_completion_client_messages(
         except Exception as e:
             logger.error("Помилка видалення кнопки у клієнта: %s", e)
 
+    is_relink = False
+    if session:
+        is_relink = bool(session.get("is_relink"))
+
     if not remaining:
         if is_admin_mode:
             text = "Роботу завершили, дякуємо за співпрацю."
@@ -37,10 +41,16 @@ async def send_completion_client_messages(
                 is_persistent=True,
             )
         else:
-            text = (
-                f"Верифікацію для банку {bank_name} завершено. "
-                "Всі обрані банки пройдено, очікуйте на рішення адміністратора."
-            )
+            if is_relink:
+                text = (
+                    f"Перев'яз для банку {bank_name} успішно завершено. "
+                    "Всі обрані банки пройдено, очікуйте на рішення адміністратора."
+                )
+            else:
+                text = (
+                    f"Верифікацію для банку {bank_name} завершено. "
+                    "Всі обрані банки пройдено, очікуйте на рішення адміністратора."
+                )
             keyboard = ReplyKeyboardRemove()
     else:
         if result == "failure":
@@ -49,10 +59,16 @@ async def send_completion_client_messages(
                 "Будь ласка, зачекайте, ми призначимо вам новий номер для цього банку."
             )
         else:
-            text = (
-                f"Верифікацію для банку {bank_name} завершено. "
-                "Очікуйте наступний номер."
-            )
+            if is_relink:
+                text = (
+                    f"Перев'яз для банку {bank_name} успішно завершено. "
+                    "Очікуйте наступний номер."
+                )
+            else:
+                text = (
+                    f"Верифікацію для банку {bank_name} завершено. "
+                    "Очікуйте наступний номер."
+                )
 
         if is_admin_mode:
             keyboard = ReplyKeyboardMarkup(

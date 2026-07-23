@@ -390,6 +390,42 @@ async function toggleAISetting(clientId) {
     }
 }
 
+window.openClientControlCard = function(clientId) {
+    if (!clientId) return;
+
+    if (window.switchTab) {
+        window.switchTab('control');
+    }
+    
+    if (window.expandedSessions) {
+        window.expandedSessions.add(Number(clientId));
+        try {
+            localStorage.setItem('expandedSessions', JSON.stringify(Array.from(window.expandedSessions)));
+        } catch (e) {}
+    }
+
+    setTimeout(() => {
+        const card = document.querySelector(`.session-card[data-id="${clientId}"]`);
+        if (card) {
+            card.classList.add('expanded');
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            card.style.transition = 'box-shadow 0.4s ease, border-color 0.4s ease';
+            card.style.boxShadow = '0 0 25px rgba(139, 92, 246, 0.7)';
+            card.style.borderColor = '#8b5cf6';
+            
+            setTimeout(() => {
+                card.style.boxShadow = '';
+                card.style.borderColor = '';
+            }, 2500);
+        } else {
+            if (window.showToast) {
+                window.showToast("Сесія відсутня в активних або знаходиться в архіві", "warning");
+            }
+        }
+    }, 150);
+};
+
 async function selectChatClient(clientId) {
     if (window.resetViewportScale) window.resetViewportScale();
     selectedChatClientId = clientId;
@@ -438,6 +474,12 @@ async function selectChatClient(clientId) {
                 </div>
             </div>
             <div class="chat-window-actions">
+                <button class="chat-actions-btn" id="chat-info-toggle-btn" onclick="toggleClientInfoPanel()" title="Профіль клієнта" style="margin-right: 4px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="15" y1="3" x2="15" y2="21"></line>
+                    </svg>
+                </button>
                 <button class="chat-actions-btn" onclick="toggleChatActionsMenu(event)" title="Опції чату">⋮</button>
                 <div class="chat-actions-dropdown" id="chat-actions-dropdown">
                     <button class="dropdown-item" onclick="clearChatHistory(${session.client_id})">Очистити історію</button>
@@ -478,6 +520,10 @@ async function selectChatClient(clientId) {
             <span class="badge" id="chat-scroll-bottom-badge" style="display: none;">0</span>
         </div>
     `;
+    
+    if (window.renderClientInfoPanel) {
+        window.renderClientInfoPanel(session);
+    }
     
     // Render from cache instantly if available to prevent black screen transition
     const bodyContainer = document.getElementById('chat-window-body-container');
@@ -1421,6 +1467,319 @@ async function selectAutocompleteItem(idx, textarea, clientIdGetter) {
         }
     }
 }
+
+// --- Collapsible Client Profile Info Panel ---
+window.toggleClientInfoPanel = function(forceState) {
+    const panel = document.getElementById('chat-client-info-panel');
+    const btn = document.getElementById('chat-info-toggle-btn');
+    if (!panel) return;
+
+    let isVisible = panel.classList.contains('visible');
+    if (typeof forceState === 'boolean') {
+        isVisible = !forceState;
+    }
+
+    if (isVisible) {
+        panel.classList.remove('visible');
+        if (btn) btn.classList.remove('active');
+        localStorage.setItem('chat_client_panel_visible', 'false');
+    } else {
+        panel.classList.add('visible');
+        if (btn) btn.classList.add('active');
+        localStorage.setItem('chat_client_panel_visible', 'true');
+    }
+};
+
+function parseClientDataObj(session) {
+    if (!session) return {};
+    let rawData = session.client_data;
+    if (!rawData) return {};
+
+    if (typeof rawData === 'object' && rawData !== null) {
+        return rawData;
+    }
+    
+    if (typeof rawData === 'string' && rawData.startsWith('{')) {
+        try {
+            return JSON.parse(rawData);
+        } catch (e) {}
+    }
+    
+    const lines = String(rawData).split('\n').map(l => l.trim()).filter(l => l);
+    const parsed = {};
+    
+    // First, check explicit labeled lines (key: value)
+    lines.forEach(line => {
+        if (line.includes(':')) {
+            const parts = line.split(':');
+            const k = parts[0].trim().toLowerCase();
+            const v = parts.slice(1).join(':').trim();
+            if (k.includes('піб') || k.includes('ім') || k.includes('пiб')) parsed.pib = v;
+            else if (k.includes('дата') || k.includes('родж')) parsed.dob = v;
+            else if (k.includes('іпн') || k.includes('рнокпп')) parsed.ipn = v;
+            else if (k.includes('тел') || k.includes('фон') || (k.includes('номер') && !k.includes('line'))) {
+                parsed.phone = v.replace(/Дроп\s*-?\s*@\w+/gi, '').trim();
+            }
+        }
+    });
+
+    // Filter out report template meta lines (like "Line 17 Return...", "Дроп - @...", etc.)
+    const cleanLines = lines.filter(line => {
+        const l = line.toLowerCase();
+        return !l.startsWith('line ') && !l.includes('return:') && !l.startsWith('дроп') && !l.startsWith('@') && !l.match(/^\d{4}$/);
+    });
+
+    if (!parsed.pib && cleanLines[0]) {
+        parsed.pib = cleanLines[0];
+    }
+
+    if (!parsed.dob) {
+        const dobLine = lines.find(l => l.match(/\d{2}\.\d{2}\.\d{4}/));
+        if (dobLine) parsed.dob = dobLine.match(/\d{2}\.\d{2}\.\d{4}/)[0];
+        else if (cleanLines[1]) parsed.dob = cleanLines[1];
+    }
+
+    if (!parsed.ipn) {
+        const ipnLine = lines.find(l => l.match(/\b\d{10}\b/));
+        if (ipnLine) parsed.ipn = ipnLine.match(/\b\d{10}\b/)[0];
+        else if (cleanLines[2]) parsed.ipn = cleanLines[2];
+    }
+
+    if (!parsed.phone) {
+        const phoneLine = lines.find(l => (l.includes('+380') || l.match(/\b0\d{9}\b/)) && !l.toLowerCase().includes('return:'));
+        if (phoneLine) {
+            parsed.phone = phoneLine.replace(/Дроп\s*-?\s*@\w+/gi, '').trim();
+        } else if (cleanLines[3] && (cleanLines[3].includes('+') || cleanLines[3].match(/\d{9,}/))) {
+            parsed.phone = cleanLines[3];
+        }
+    }
+
+    return parsed;
+}
+
+function getBankNameHelper(bankKey) {
+    if (!bankKey) return '';
+    if (window.bankTemplates && window.bankTemplates[bankKey] && window.bankTemplates[bankKey].display_name) {
+        return window.bankTemplates[bankKey].display_name;
+    }
+    const map = {
+        'izibank': 'IziBank',
+        'monobank': 'Monobank',
+        'lvivbank': 'BankLviv',
+        'alliance': 'Alliance',
+        'novapay': 'NovaPay',
+        'bank.kd': 'bank.kd',
+        'ecobank': 'EcoBank',
+        'pumb': 'PUMB'
+    };
+    return map[bankKey.toLowerCase()] || bankKey;
+}
+
+window.renderClientInfoPanel = function(session) {
+    const panel = document.getElementById('chat-client-info-panel');
+    const btn = document.getElementById('chat-info-toggle-btn');
+    if (!panel) return;
+    if (!session) {
+        panel.innerHTML = '';
+        return;
+    }
+
+    const cdata = parseClientDataObj(session);
+    const displayName = extractDisplayName(session.client_data, session.username);
+    
+    // Parse selected banks and statuses
+    const selectedList = session.selected_banks ? session.selected_banks.split(',').filter(Boolean) : [];
+    const bankStatuses = session.bank_statuses || {};
+    const historyBanks = Object.keys(bankStatuses);
+
+    const allSessionBanks = [];
+    const seenLower = new Set();
+    [...selectedList, ...historyBanks, session.bank].forEach(b => {
+        if (b) {
+            const lower = b.toLowerCase();
+            if (!seenLower.has(lower)) {
+                seenLower.add(lower);
+                allSessionBanks.push(b);
+            }
+        }
+    });
+
+    const currentBankKey = session.bank || session.bank_key || cdata.bank || '';
+    const currentBankName = currentBankKey ? getBankNameHelper(currentBankKey) : 'Не вказано';
+    
+    const pib = cdata.pib || '—';
+    const dob = cdata.dob || '—';
+    const ipn = cdata.ipn || '—';
+    const phone = cdata.phone || '—';
+    const username = session.username ? `@${session.username.replace(/^@/, '')}` : '—';
+    const bankIconGradient = (window.getBankIconGradient && currentBankKey && window.getBankIconGradient(currentBankKey)) || 'linear-gradient(135deg, #6366f1, #8b5cf6)';
+    const bankIcon = (window.getBankIcon && currentBankKey && window.getBankIcon(currentBankKey)) || '🏛️';
+    const isCompleted = session.status === 'completed';
+
+    // Build "БАНКИ КЛІЄНТА" grouped HTML
+    let selectedBanksHTML = '';
+    if (allSessionBanks.length > 0) {
+        const pendingPills = [];
+        const completedPills = [];
+        const failedPills = [];
+
+        allSessionBanks.forEach(bKey => {
+            const historyKey = Object.keys(bankStatuses).find(x => x.toLowerCase() === bKey.toLowerCase());
+            const status = historyKey ? bankStatuses[historyKey] : (bKey.toLowerCase() === (session.bank || '').toLowerCase() ? 'active' : 'pending');
+            const bName = getBankNameHelper(bKey);
+            
+            if (status === 'release' || status === 'released' || status === 'success') {
+                completedPills.push(`<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 0.76rem; font-weight: 600; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">✓ ${bName}</span>`);
+            } else if (status === 'banned' || status === 'failure') {
+                failedPills.push(`<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 0.76rem; font-weight: 600; background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3);">✕ ${bName}</span>`);
+            } else {
+                pendingPills.push(`<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 0.76rem; font-weight: 600; background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.3);">${bName}</span>`);
+            }
+        });
+
+        let sectionsHTML = '';
+
+        if (pendingPills.length > 0) {
+            sectionsHTML += `
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <div style="font-size: 0.7rem; color: rgba(255,255,255,0.45); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Обрані / В процесі</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">${pendingPills.join('')}</div>
+                </div>
+            `;
+        }
+
+        if (completedPills.length > 0) {
+            sectionsHTML += `
+                <div style="display: flex; flex-direction: column; gap: 6px; ${pendingPills.length > 0 ? 'margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);' : ''}">
+                    <div style="font-size: 0.7rem; color: #34d399; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Пройдені банки</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">${completedPills.join('')}</div>
+                </div>
+            `;
+        }
+
+        if (failedPills.length > 0) {
+            sectionsHTML += `
+                <div style="display: flex; flex-direction: column; gap: 6px; ${(pendingPills.length > 0 || completedPills.length > 0) ? 'margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);' : ''}">
+                    <div style="font-size: 0.7rem; color: #fb7185; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Непройдені / Збій</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">${failedPills.join('')}</div>
+                </div>
+            `;
+        }
+
+        selectedBanksHTML = `
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; padding: 14px; background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px;">
+                ${sectionsHTML}
+            </div>
+        `;
+    }
+
+    panel.innerHTML = `
+        <div class="client-panel-header">
+            <div class="client-panel-title" style="font-size: 0.92rem; font-weight: 700; color: #fff;">Інформація про клієнта</div>
+            <button class="client-panel-close-btn" onclick="toggleClientInfoPanel(false)" title="Сховати панель">✕</button>
+        </div>
+        
+        <div class="client-panel-body" style="padding: 20px 16px;">
+            <!-- Hero Section (Avatar + Name + Subtitle) -->
+            <div style="display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <div style="width: 68px; height: 68px; border-radius: 50%; background: ${currentBankKey ? bankIconGradient : 'linear-gradient(135deg, #6366f1, #8b5cf6)'}; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.35); font-size: 1.7rem; font-weight: 700; color: #fff; border: 2px solid rgba(255,255,255,0.1);">
+                    ${displayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К'}
+                </div>
+                <div style="font-size: 1.15rem; font-weight: 700; color: #ffffff; line-height: 1.25; margin-bottom: 6px; word-break: normal; overflow-wrap: break-word; max-width: 260px;">${displayName}</div>
+                <div style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 4px 12px; border-radius: 12px;">
+                    <span style="color: ${isCompleted ? '#fb7185' : (session.is_paused ? '#fb7185' : '#34d399')}; font-weight: 600;">${isCompleted ? 'Архів' : (session.is_paused ? 'Ручний режим' : 'ШІ Активний')}</span>
+                </div>
+                
+                <button onclick="openClientControlCard(${session.client_id})" style="margin-top: 14px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.16), rgba(99, 102, 241, 0.16)); border: 1px solid rgba(139, 92, 246, 0.35); color: #c084fc; font-weight: 600; font-size: 0.84rem; padding: 10px 16px; cursor: pointer; transition: all 0.25s ease; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.08);" onmouseover="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.28), rgba(99, 102, 241, 0.28))'; this.style.boxShadow='0 6px 16px rgba(139, 92, 246, 0.25)'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.16), rgba(99, 102, 241, 0.16))'; this.style.boxShadow='0 4px 12px rgba(139, 92, 246, 0.08)'; this.style.transform='translateY(0)';">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="16" rx="3"></rect>
+                        <circle cx="9" cy="10" r="2.5"></circle>
+                        <path d="M15 8h2M15 12h2M7 16h10"></path>
+                    </svg>
+                    <span>Перейти до картки клієнта</span>
+                </button>
+            </div>
+
+            <!-- Selected Banks Section -->
+            ${selectedBanksHTML}
+
+            <!-- Details List with Telegram Icons -->
+            <div style="display: flex; flex-direction: column; background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; overflow: hidden;">
+                <!-- Telegram Username -->
+                <div class="tg-info-item">
+                    <svg class="tg-info-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+                    </svg>
+                    <div class="tg-info-content">
+                        <div class="tg-info-val" style="color: #60a5fa; font-weight: 600;">${username}</div>
+                        <div class="tg-info-label">Ім'я користувача</div>
+                    </div>
+                </div>
+
+                <!-- PIB -->
+                <div class="tg-info-item">
+                    <svg class="tg-info-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <div class="tg-info-content">
+                        <div class="tg-info-val" style="color: #ffffff; font-weight: 600;">${pib}</div>
+                        <div class="tg-info-label">ПІБ Клієнта</div>
+                    </div>
+                </div>
+
+                <!-- DOB -->
+                <div class="tg-info-item">
+                    <svg class="tg-info-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <div class="tg-info-content">
+                        <div class="tg-info-val">${dob}</div>
+                        <div class="tg-info-label">Дата народження</div>
+                    </div>
+                </div>
+
+                <!-- IPN -->
+                <div class="tg-info-item">
+                    <svg class="tg-info-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                        <line x1="7" y1="8" x2="17" y2="8"></line>
+                        <line x1="7" y1="12" x2="13" y2="12"></line>
+                        <line x1="7" y1="16" x2="10" y2="16"></line>
+                    </svg>
+                    <div class="tg-info-content">
+                        <div class="tg-info-val" style="font-family: 'JetBrains Mono', monospace; color: #c084fc; font-weight: 600;">${ipn}</div>
+                        <div class="tg-info-label">ІПН / РНОКПП</div>
+                    </div>
+                </div>
+
+                <!-- Phone -->
+                <div class="tg-info-item">
+                    <svg class="tg-info-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                    </svg>
+                    <div class="tg-info-content">
+                        <div class="tg-info-val" style="font-family: 'JetBrains Mono', monospace; color: #34d399; font-weight: 600;">${phone}</div>
+                        <div class="tg-info-label">Номер телефону</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Restore saved panel visibility state (defaults to visible if not set)
+    const savedState = localStorage.getItem('chat_client_panel_visible');
+    if (savedState === 'true' || savedState === null) {
+        panel.classList.add('visible');
+        if (btn) btn.classList.add('active');
+    } else {
+        panel.classList.remove('visible');
+        if (btn) btn.classList.remove('active');
+    }
+};
 
 
 
