@@ -111,7 +111,8 @@ async def verify_deletion_proof(client, media_bytes: bytes, media_type: str, ban
                         ret, frame = cap.read()
                         if ret:
                             frame_resized = cv2.resize(frame, (480, 640))
-                            _, buffer = cv2.imencode('.jpg', frame_resized)
+                            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+                            _, buffer = cv2.imencode('.jpg', frame_resized, encode_param)
                             b64 = base64.b64encode(buffer).decode('utf-8')
                             frames_base64.append(b64)
                 cap.release()

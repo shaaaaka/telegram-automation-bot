@@ -14,6 +14,15 @@ logger = logging.getLogger(__name__)
 # _TEMPLATE_BASE64_CACHE[file_path] = base64_str
 _TEMPLATE_BASE64_CACHE = {}
 
+# Статичний фолбек за замовчуванням на рівні модуля
+DEFAULT_PATTERNS = [
+    (r'який (пін|пін[- ]?код|пароль|pin|pass|password)', "Вказуйте будь-який зручний пін-код, головне запам'ятати його."),
+    (r'(що таке|де взяти) (іпн|рнокпп|податковий)', "ІПН (РНОКПП) — це ваш 10-значний податковий номер, його можна знайти в додатку Дія або на довідці."),
+    (r'код (підійшов|ввів|є|прийшов)', "Чудово! Продовжуйте наступні кроки за інструкцією."),
+    (r'не можу зробити скрін', "Якщо додаток блокує скріншот, зробіть фото екрана іншим телефоном."),
+    (r'(навіщо|для чого) (телефон|номер)', "Номер телефону потрібен для реєстрації облікового запису в банку.")
+]
+
 def resize_and_compress_image(image_bytes: bytes, max_side: int = 1024, quality: int = 80) -> bytes:
     """
     Зменшує зображення до max_side по довшій стороні та стискає в JPEG (quality%).
@@ -47,6 +56,7 @@ def resize_and_compress_image(image_bytes: bytes, max_side: int = 1024, quality:
 def get_cached_template_base64(file_path: str) -> str | None:
     """
     Отримання base64-рядка еталонного скріншоту банку з in-memory кешу або з диска.
+    Перед збереженням у кеш стискається до max 1024px JPEG.
     """
     if not file_path:
         return None
@@ -58,7 +68,9 @@ def get_cached_template_base64(file_path: str) -> str | None:
         import os
         if os.path.exists(file_path):
             with open(file_path, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode("utf-8")
+                raw_bytes = f.read()
+                compressed_bytes = resize_and_compress_image(raw_bytes, max_side=1024, quality=80)
+                b64 = base64.b64encode(compressed_bytes).decode("utf-8")
                 _TEMPLATE_BASE64_CACHE[file_path] = b64
                 return b64
     except Exception as e:
@@ -110,15 +122,6 @@ async def match_fallback_rule(user_text: str, bank_name: str = None) -> str | No
     except Exception as db_err:
         logger.warning(f"Could not read fallback rules from DB: {db_err}")
 
-    # Статичний фолбек за замовчуванням (якщо БД недоступна або порожня)
-    DEFAULT_PATTERNS = [
-        (r'який (пін|пін[- ]?код|пароль|pin|pass|password)', "Вказуйте будь-який зручний пін-код, головне запам'ятати його."),
-        (r'(що таке|де взяти) (іпн|рнокпп|податковий)', "ІПН (РНОКПП) — це ваш 10-значний податковий номер, його можна знайти в додатку Дія або на довідці."),
-        (r'код (підійшов|ввів|є|прийшов)', "Чудово! Продовжуйте наступні кроки за інструкцією."),
-        (r'не можу зробити скрін', "Якщо додаток блокує скріншот, зробіть фото екрана іншим телефоном."),
-        (r'(навіщо|для чого) (телефон|номер)', "Номер телефону потрібен для реєстрації облікового запису в банку.")
-    ]
-
     for pattern, resp in DEFAULT_PATTERNS:
         if re.search(pattern, cleaned_text, re.IGNORECASE):
             return resp
@@ -147,19 +150,33 @@ async def record_ai_usage(prompt_tokens: int = 0, completion_tokens: int = 0):
     except Exception as e:
         logger.error(f"Error recording AI usage: {e}")
 
-async def check_daily_limit_exceeded(max_daily_tokens: int = 1000000) -> bool:
+async def check_daily_limit_exceeded(max_daily_tokens: int = None) -> bool:
     """
     Перевіряє, чи не перевищено денний ліміт токенів.
+    Якщо max_daily_tokens не передано, значення читається з app_settings у БД (за замовчуванням 1 000 000).
     """
     today_str = date.today().isoformat()
+    limit = max_daily_tokens
+
     try:
         async with aiosqlite.connect(DB_FILE) as db:
+            if limit is None:
+                async with db.execute("SELECT value FROM app_settings WHERE key = 'ai_daily_token_limit'") as s_cursor:
+                    row = await s_cursor.fetchone()
+                    if row and row[0]:
+                        try:
+                            limit = int(row[0])
+                        except ValueError:
+                            limit = 1000000
+                    else:
+                        limit = 1000000
+
             async with db.execute(
                 "SELECT input_tokens + output_tokens FROM ai_usage WHERE date = ?", (today_str,)
             ) as cursor:
                 row = await cursor.fetchone()
                 if row and row[0]:
-                    return row[0] >= max_daily_tokens
+                    return row[0] >= limit
     except Exception as e:
         logger.error(f"Error checking AI daily limit: {e}")
 
