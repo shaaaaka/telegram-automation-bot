@@ -1095,6 +1095,9 @@ function handleIncomingWebSocketMessage(data) {
     }
 
     if (selectedChatClientId === data.client_id) {
+        if (typeof pollData === 'function') {
+            pollData();
+        }
         const bodyContainer = document.getElementById('chat-window-body-container');
         if (bodyContainer) {
             const isNearBottom = bodyContainer.scrollHeight - bodyContainer.scrollTop - bodyContainer.clientHeight < 100;

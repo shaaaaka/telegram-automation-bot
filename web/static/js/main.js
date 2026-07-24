@@ -455,11 +455,19 @@ async function pollData() {
 
         const sessionsChanged = !isSessionsDataEqual(lastFetchedSessions, sessions);
         lastFetchedSessions = sessions;
-        
+
         if (sessionsChanged) {
             renderSessions(sessions);
             if (currentTab === 'chat') {
                 renderChatSidebar();
+            }
+        }
+
+        // Автоматичне оновлення бічної панелі інформації про клієнта у реальному часі
+        if (typeof selectedChatClientId !== 'undefined' && selectedChatClientId) {
+            const currentSession = sessions.find(s => s.client_id === parseInt(selectedChatClientId));
+            if (currentSession && window.renderClientInfoPanel) {
+                window.renderClientInfoPanel(currentSession);
             }
         }
         
