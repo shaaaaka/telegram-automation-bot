@@ -546,7 +546,24 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
         await state.clear()
         return
 
-    # Використовуємо ШІ для обробки відповіді про номер телефону
+    # 1. Пряме детерміноване розпізнавання номера телефону через регулярні вирази
+    phone_digits = re.sub(r'\D', '', text)
+    extracted_phone = None
+    if len(phone_digits) == 10 and phone_digits.startswith('0'):
+        extracted_phone = "+38" + phone_digits
+    elif len(phone_digits) == 12 and phone_digits.startswith('380'):
+        extracted_phone = "+" + phone_digits
+    elif len(phone_digits) == 9 and not phone_digits.startswith('0'):
+        extracted_phone = "+380" + phone_digits
+
+    if extracted_phone:
+        logger.info(f"Phone number '{extracted_phone}' recognized directly via regex for client {client_id}")
+        await db.update_session_client_phone(client_id, extracted_phone)
+        await message.answer("Дякую! Номер телефону прийнято.")
+        await continue_after_phone(message, state, bot, client_id)
+        return
+
+    # 2. Якщо номер не підходить під дефолтний формат, використовуємо ШІ для аналізу (відмова, запитання тощо)
     from bot.openai_client import get_support_response
     response = await get_support_response(
         user_text=text,
@@ -577,8 +594,8 @@ async def process_client_phone(message: Message, state: FSMContext, bot: Bot):
             except Exception as e:
                 logger.error(f"Не вдалося надіслати сповіщення адміну про відмову телефону: {e}")
         
-        # Якщо ШІ не розпізнав номер, просимо повторити (надсилаємо відповідь ШІ)
-        clean_text = re.sub(r'\[[^\]]+\]', '', response).strip()
+        # Якщо ШІ не розпізнав номер, просимо повторити (надсилаємо очищену відповідь ШІ)
+        clean_text = re.sub(r'\[[^\]]*\]?', '', response).strip()
         await message.answer(clean_text or "Будь ласка, надішліть коректний номер телефону.")
 @router.message(F.chat.type == "private", F.text & F.text.startswith('/'))
 async def handle_custom_bank_commands(message: Message):
@@ -1010,7 +1027,7 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
             parts = [p.strip() for p in response.split("[SPLIT]") if p.strip()]
             clean_parts = []
             for part in parts:
-                clean_part = re.sub(r'\[[^\]]+\]', '', part).strip()
+                clean_part = re.sub(r'\[[^\]]*\]?', '', part).strip()
                 if clean_part:
                     clean_parts.append(clean_part)
 
