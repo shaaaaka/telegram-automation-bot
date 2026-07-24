@@ -228,9 +228,19 @@ async def init_db():
                 sender TEXT NOT NULL,
                 message_text TEXT,
                 photo_id TEXT,
+                message_id INTEGER,
+                reply_to_message_id INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        try:
+            await db.execute("ALTER TABLE chat_logs ADD COLUMN message_id INTEGER;")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE chat_logs ADD COLUMN reply_to_message_id INTEGER;")
+        except Exception:
+            pass
         
         # Таблиця для додаткових інструкцій / правил ШІ
         await db.execute("""

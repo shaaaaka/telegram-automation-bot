@@ -587,6 +587,41 @@ function backToChatList() {
 }
 
 
+function formatChatLogDate(utcDateStr) {
+    if (!utcDateStr) return '';
+    let date = parseUtcToLocal(utcDateStr);
+    if (!date) {
+        try {
+            date = new Date(utcDateStr.replace(' ', 'T') + 'Z');
+        } catch(e) {
+            date = new Date(utcDateStr);
+        }
+    }
+    if (!date || isNaN(date.getTime())) return '';
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    
+    if (targetDate.getTime() === today.getTime()) {
+        return 'Сьогодні';
+    } else if (targetDate.getTime() === yesterday.getTime()) {
+        return 'Вчора';
+    } else {
+        const months = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'];
+        const day = date.getDate();
+        const month = months[date.getMonth()];
+        const year = date.getFullYear();
+        if (year === now.getFullYear()) {
+            return `${day} ${month}`;
+        }
+        return `${day} ${month} ${year}`;
+    }
+}
+
 function renderChatLogsFromArray(container, logs) {
     container.innerHTML = '';
     if (!logs || logs.length === 0) {
@@ -600,8 +635,22 @@ function renderChatLogsFromArray(container, logs) {
         return 'support'; // admin or operator
     };
 
+    let lastDateStr = '';
     const groupedLogs = groupPhotoLogs(logs);
     groupedLogs.forEach((log, index) => {
+        if (log.created_at) {
+            const rawDate = log.created_at.split(' ')[0];
+            if (rawDate && rawDate !== lastDateStr) {
+                lastDateStr = rawDate;
+                const formattedDate = formatChatLogDate(log.created_at);
+                if (formattedDate) {
+                    const dividerDiv = document.createElement('div');
+                    dividerDiv.className = 'chat-date-divider';
+                    dividerDiv.innerHTML = `<span class="chat-date-divider-pill">— ${formattedDate} —</span>`;
+                    container.appendChild(dividerDiv);
+                }
+            }
+        }
         const nextLog = groupedLogs[index + 1];
         const hideAvatar = nextLog && getSenderGroup(nextLog.sender) === getSenderGroup(log.sender);
         renderSingleChatMessage(container, log, hideAvatar);
@@ -657,10 +706,33 @@ function renderSingleChatMessage(container, log, hideAvatar = false) {
     }
 
     let contentHtml = '';
+    if (log.reply_to_message_id && chatLogsCache[selectedChatClientId]) {
+        const targetReplyId = String(log.reply_to_message_id);
+        const repliedLog = chatLogsCache[selectedChatClientId].find(l => (l.message_id != null && String(l.message_id) === targetReplyId) || (l.id != null && String(l.id) === targetReplyId));
+        if (repliedLog) {
+            const rSender = repliedLog.sender === 'client' ? 'Клієнт' : (repliedLog.sender === 'bot' ? '🤖 AI-агент' : '👤 Оператор');
+            const accentColor = repliedLog.sender === 'client' ? '#3b82f6' : (repliedLog.sender === 'bot' ? '#06b6d4' : '#a855f7');
+            const rText = (repliedLog.message_text || '[Медіа]').substring(0, 75);
+            contentHtml += `
+                <div class="chat-msg-quote-box" style="--quote-accent-color: ${accentColor};">
+                    <div class="chat-msg-quote-header">
+                        <span class="chat-msg-quote-icon">↳</span>
+                        <span class="chat-msg-quote-sender-name">${rSender}</span>
+                    </div>
+                    <span class="chat-msg-quote-text">${escapeHtml(rText)}</span>
+                </div>
+            `;
+        }
+    }
+
     let bubbleClass = 'chat-msg-bubble';
     const hasPhoto = log.photo_id || (log.photo_ids && log.photo_ids.length > 0);
+    const isGallery = log.photo_ids && log.photo_ids.length > 1;
     if (hasPhoto) {
         bubbleClass += ' has-photo';
+        if (isGallery) {
+            bubbleClass += ' has-gallery';
+        }
         if (!log.message_text) {
             bubbleClass += ' photo-only';
         }
@@ -728,15 +800,98 @@ function renderSingleChatMessage(container, log, hideAvatar = false) {
     
     containerDiv.innerHTML = `
         ${headerHtml}
-        <div class="chat-msg-body-row">
+        <div class="chat-msg-body-row" style="position: relative;">
             ${avatarHtml}
             <div class="${bubbleClass}">
                 ${contentHtml}
             </div>
         </div>
     `;
+    containerDiv.ondblclick = function(e) {
+        e.stopPropagation();
+        setChatReplyTo(log);
+    };
+    containerDiv.oncontextmenu = function(e) {
+        showTelegramContextMenu(e, log);
+    };
     containerDiv._receivedAt = Date.now();
     container.appendChild(containerDiv);
+}
+
+// Global Custom Telegram Context Menu Handler
+let activeContextMenu = null;
+
+function removeContextMenu() {
+    if (activeContextMenu) {
+        activeContextMenu.remove();
+        activeContextMenu = null;
+    }
+}
+
+document.addEventListener('click', removeContextMenu);
+document.addEventListener('scroll', removeContextMenu, true);
+
+function showTelegramContextMenu(e, log) {
+    e.preventDefault();
+    e.stopPropagation();
+    removeContextMenu();
+
+    const menu = document.createElement('div');
+    menu.className = 'chat-context-menu';
+
+    menu.innerHTML = `
+        <div class="chat-context-menu-item" id="ctx-item-reply">
+            <svg viewBox="0 0 24 24"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
+            <span>Відповісти</span>
+        </div>
+        ${log.message_text ? `
+        <div class="chat-context-menu-item" id="ctx-item-copy">
+            <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Скопіювати текст</span>
+        </div>
+        ` : ''}
+    `;
+
+    document.body.appendChild(menu);
+
+    let x = e.clientX;
+    let y = e.clientY;
+    const menuRect = menu.getBoundingClientRect();
+
+    if (x + menuRect.width > window.innerWidth) {
+        x = window.innerWidth - menuRect.width - 10;
+    }
+    if (y + menuRect.height > window.innerHeight) {
+        y = window.innerHeight - menuRect.height - 10;
+    }
+
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+
+    const replyBtn = menu.querySelector('#ctx-item-reply');
+    if (replyBtn) {
+        replyBtn.onclick = function(ev) {
+            ev.stopPropagation();
+            removeContextMenu();
+            setChatReplyTo(log);
+        };
+    }
+
+    const copyBtn = menu.querySelector('#ctx-item-copy');
+    if (copyBtn) {
+        copyBtn.onclick = function(ev) {
+            ev.stopPropagation();
+            removeContextMenu();
+            if (navigator.clipboard && log.message_text) {
+                navigator.clipboard.writeText(log.message_text);
+                if (typeof showToast === 'function') {
+                    showToast('Текст скопійовано', 'success');
+                }
+            }
+        };
+    }
+
+    activeContextMenu = menu;
 }
 
 function scrollToBottom(containerId, force = false) {
@@ -760,6 +915,67 @@ function scrollToBottom(containerId, force = false) {
     }
 }
 
+let activeChatReplyLog = null;
+
+function setChatReplyTo(log) {
+    activeChatReplyLog = log;
+    let previewBar = document.getElementById('chat-reply-preview-bar');
+    if (!previewBar) {
+        const footer = document.querySelector('.chat-window-footer');
+        if (footer) {
+            previewBar = document.createElement('div');
+            previewBar.id = 'chat-reply-preview-bar';
+            footer.insertBefore(previewBar, footer.firstChild);
+        }
+    }
+    if (previewBar) {
+        const senderName = log.sender === 'client' ? 'Клієнта' : (log.sender === 'bot' ? 'Бота' : 'Оператора');
+        const textSnippet = (log.message_text || '[Медіа]').substring(0, 60);
+        previewBar.className = 'chat-reply-preview-bar';
+        previewBar.innerHTML = `
+            <div class="chat-reply-preview-content">
+                <span class="chat-reply-icon">↳</span>
+                <div class="chat-reply-text-wrapper">
+                    <span class="chat-reply-sender">Відповідь для ${senderName}</span>
+                    <span class="chat-reply-snippet">${escapeHtml(textSnippet)}</span>
+                </div>
+            </div>
+            <button class="chat-reply-close-btn" onclick="cancelChatReply()" title="Скасувати відповідь">✕</button>
+        `;
+        requestAnimationFrame(() => {
+            previewBar.classList.add('active');
+            smoothScrollSync(320);
+        });
+    }
+    const input = document.getElementById('chat-msg-input');
+    if (input) input.focus();
+}
+
+function smoothScrollSync(duration = 300) {
+    const container = document.getElementById('chat-window-body-container');
+    if (!container) return;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 300;
+    if (!isNearBottom) return;
+
+    const startTime = performance.now();
+    function step(currentTime) {
+        container.scrollTop = container.scrollHeight;
+        if (currentTime - startTime < duration) {
+            requestAnimationFrame(step);
+        }
+    }
+    requestAnimationFrame(step);
+}
+
+function cancelChatReply() {
+    activeChatReplyLog = null;
+    const previewBar = document.getElementById('chat-reply-preview-bar');
+    if (previewBar) {
+        previewBar.classList.remove('active');
+        smoothScrollSync(320);
+    }
+}
+
 async function sendChatPageMessage() {
     const clientId = selectedChatClientId;
     if (!clientId) return;
@@ -770,14 +986,20 @@ async function sendChatPageMessage() {
     const message = textarea.value.trim();
     if (!message) return;
     
+    const payload = { message };
+    if (activeChatReplyLog && activeChatReplyLog.message_id) {
+        payload.reply_to_message_id = activeChatReplyLog.message_id;
+    }
+    
     try {
         const res = await fetch(`/api/sessions/${clientId}/message`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message })
+            body: JSON.stringify(payload)
         });
         if (res.ok) {
             textarea.value = '';
+            cancelChatReply();
         } else {
             showToast("Не вдалося надіслати повідомлення", "error");
         }
@@ -997,8 +1219,14 @@ function handleIncomingWebSocketMessage(data) {
                 sender: data.sender,
                 message_text: data.message_text,
                 photo_id: data.photo_id,
+                message_id: data.message_id,
+                reply_to_message_id: data.reply_to_message_id,
                 created_at: data.created_at
             };
+            if (!chatLogsCache[data.client_id]) {
+                chatLogsCache[data.client_id] = [];
+            }
+            chatLogsCache[data.client_id].push(logObj);
             renderSingleChatMessage(bodyContainer, logObj);
             scrollToBottom('chat-window-body-container');
         }
@@ -1685,8 +1913,9 @@ window.renderClientInfoPanel = function(session) {
         <div class="client-panel-body" style="padding: 20px 16px;">
             <!-- Hero Section (Avatar + Name + Subtitle) -->
             <div style="display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.06);">
-                <div style="width: 68px; height: 68px; border-radius: 50%; background: ${currentBankKey ? bankIconGradient : 'linear-gradient(135deg, #6366f1, #8b5cf6)'}; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.35); font-size: 1.7rem; font-weight: 700; color: #fff; border: 2px solid rgba(255,255,255,0.1);">
-                    ${displayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К'}
+                <div style="width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 12px; box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35); font-size: 1.7rem; font-weight: 700; color: #fff; border: 2px solid rgba(59, 130, 246, 0.45); position: relative;">
+                    <span id="panel-avatar-placeholder-${session.client_id}" style="display: none;">${displayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К'}</span>
+                    <img src="/api/avatar/${session.client_id}" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0;" onerror="this.remove(); const el = document.getElementById('panel-avatar-placeholder-${session.client_id}'); if(el) el.style.display='inline-flex';">
                 </div>
                 <div style="font-size: 1.15rem; font-weight: 700; color: #ffffff; line-height: 1.25; margin-bottom: 6px; word-break: normal; overflow-wrap: break-word; max-width: 260px;">${displayName}</div>
                 <div style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 4px 12px; border-radius: 12px;">

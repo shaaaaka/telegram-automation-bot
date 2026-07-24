@@ -120,7 +120,7 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-async def on_new_chat_message(client_id: int, sender: str, message_text: str = None, photo_id: str = None):
+async def on_new_chat_message(client_id: int, sender: str, message_text: str = None, photo_id: str = None, message_id: int = None, reply_to_message_id: int = None):
     """Broadcast a new chat message to all connected WebSocket clients."""
     import datetime
     now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -130,6 +130,8 @@ async def on_new_chat_message(client_id: int, sender: str, message_text: str = N
         "sender": sender,
         "message_text": message_text,
         "photo_id": photo_id,
+        "message_id": message_id,
+        "reply_to_message_id": reply_to_message_id,
         "created_at": now_str
     })
 

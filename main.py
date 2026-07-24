@@ -5,7 +5,7 @@ import uvicorn
 
 from aiogram import Bot, Dispatcher, BaseMiddleware
 from aiogram.types import Message
-from aiogram.methods import SendMessage, SendPhoto
+from aiogram.methods import SendMessage, SendPhoto, SendMediaGroup
 from aiogram.client.session.middlewares.base import BaseRequestMiddleware, NextRequestMiddlewareType
 from aiogram.methods.base import TelegramMethod, Response, TelegramType
 from bot.config import BOT_TOKEN, LOG_BOT_TOKEN, set_cached_setting
@@ -39,7 +39,13 @@ class OutgoingLoggingMiddleware(BaseRequestMiddleware):
                 if isinstance(method.chat_id, int) and method.chat_id > 0:
                     from bot.database import log_chat_message, current_sender, active_subscriptions
                     sender = current_sender.get()
-                    await log_chat_message(method.chat_id, sender, method.text)
+                    msg_id = getattr(res, 'message_id', None)
+                    reply_to_id = getattr(method, 'reply_to_message_id', None)
+                    if not reply_to_id and getattr(method, 'reply_parameters', None):
+                        reply_to_id = getattr(method.reply_parameters, 'message_id', None)
+                    if not reply_to_id and res and getattr(res, 'reply_to_message', None):
+                        reply_to_id = getattr(res.reply_to_message, 'message_id', None)
+                    await log_chat_message(method.chat_id, sender, method.text, message_id=msg_id, reply_to_message_id=reply_to_id)
                     
                     # Пересилаємо повідомлення адміну, якщо увімкнене стеження
                     send_bot = self.log_bot if self.log_bot else bot
@@ -66,11 +72,17 @@ class OutgoingLoggingMiddleware(BaseRequestMiddleware):
                 if isinstance(method.chat_id, int) and method.chat_id > 0:
                     from bot.database import log_chat_message, current_sender, active_subscriptions
                     sender = current_sender.get()
+                    caption = getattr(method, 'caption', None) or ""
                     photo_id = method.photo if isinstance(method.photo, str) else None
                     if res and getattr(res, 'photo', None):
                         photo_id = res.photo[-1].file_id
-                    caption = method.caption or "[Фото]"
-                    await log_chat_message(method.chat_id, sender, caption, photo_id)
+                    msg_id = getattr(res, 'message_id', None)
+                    reply_to_id = getattr(method, 'reply_to_message_id', None)
+                    if not reply_to_id and getattr(method, 'reply_parameters', None):
+                        reply_to_id = getattr(method.reply_parameters, 'message_id', None)
+                    if not reply_to_id and res and getattr(res, 'reply_to_message', None):
+                        reply_to_id = getattr(res.reply_to_message, 'message_id', None)
+                    await log_chat_message(method.chat_id, sender, caption, photo_id, message_id=msg_id, reply_to_message_id=reply_to_id)
                     
                     # Пересилаємо фото адміну, якщо увімкнене стеження
                     send_bot = self.log_bot if self.log_bot else bot
@@ -92,6 +104,21 @@ class OutgoingLoggingMiddleware(BaseRequestMiddleware):
                                             await bot.send_message(chat_id=admin_id, text=msg_text, parse_mode="HTML")
                                     except Exception:
                                         pass
+            elif isinstance(method, SendMediaGroup):
+                if isinstance(method.chat_id, int) and method.chat_id > 0:
+                    from bot.database import log_chat_message, current_sender
+                    sender = current_sender.get()
+                    reply_to_id = getattr(method, 'reply_to_message_id', None)
+                    if not reply_to_id and getattr(method, 'reply_parameters', None):
+                        reply_to_id = getattr(method.reply_parameters, 'message_id', None)
+                    
+                    if res and isinstance(res, list):
+                        for item in res:
+                            item_photo_id = item.photo[-1].file_id if getattr(item, 'photo', None) else None
+                            item_caption = getattr(item, 'caption', None) or ""
+                            item_msg_id = getattr(item, 'message_id', None)
+                            if item_photo_id:
+                                await log_chat_message(method.chat_id, sender, item_caption, item_photo_id, message_id=item_msg_id, reply_to_message_id=reply_to_id)
         except Exception as e:
             logging.error(f"Error logging outgoing message: {e}")
         return res
@@ -112,8 +139,9 @@ class IncomingLoggingMiddleware(BaseMiddleware):
                 from bot.database import log_chat_message, active_subscriptions
                 text = event.text or event.caption
                 photo_id = event.photo[-1].file_id if event.photo else None
+                reply_to_id = getattr(event.reply_to_message, 'message_id', None) if event.reply_to_message else None
                 if text or photo_id:
-                    await log_chat_message(event.from_user.id, 'client', text, photo_id)
+                    await log_chat_message(event.from_user.id, 'client', text, photo_id, message_id=event.message_id, reply_to_message_id=reply_to_id)
                 
                 # Копіюємо повідомлення адміну, якщо активоване стеження
                 send_bot = log_bot if log_bot else event.bot

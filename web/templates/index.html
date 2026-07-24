@@ -10,8 +10,8 @@
     <title>Verification Bot Admin Panel</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=19.1">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=35.0">
 </head>
 <body>
     <div class="container">
@@ -155,13 +155,17 @@
 
                 <!-- Права колонка: Чат-вікно -->
                 <div class="chat-window" id="chat-window-container">
-                    <div class="chat-no-selection">
-                        <div class="chat-no-selection-icon" style="color: rgba(139, 92, 246, 0.25); display: flex; justify-content: center; align-items: center; margin-bottom: 8px;">
-                            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                    <div class="chat-no-selection" style="background: radial-gradient(circle at center, rgba(139, 92, 246, 0.04) 0%, transparent 70%); text-align: center; padding: 40px 20px;">
+                        <div class="chat-no-selection-icon" style="width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 20px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; justify-content: center; color: #8b5cf6; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                <circle cx="12" cy="11" r="1" fill="currentColor"></circle>
+                                <circle cx="8" cy="11" r="1" fill="currentColor"></circle>
+                                <circle cx="16" cy="11" r="1" fill="currentColor"></circle>
                             </svg>
                         </div>
-                        <p>Оберіть чат зі списку ліворуч, щоб розпочати листування</p>
+                        <h3 style="margin: 0 0 6px 0; color: #f8fafc; font-size: 1.1rem; font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif;">Панель операторського контролю</h3>
+                        <p style="margin: 0; color: rgba(255, 255, 255, 0.45); font-size: 0.88rem; max-width: 320px; line-height: 1.5;">Оберіть чат зі списку ліворуч, щоб переглянути діалог або перехопити управління у бота</p>
                     </div>
                 </div>
 
@@ -1673,7 +1677,7 @@ Line {line_id} Return: {line_phone} | {bank}
 
     <script src="/static/js/main.js?v=9.25"></script>
     <script src="/static/js/control.js?v=9.22"></script>
-    <script src="/static/js/chat.js?v=9.66"></script>
+    <script src="/static/js/chat.js?v=9.80"></script>
     <script src="/static/js/stats.js?v=9.15"></script>
     <script src="/static/js/settings.js?v=9.18"></script>
     <script src="/static/js/settings-banks.js?v=17.2"></script>

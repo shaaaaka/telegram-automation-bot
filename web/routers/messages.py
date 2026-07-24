@@ -19,16 +19,30 @@ async def send_client_message(client_id: int, body: ClientMessage):
     # Встановлюємо sender як 'admin' для цього асинхронного контексту
     token = current_sender.set("admin")
     try:
-        await web.core.bot.send_message(chat_id=client_id, text=body.message)
+        sent_msg = None
+        if body.reply_to_message_id:
+            try:
+                sent_msg = await web.core.bot.send_message(
+                    chat_id=client_id, 
+                    text=body.message, 
+                    reply_to_message_id=body.reply_to_message_id
+                )
+            except Exception as reply_err:
+                import logging
+                logging.warning(f"Failed to send with reply_to_message_id={body.reply_to_message_id}, falling back: {reply_err}")
+                sent_msg = await web.core.bot.send_message(chat_id=client_id, text=body.message)
+        else:
+            sent_msg = await web.core.bot.send_message(chat_id=client_id, text=body.message)
         
-        # Якщо сесія була в статусі waiting_code, а адмін написав клієнту повідомлення,
-        # то автоматично скасовуємо статус очікування коду і повертаємо до number_assigned.
         session = await db.get_session(client_id)
         if session and session['status'] == 'waiting_code':
             await db.set_session_status(client_id, 'number_assigned')
             
         return {"status": "success"}
     except Exception as e:
+        import logging
+        logging.error(f"Error in send_client_message: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send message: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to send message: {str(e)}")
     finally:
         current_sender.reset(token)

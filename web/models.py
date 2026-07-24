@@ -33,6 +33,7 @@ class TemplateSendRequest(BaseModel):
     template_key: str
 class ClientMessage(BaseModel):
     message: str
+    reply_to_message_id: Optional[int] = None
 class AppSettingsUpdate(BaseModel):
     reminder_delay_minutes: str
     reminder_text: str
