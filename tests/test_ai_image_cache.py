@@ -143,7 +143,7 @@ async def test_vision_service_cache_integration(tmp_path):
 
         img_bytes = create_synthetic_image("Proceedings Screen Test Integration")
 
-        #Перший виклик -> іде в OpenRouter
+        # Перший виклик -> іде в OpenRouter
         res1 = await analyze_proceedings_screenshot(mock_client, img_bytes)
         assert res1 == "[CLOSED] Відкритих проваджень немає"
         assert mock_client.chat.completions.create.call_count == 1
@@ -152,3 +152,41 @@ async def test_vision_service_cache_integration(tmp_path):
         res2 = await analyze_proceedings_screenshot(mock_client, img_bytes)
         assert res2 == "[CLOSED] Відкритих проваджень немає"
         assert mock_client.chat.completions.create.call_count == 1
+
+@pytest.mark.asyncio
+async def test_cleanup_old_cache_purging(tmp_path):
+    test_db = str(tmp_path / "test_cleanup.db")
+    with patch("bot.services.ai_image_cache_service.DB_FILE", test_db), \
+         patch("bot.database.DB_FILE", test_db):
+
+        from bot.database import init_db
+        await init_db()
+
+        import aiosqlite
+        async with aiosqlite.connect(test_db) as db:
+            # 1. Запис > 30 днів без hit
+            await db.execute("""
+                INSERT INTO ai_image_cache (image_hash, bank_name, task, result_text, is_valid, prompt_version, hit_count, created_at, last_hit_at)
+                VALUES ('hash1', 'BankA', 'test', 'res1', 1, '1', 0, datetime('now', '-35 days'), datetime('now', '-35 days'))
+            """)
+            # 2. Запис > 90 днів неактивний
+            await db.execute("""
+                INSERT INTO ai_image_cache (image_hash, bank_name, task, result_text, is_valid, prompt_version, hit_count, created_at, last_hit_at)
+                VALUES ('hash2', 'BankB', 'test', 'res2', 1, '1', 5, datetime('now', '-100 days'), datetime('now', '-95 days'))
+            """)
+            # 3. Свіжий запис
+            await db.execute("""
+                INSERT INTO ai_image_cache (image_hash, bank_name, task, result_text, is_valid, prompt_version, hit_count, created_at, last_hit_at)
+                VALUES ('hash3', 'BankC', 'test', 'res3', 1, '1', 2, datetime('now', '-2 days'), datetime('now', '-1 days'))
+            """)
+            await db.commit()
+
+        await cleanup_old_cache(days=30, unactive_days=90)
+
+        async with aiosqlite.connect(test_db) as db:
+            async with db.execute("SELECT image_hash FROM ai_image_cache") as cursor:
+                rows = await cursor.fetchall()
+                remaining_hashes = [r[0] for r in rows]
+                assert "hash1" not in remaining_hashes
+                assert "hash2" not in remaining_hashes
+                assert "hash3" in remaining_hashes

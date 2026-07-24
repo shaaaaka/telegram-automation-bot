@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 import aiosqlite
 from aiogram import Bot
 from bot.config import DB_FILE
@@ -8,8 +9,11 @@ import bot.database as db
 
 logger = logging.getLogger(__name__)
 
+_last_cache_cleanup_timestamp = 0.0
+
 async def auto_reminder_loop(bot: Bot):
     """Фонова задача для автоматичного нагадування клієнтам про верифікацію"""
+    global _last_cache_cleanup_timestamp
     logger.info("Запуск фонового планувальника нагадувань...")
     while True:
         try:
@@ -87,10 +91,8 @@ async def auto_reminder_loop(bot: Bot):
             logger.error(f"Помилка у фоновому циклі планувальника: {e}")
             
         # Раз на добу (кожні 86400 сек) очищаємо старі невживані записи з ai_image_cache
-        import time
-        global _last_cache_cleanup_timestamp
         current_now = time.time()
-        if '_last_cache_cleanup_timestamp' not in globals() or (current_now - _last_cache_cleanup_timestamp) >= 86400:
+        if (current_now - _last_cache_cleanup_timestamp) >= 86400:
             try:
                 from bot.services.ai_image_cache_service import cleanup_old_cache
                 ttl_str = await db.get_setting("ai_image_cache_ttl_days", "30")
