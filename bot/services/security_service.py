@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 # Регулярні вирази для виявлення спроб Prompt Injection / Jailbreak
 INJECTION_PATTERNS = [
     # Фрази для скасування інструкцій
-    r'\b(забудь|ігноруй|скасуй|знехтуй|forget|ignore|override)\b.*?\b(інструкц|правил|промпт|prompt|rules|system)\b',
+    r'\b(забудь|ігноруй|скасуй|знехтуй|forget|ignore|override)\b.*?(інструкц|правил|промпт|prompt|rules|system)',
     r'\b(you are now|system prompt|act as|pretend to be)\b',
     # Спроби змусити видати маркери успіху або імперативно змусити вважати верифікацію пройденою
     r'(?:напиши|поверни)\s+(?:маркер\s+)?\[?SUCCESS_VERIFICATION\]?',
@@ -65,4 +65,16 @@ def anonymize_pii_data(text: str) -> str:
     ipn_pattern = r'(?<![.\/\d])\b\d{10}\b(?![.\/\d])'
     sanitized = re.sub(ipn_pattern, '[ІПН_ПРИХОВАНО]', sanitized)
 
+    return sanitized
+
+def redact_prompt_injections(text: str) -> str:
+    """
+    Замінює будь-які виявлені фрази prompt injection у тексті на [REDACTED_INJECTION].
+    """
+    if not text:
+        return text
+
+    sanitized = text
+    for pattern in INJECTION_PATTERNS:
+        sanitized = re.sub(pattern, '[REDACTED_INJECTION]', sanitized, flags=re.IGNORECASE)
     return sanitized
