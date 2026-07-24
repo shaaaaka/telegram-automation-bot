@@ -14,6 +14,13 @@ async def analyze_proceedings_screenshot(client, image_bytes: bytes) -> str:
         record_ai_usage,
         check_daily_limit_exceeded
     )
+    from bot.services.ai_image_cache_service import get_cached_verdict, save_verdict
+
+    # 1. Перевірка pHash кешу скріншотів
+    cached = await get_cached_verdict(image_bytes, bank_name=None, task='proceedings')
+    if cached and cached.get('result_text'):
+        logger.info(f"AI Image Cache HIT for proceedings screenshot (distance: {cached['distance']})")
+        return cached['result_text']
 
     if await check_daily_limit_exceeded():
         logger.warning("AI daily limit exceeded in analyze_proceedings_screenshot")
@@ -67,7 +74,9 @@ async def analyze_proceedings_screenshot(client, image_bytes: bytes) -> str:
         if hasattr(response, 'usage') and response.usage:
             await record_ai_usage(response.usage.prompt_tokens, response.usage.completion_tokens)
 
-        return response.choices[0].message.content.strip()
+        res_text = response.choices[0].message.content.strip()
+        await save_verdict(image_bytes, bank_name=None, task='proceedings', result_text=res_text, source_size=len(image_bytes))
+        return res_text
     except Exception as e:
         logger.error(f"Помилка при запиті до OpenRouter для аналізу проваджень: {e}")
         return f"[UNKNOWN] Не вдалося проаналізувати скріншот через помилку: {e}"
@@ -85,6 +94,13 @@ async def verify_deletion_proof(client, media_bytes: bytes, media_type: str, ban
         record_ai_usage,
         check_daily_limit_exceeded
     )
+    from bot.services.ai_image_cache_service import get_cached_verdict, save_verdict
+
+    # 1. Перевірка pHash кешу для доказу видалення
+    cached = await get_cached_verdict(media_bytes, bank_name=bank_name, task='deletion_proof')
+    if cached and cached.get('is_valid') is not None:
+        logger.info(f"AI Image Cache HIT for deletion proof (distance: {cached['distance']})")
+        return cached['is_valid'], cached['reason'] or "Оцінено з кешу"
 
     if await check_daily_limit_exceeded():
         logger.warning("AI daily limit exceeded in verify_deletion_proof")
@@ -184,6 +200,7 @@ async def verify_deletion_proof(client, media_bytes: bytes, media_type: str, ban
         reason = lines[1] if len(lines) > 1 else "Оцінено ШІ"
         
         is_valid = "ТАК" in decision or "YES" in decision
+        await save_verdict(media_bytes, bank_name=bank_name, task='deletion_proof', is_valid=is_valid, reason=reason, source_size=len(media_bytes))
         return is_valid, reason
 
     except Exception as e:
@@ -204,6 +221,13 @@ async def verify_relink_initial_screenshot(client, media_bytes: bytes, bank_name
         record_ai_usage,
         check_daily_limit_exceeded
     )
+    from bot.services.ai_image_cache_service import get_cached_verdict, save_verdict
+
+    # 1. Перевірка pHash кешу для первинного скріншота перев'язу
+    cached = await get_cached_verdict(media_bytes, bank_name=bank_name, task='relink_initial')
+    if cached and cached.get('is_valid') is not None:
+        logger.info(f"AI Image Cache HIT for relink initial screenshot (distance: {cached['distance']})")
+        return cached['is_valid'], cached['reason'] or "Оцінено з кешу"
 
     if await check_daily_limit_exceeded():
         logger.warning("AI daily limit exceeded in verify_relink_initial_screenshot")
@@ -266,6 +290,7 @@ async def verify_relink_initial_screenshot(client, media_bytes: bytes, bank_name
         reason = lines[1] if len(lines) > 1 else "Оцінено ШІ"
 
         is_valid = "ТАК" in decision or "YES" in decision
+        await save_verdict(media_bytes, bank_name=bank_name, task='relink_initial', is_valid=is_valid, reason=reason, source_size=len(media_bytes))
         return is_valid, reason
 
     except Exception as e:

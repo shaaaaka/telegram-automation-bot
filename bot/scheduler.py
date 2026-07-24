@@ -86,5 +86,17 @@ async def auto_reminder_loop(bot: Bot):
         except Exception as e:
             logger.error(f"Помилка у фоновому циклі планувальника: {e}")
             
+        # Раз на добу очищаємо старі невживані записи з ai_image_cache
+        try:
+            from bot.services.ai_image_cache_service import cleanup_old_cache
+            ttl_str = await db.get_setting("ai_image_cache_ttl_days", "30")
+            try:
+                ttl_days = int(ttl_str)
+            except ValueError:
+                ttl_days = 30
+            await cleanup_old_cache(days=ttl_days)
+        except Exception as cache_clean_err:
+            logger.error(f"Error in periodic ai_image_cache cleanup: {cache_clean_err}")
+
         # Затримка 60 секунд перед наступною перевіркою
         await asyncio.sleep(60)

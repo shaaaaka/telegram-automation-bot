@@ -295,6 +295,27 @@ async def init_db():
             )
         """)
         
+        # Таблиця для pHash кешування скріншотів ШІ
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS ai_image_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                image_hash TEXT NOT NULL,
+                bank_name TEXT,
+                task TEXT NOT NULL,
+                result_text TEXT,
+                is_valid INTEGER,
+                reason TEXT,
+                extracted_data TEXT,
+                prompt_version TEXT DEFAULT '1',
+                source_size INTEGER DEFAULT 0,
+                hit_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_hit_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(image_hash, bank_name, task, prompt_version)
+            )
+        """)
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_ai_image_cache_lookup ON ai_image_cache(task, bank_name, prompt_version)")
+        
         # Заповнюємо налаштування за замовчуванням
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('reminder_delay_minutes', '5')")
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('reminder_text', 'Ви отримали номер телефону для реєстрації. Будь ласка, введіть його в додатку, щоб ми могли надіслати вам код. Якщо виникли труднощі — напишіть нам!')")
@@ -307,6 +328,10 @@ async def init_db():
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sleep_mode_timezone', 'Europe/Kyiv')")
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sleep_mode_reply', 'На жаль, зараз не робочий час. Поверніться пізніше.')")
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('ai_daily_token_limit', '1000000')")
+        await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('ai_image_cache_enabled', '1')")
+        await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('ai_image_cache_threshold', '4')")
+        await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('ai_image_cache_prompt_version', '1')")
+        await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('ai_image_cache_ttl_days', '30')")
 
         # Заповнюємо базові fallback-правила за замовчуванням
         async with db.execute("SELECT COUNT(*) FROM ai_fallback_rules") as cursor:
