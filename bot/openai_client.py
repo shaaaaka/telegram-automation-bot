@@ -42,17 +42,30 @@ from bot.services.ai_economy_service import (
     record_ai_usage,
     check_daily_limit_exceeded,
 )
+from bot.services.security_service import (
+    sanitize_user_input,
+    anonymize_pii_data,
+)
 
 async def get_support_response(user_text: str = None, image_bytes: bytes = None, client_data: str = None, current_bank_name: str = None, chat_history: list = None, sent_codes_count: int = 0) -> str:
     """Отримання відповіді від моделі OpenRouter (Gemini)"""
     if not client:
         return "Дякуємо за звернення. Адміністратор відповість вам найближчим часом."
 
-    # 1. Перевірка детермінованих fallback-правил (без виклику AI)
+    # 0. Захист від Prompt Injection / Маніпуляцій промптом
+    safe_user_text = user_text
     if user_text:
-        fallback_resp = await match_fallback_rule(user_text, current_bank_name)
+        is_safe, check_res = sanitize_user_input(user_text)
+        if not is_safe:
+            logger.warning(f"Prompt Injection blocked for input: '{user_text[:40]}...'")
+            return check_res
+        safe_user_text = check_res
+
+    # 1. Перевірка детермінованих fallback-правил (без виклику AI)
+    if safe_user_text:
+        fallback_resp = await match_fallback_rule(safe_user_text, current_bank_name)
         if fallback_resp:
-            logger.info(f"Fallback regex matched for text '{user_text[:30]}...': responding without AI.")
+            logger.info(f"Fallback regex matched for text '{safe_user_text[:30]}...': responding without AI.")
             return fallback_resp
 
     # 2. Перевірка денного ліміту токенів
@@ -72,15 +85,16 @@ async def get_support_response(user_text: str = None, image_bytes: bytes = None,
     try:
         examples = await db.get_active_ai_examples()
         for ex in examples:
-            messages.append({"role": "user", "content": [{"type": "text", "text": ex['client_message']}]})
+            messages.append({"role": "user", "content": [{"type": "text", "text": f"<user_message>{ex['client_message']}</user_message>"}]})
             messages.append({"role": "assistant", "content": ex['bot_response']})
     except Exception as ex_err:
         logger.error(f"Помилка завантаження few-shot прикладів: {ex_err}")
 
-    # Додаємо контекст клієнта, якщо він є
+    # Додаємо контекст клієнта, якщо він є (маскуючи PII)
     context_parts = []
     if client_data:
-        context_parts.append(f"Анкетні дані клієнта:\n{client_data}")
+        anon_client_data = anonymize_pii_data(client_data)
+        context_parts.append(f"Анкетні дані клієнта:\n{anon_client_data}")
         dob_match = re.search(r'(?:ДР|Дата народження|Дата|Дар):\s*([^\n]+)', client_data, re.IGNORECASE)
         if dob_match:
             dob_str = dob_match.group(1).strip()
@@ -132,8 +146,8 @@ async def get_support_response(user_text: str = None, image_bytes: bytes = None,
             logger.error(f"Error loading success screenshot templates: {e}")
 
     content = []
-    if user_text:
-        content.append({"type": "text", "text": user_text})
+    if safe_user_text:
+        content.append({"type": "text", "text": f"<user_message>{safe_user_text}</user_message>"})
 
     if image_bytes:
         if success_b64_images:

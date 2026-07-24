@@ -1852,15 +1852,18 @@ window.renderClientInfoPanel = function(session) {
     if (allSessionBanks.length > 0) {
         const pendingPills = [];
         const completedPills = [];
+        const releasedPills = [];
         const failedPills = [];
 
         allSessionBanks.forEach(bKey => {
             const historyKey = Object.keys(bankStatuses).find(x => x.toLowerCase() === bKey.toLowerCase());
             const status = historyKey ? bankStatuses[historyKey] : (bKey.toLowerCase() === (session.bank || '').toLowerCase() ? 'active' : 'pending');
             const bName = getBankNameHelper(bKey);
-            
-            if (status === 'release' || status === 'released' || status === 'success') {
+
+            if (status === 'success') {
                 completedPills.push(`<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 0.76rem; font-weight: 600; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">✓ ${bName}</span>`);
+            } else if (status === 'release' || status === 'released') {
+                releasedPills.push(`<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 0.76rem; font-weight: 600; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3);">↻ ${bName}</span>`);
             } else if (status === 'banned' || status === 'failure') {
                 failedPills.push(`<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 0.76rem; font-weight: 600; background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3);">✕ ${bName}</span>`);
             } else {
@@ -1880,17 +1883,29 @@ window.renderClientInfoPanel = function(session) {
         }
 
         if (completedPills.length > 0) {
+            const needsBorder = pendingPills.length > 0;
             sectionsHTML += `
-                <div style="display: flex; flex-direction: column; gap: 6px; ${pendingPills.length > 0 ? 'margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);' : ''}">
+                <div style="display: flex; flex-direction: column; gap: 6px; ${needsBorder ? 'margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);' : ''}">
                     <div style="font-size: 0.7rem; color: #34d399; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Пройдені банки</div>
                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">${completedPills.join('')}</div>
                 </div>
             `;
         }
 
-        if (failedPills.length > 0) {
+        if (releasedPills.length > 0) {
+            const needsBorder = pendingPills.length > 0 || completedPills.length > 0;
             sectionsHTML += `
-                <div style="display: flex; flex-direction: column; gap: 6px; ${(pendingPills.length > 0 || completedPills.length > 0) ? 'margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);' : ''}">
+                <div style="display: flex; flex-direction: column; gap: 6px; ${needsBorder ? 'margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);' : ''}">
+                    <div style="font-size: 0.7rem; color: #f59e0b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">В поверненні</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">${releasedPills.join('')}</div>
+                </div>
+            `;
+        }
+
+        if (failedPills.length > 0) {
+            const needsBorder = pendingPills.length > 0 || completedPills.length > 0 || releasedPills.length > 0;
+            sectionsHTML += `
+                <div style="display: flex; flex-direction: column; gap: 6px; ${needsBorder ? 'margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);' : ''}">
                     <div style="font-size: 0.7rem; color: #fb7185; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Непройдені / Збій</div>
                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">${failedPills.join('')}</div>
                 </div>
