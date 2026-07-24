@@ -83,3 +83,19 @@ def redact_prompt_injections(text: str) -> str:
     for pattern in LOG_REDACTION_PATTERNS:
         sanitized = re.sub(pattern, '[REDACTED_INJECTION]', sanitized, flags=re.IGNORECASE)
     return sanitized
+
+def clean_bot_response_text(text: str) -> str:
+    """
+    Видаляє затинання та подвоєння слів LLM (наприклад 'Наді Надішліть' -> 'Надішліть')
+    та очищає будь-які незакриті системні маркери.
+    """
+    if not text:
+        return text
+
+    cleaned = text
+    # 1. Заміна конкретних відомих затинань моделі у відповідях українською
+    cleaned = re.sub(r'\bНаді\s+Надішліть\b', 'Надішліть', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'\bБудь\s+Будь ласка\b', 'Будь ласка', cleaned, flags=re.IGNORECASE)
+    # 2. Видалення повторюваних слів з 3+ букв
+    cleaned = re.sub(r'\b(\w{3,})\s+\1\b', r'\1', cleaned, flags=re.IGNORECASE)
+    return cleaned

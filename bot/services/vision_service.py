@@ -225,6 +225,8 @@ async def verify_deletion_proof(client, media_bytes: bytes, media_type: str, ban
             
         decision = lines[0].upper()
         reason = lines[1] if len(lines) > 1 else "Оцінено ШІ"
+        from bot.services.security_service import clean_bot_response_text
+        reason = clean_bot_response_text(reason)
         
         is_valid = "ТАК" in decision or "YES" in decision
         await save_verdict(cache_image_bytes, bank_name=bank_name, task='deletion_proof', is_valid=is_valid, reason=reason, source_size=len(media_bytes))
