@@ -3,16 +3,21 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Регулярні вирази для виявлення спроб Prompt Injection / Jailbreak
-INJECTION_PATTERNS = [
-    # Фрази для скасування інструкцій
-    r'\b(забудь|ігноруй|скасуй|знехтуй|forget|ignore|override)\b.*?(інструкц|правил|промпт|prompt|rules|system)',
+# Патерни для виявлення спроб підробки системних маркерів або ін'єкцій у повідомленнях користувачів
+USER_INJECTION_PATTERNS = [
+    r'\b(забудь|ігноруй|скасуй|знехтуй|forget|ignore|override)\b.*?(інструкц|правил(?!ь)|промпт|prompt\b|rules\b|system\b)',
     r'\b(you are now|system prompt|act as|pretend to be)\b',
-    # Спроби змусити видати маркери успіху або імперативно змусити вважати верифікацію пройденою
     r'(?:напиши|поверни)\s+(?:маркер\s+)?\[?SUCCESS_VERIFICATION\]?',
     r'(?:скажи|напиши|поверни)\s+(?:що|ніби|будто)?\s*(?:я|користувач)?\s*(?:успішно\s+)?пройшов\s+верифікацію\b',
     r'\[(SUCCESS_VERIFICATION|REFUSED_PHONE|OFFER_AMOBANK_INSTRUCTIONS|OFFER_LVIV_SUCCESS_SCREEN)\]',
-    # Системні модифікатори ролей та XML-теги
+    r'</?(user_message|system|assistant)>'
+]
+
+# Патерни для анонімізації спроб атак у логах чату (не зачіпають нормальні системні маркери)
+LOG_REDACTION_PATTERNS = [
+    r'\b(забудь|ігноруй|скасуй|знехтуй|forget|ignore|override)\b.*?(інструкц|правил(?!ь)|промпт|prompt\b|rules\b|system\b)',
+    r'\b(you are now|system prompt|act as|pretend to be)\b',
+    r'(?:напиши|поверни)\s+(?:маркер\s+)?\[?SUCCESS_VERIFICATION\]?',
     r'</?(user_message|system|assistant)>'
 ]
 
@@ -26,7 +31,7 @@ def sanitize_user_input(text: str) -> tuple[bool, str]:
 
     cleaned_text = text.strip()
 
-    for pattern in INJECTION_PATTERNS:
+    for pattern in USER_INJECTION_PATTERNS:
         if re.search(pattern, cleaned_text, re.IGNORECASE):
             logger.warning(f"Detected Prompt Injection attempt: '{cleaned_text[:50]}...' matching pattern '{pattern}'")
             return False, "Виявлено спробу нестандартного запиту. Повідомлення передано на перевірку адміністратору."
@@ -75,6 +80,6 @@ def redact_prompt_injections(text: str) -> str:
         return text
 
     sanitized = text
-    for pattern in INJECTION_PATTERNS:
+    for pattern in LOG_REDACTION_PATTERNS:
         sanitized = re.sub(pattern, '[REDACTED_INJECTION]', sanitized, flags=re.IGNORECASE)
     return sanitized

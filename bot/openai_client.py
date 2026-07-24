@@ -215,8 +215,11 @@ async def get_support_response(user_text: str = None, image_bytes: bytes = None,
         if hasattr(response, 'usage') and response.usage:
             await record_ai_usage(response.usage.prompt_tokens, response.usage.completion_tokens)
 
-        raw_response = response.choices[0].message.content.strip()
-        return raw_response
+        if response and response.choices and response.choices[0].message and response.choices[0].message.content:
+            return response.choices[0].message.content.strip()
+
+        logger.warning("OpenRouter returned empty or None content.")
+        return "Будь ласка, зачекайте на відповідь адміністратора або надішліть новий скріншот."
     except Exception as e:
         logger.error(f"Помилка при запиті до OpenRouter: {e}")
         return "Виникла помилка при обробці запиту ШІ. Будь ласка, зачекайте на відповідь адміністратора."
