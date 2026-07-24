@@ -35,10 +35,30 @@ async def verify_relink_initial_screenshot(media_bytes: bytes, bank_name: str = 
     return await vision_mod.verify_relink_initial_screenshot(client, media_bytes, bank_name)
 
 
+from bot.services.ai_economy_service import (
+    resize_and_compress_image,
+    get_cached_template_base64,
+    match_fallback_rule,
+    record_ai_usage,
+    check_daily_limit_exceeded,
+)
+
 async def get_support_response(user_text: str = None, image_bytes: bytes = None, client_data: str = None, current_bank_name: str = None, chat_history: list = None, sent_codes_count: int = 0) -> str:
     """Отримання відповіді від моделі OpenRouter (Gemini)"""
     if not client:
         return "Дякуємо за звернення. Адміністратор відповість вам найближчим часом."
+
+    # 1. Перевірка детермінованих fallback-правил (без виклику AI)
+    if user_text:
+        fallback_resp = await match_fallback_rule(user_text, current_bank_name)
+        if fallback_resp:
+            logger.info(f"Fallback regex matched for text '{user_text[:30]}...': responding without AI.")
+            return fallback_resp
+
+    # 2. Перевірка денного ліміту токенів
+    if await check_daily_limit_exceeded():
+        logger.warning("AI daily token limit exceeded. Returning fallback support response.")
+        return "Дякуємо за звернення. Наразі підключається менеджер для допомоги."
 
     # Збираємо системний промпт динамічно
     system_instruction = await compile_system_instruction(current_bank_name, sent_codes_count)
@@ -93,8 +113,8 @@ async def get_support_response(user_text: str = None, image_bytes: bytes = None,
     if chat_history:
         messages.extend(chat_history)
 
-    # Завантажуємо зразок успішної реєстрації з БД (якщо є)
-    success_images = []
+    # Завантажуємо зразок успішної реєстрації з БД (використовуючи in-memory кеш)
+    success_b64_images = []
     if current_bank_name and image_bytes:
         try:
             bank_template = await db.get_bank_template_db(current_bank_name)
@@ -105,9 +125,9 @@ async def get_support_response(user_text: str = None, image_bytes: bytes = None,
                 for p in paths:
                     rel_path = p.lstrip('/')
                     local_path = os.path.join("web", rel_path)
-                    if os.path.exists(local_path):
-                        with open(local_path, "rb") as f:
-                            success_images.append(f.read())
+                    b64_data = get_cached_template_base64(local_path)
+                    if b64_data:
+                        success_b64_images.append(b64_data)
         except Exception as e:
             logger.error(f"Error loading success screenshot templates: {e}")
 
@@ -116,9 +136,11 @@ async def get_support_response(user_text: str = None, image_bytes: bytes = None,
         content.append({"type": "text", "text": user_text})
 
     if image_bytes:
-        if success_images:
+        if success_b64_images:
             content.append({"type": "text", "text": "КЛІЄНТСЬКИЙ СКРІНШОТ (надісланий користувачем для перевірки):"})
-        base64_image = base64.b64encode(image_bytes).decode('utf-8')
+        # 3. Стискаємо зображення клієнта до 1024px
+        compressed_bytes = resize_and_compress_image(image_bytes, max_side=1024, quality=80)
+        base64_image = base64.b64encode(compressed_bytes).decode('utf-8')
         content.append({
             "type": "image_url",
             "image_url": {
@@ -126,14 +148,13 @@ async def get_support_response(user_text: str = None, image_bytes: bytes = None,
             }
         })
 
-    if success_images:
+    if success_b64_images:
         content.append({"type": "text", "text": "ЕТАЛОННІ ЗРАЗКИ УСПІШНОЇ РЕЄСТРАЦІЇ (як має виглядати правильний фінальний екран для цього банку):"})
-        for img_bytes in success_images:
-            base64_success_image = base64.b64encode(img_bytes).decode('utf-8')
+        for b64_img in success_b64_images:
             content.append({
                 "type": "image_url",
                 "image_url": {
-                    "url": f"data:image/jpeg;base64,{base64_success_image}"
+                    "url": f"data:image/jpeg;base64,{b64_img}"
                 }
             })
 
@@ -149,11 +170,15 @@ async def get_support_response(user_text: str = None, image_bytes: bytes = None,
         response = await client.chat.completions.create(
             model=OPENROUTER_MODEL,
             messages=messages,
+            max_tokens=250,
             extra_headers={
                 "HTTP-Referer": "https://github.com/shaaaaka/telegram-automation-bot",
                 "X-Title": "Verification Support Bot"
             }
         )
+        if hasattr(response, 'usage') and response.usage:
+            await record_ai_usage(response.usage.prompt_tokens, response.usage.completion_tokens)
+
         raw_response = response.choices[0].message.content.strip()
         return raw_response
     except Exception as e:
@@ -185,11 +210,15 @@ async def analyze_chat_and_propose_rule(chat_history_text: str) -> str:
                 {"role": "system", "content": "Ти — корисний аналітик діалогів підтримки. Повертаєш тільки сформульоване правило без додаткового тексту."},
                 {"role": "user", "content": prompt}
             ],
+            max_tokens=250,
             extra_headers={
                 "HTTP-Referer": "https://github.com/shaaaaka/telegram-automation-bot",
                 "X-Title": "Verification Support Analyzer"
             }
         )
+        if hasattr(response, 'usage') and response.usage:
+            await record_ai_usage(response.usage.prompt_tokens, response.usage.completion_tokens)
+
         rule_text = response.choices[0].message.content.strip()
         if rule_text.startswith('"') and rule_text.endswith('"'):
             rule_text = rule_text[1:-1].strip()

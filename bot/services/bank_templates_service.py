@@ -101,12 +101,16 @@ async def save_bank_template(
             await db.execute("UPDATE bank_templates SET deletion_screenshot_path = NULL WHERE key = ?", (key,))
             
         await db.commit()
+        from bot.services.ai_economy_service import invalidate_template_base64_cache
+        invalidate_template_base64_cache()
 
 async def delete_bank_template(key: str):
     """Видалення шаблону банку"""
     async with aiosqlite.connect(db_mod.DB_FILE) as db:
         await db.execute("DELETE FROM bank_templates WHERE key = ?", (key,))
         await db.commit()
+        from bot.services.ai_economy_service import invalidate_template_base64_cache
+        invalidate_template_base64_cache()
 
 async def get_bank_template_db(bank_name: str):
     """Отримання шаблону за назвою банку (async версія)"""

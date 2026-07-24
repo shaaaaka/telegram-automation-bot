@@ -9,7 +9,18 @@ async def analyze_proceedings_screenshot(client, image_bytes: bytes) -> str:
     if not client:
         return "[UNKNOWN] OpenAI API key is not configured."
         
-    base64_image = base64.b64encode(image_bytes).decode('utf-8')
+    from bot.services.ai_economy_service import (
+        resize_and_compress_image,
+        record_ai_usage,
+        check_daily_limit_exceeded
+    )
+
+    if await check_daily_limit_exceeded():
+        logger.warning("AI daily limit exceeded in analyze_proceedings_screenshot")
+        return "[UNKNOWN] Передано на ручну перевірку (ліміт токенів вичерпано)."
+
+    compressed_bytes = resize_and_compress_image(image_bytes, max_side=1024, quality=80)
+    base64_image = base64.b64encode(compressed_bytes).decode('utf-8')
     messages = [
         {
             "role": "system",
@@ -47,11 +58,15 @@ async def analyze_proceedings_screenshot(client, image_bytes: bytes) -> str:
         response = await client.chat.completions.create(
             model=OPENROUTER_MODEL,
             messages=messages,
+            max_tokens=150,
             extra_headers={
                 "HTTP-Referer": "https://github.com/shaaaaka/telegram-automation-bot",
                 "X-Title": "Verification Support Bot"
             }
         )
+        if hasattr(response, 'usage') and response.usage:
+            await record_ai_usage(response.usage.prompt_tokens, response.usage.completion_tokens)
+
         return response.choices[0].message.content.strip()
     except Exception as e:
         logger.error(f"Помилка при запиті до OpenRouter для аналізу проваджень: {e}")
@@ -64,6 +79,16 @@ async def verify_deletion_proof(client, media_bytes: bytes, media_type: str, ban
     """
     if not client:
         return True, "ШІ-клієнт не ініціалізований (пропускаємо авто-перевірку)"
+
+    from bot.services.ai_economy_service import (
+        resize_and_compress_image,
+        record_ai_usage,
+        check_daily_limit_exceeded
+    )
+
+    if await check_daily_limit_exceeded():
+        logger.warning("AI daily limit exceeded in verify_deletion_proof")
+        return False, "Не вдалося перевірити автоматично (ліміт токенів вичерпано), буде ручна перевірка"
 
     try:
         frames_base64 = []
@@ -95,7 +120,8 @@ async def verify_deletion_proof(client, media_bytes: bytes, media_type: str, ban
                 logger.error(f"Error extracting frames from video: {vid_err}")
                 return False, f"Помилка обробки відео-файлу: {vid_err}"
         else:
-            b64 = base64.b64encode(media_bytes).decode('utf-8')
+            compressed_bytes = resize_and_compress_image(media_bytes, max_side=1024, quality=80)
+            b64 = base64.b64encode(compressed_bytes).decode('utf-8')
             frames_base64.append(b64)
 
         if not frames_base64:
@@ -144,6 +170,8 @@ async def verify_deletion_proof(client, media_bytes: bytes, media_type: str, ban
                 "X-Title": "Verification Support Bot"
             }
         )
+        if hasattr(response, 'usage') and response.usage:
+            await record_ai_usage(response.usage.prompt_tokens, response.usage.completion_tokens)
         
         res_text = response.choices[0].message.content.strip()
         lines = [line.strip() for line in res_text.split('\n') if line.strip()]
@@ -170,8 +198,19 @@ async def verify_relink_initial_screenshot(client, media_bytes: bytes, bank_name
     if not client:
         return True, "ШІ-клієнт не ініціалізований (пропускаємо авто-перевірку)"
 
+    from bot.services.ai_economy_service import (
+        resize_and_compress_image,
+        record_ai_usage,
+        check_daily_limit_exceeded
+    )
+
+    if await check_daily_limit_exceeded():
+        logger.warning("AI daily limit exceeded in verify_relink_initial_screenshot")
+        return False, "Перевищено денний ліміт ШІ, буде проведена ручна перевірка."
+
     try:
-        b64 = base64.b64encode(media_bytes).decode('utf-8')
+        compressed_bytes = resize_and_compress_image(media_bytes, max_side=1024, quality=80)
+        b64 = base64.b64encode(compressed_bytes).decode('utf-8')
 
         target_app = f"додатку «{bank_name}»" if bank_name else "мобільного додатку банку"
 
@@ -213,6 +252,8 @@ async def verify_relink_initial_screenshot(client, media_bytes: bytes, bank_name
                 "X-Title": "Verification Support Bot"
             }
         )
+        if hasattr(response, 'usage') and response.usage:
+            await record_ai_usage(response.usage.prompt_tokens, response.usage.completion_tokens)
 
         res_text = response.choices[0].message.content.strip()
         lines = [line.strip() for line in res_text.split('\n') if line.strip()]

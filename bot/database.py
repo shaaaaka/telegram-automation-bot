@@ -272,6 +272,28 @@ async def init_db():
                 banned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        # Таблиця для обліку токенів ШІ
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS ai_usage (
+                date TEXT PRIMARY KEY,
+                input_tokens INTEGER DEFAULT 0,
+                output_tokens INTEGER DEFAULT 0,
+                requests INTEGER DEFAULT 0
+            )
+        """)
+
+        # Таблиця для детермінованих fallback-правил (Regex matcher)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS ai_fallback_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pattern TEXT NOT NULL,
+                bank_name TEXT,
+                response_text TEXT NOT NULL,
+                priority INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 1
+            )
+        """)
         
         # Заповнюємо налаштування за замовчуванням
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('reminder_delay_minutes', '5')")
@@ -284,6 +306,23 @@ async def init_db():
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sleep_mode_end', '08:00')")
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sleep_mode_timezone', 'Europe/Kyiv')")
         await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sleep_mode_reply', 'На жаль, зараз не робочий час. Поверніться пізніше.')")
+        await db.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('ai_daily_token_limit', '1000000')")
+
+        # Заповнюємо базові fallback-правила за замовчуванням
+        async with db.execute("SELECT COUNT(*) FROM ai_fallback_rules") as cursor:
+            count_row = await cursor.fetchone()
+            if count_row and count_row[0] == 0:
+                default_fallbacks = [
+                    (r'який (пін|пінкод|пароль)', None, "Вказуйте будь-який зручний пін-код, головне запам'ятати його.", 10),
+                    (r'(що таке|де взяти) (іпн|рнокпп)', None, "ІПН (РНОКПП) — це ваш 10-значний податковий номер, його можна знайти в додатку Дія або довідці.", 10),
+                    (r'код (підійшов|ввів|є|прийшов)', None, "Чудово! Продовжуйте наступні кроки за інструкцією.", 10),
+                    (r'не можу зробити скрін', None, "Якщо додаток блокує скріншот, зробіть фото екрана іншим телефоном.", 10),
+                    (r'(навіщо|для чого) (телефон|номер)', None, "Номер телефону потрібен для реєстрації облікового запису в банку.", 10)
+                ]
+                await db.executemany(
+                    "INSERT INTO ai_fallback_rules (pattern, bank_name, response_text, priority, is_active) VALUES (?, ?, ?, ?, 1)",
+                    default_fallbacks
+                )
 
         # Заповнюємо базові правила ШІ за замовчуванням
         async with db.execute("SELECT COUNT(*) FROM ai_rules") as cursor:
