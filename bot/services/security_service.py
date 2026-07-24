@@ -6,15 +6,14 @@ logger = logging.getLogger(__name__)
 # Регулярні вирази для виявлення спроб Prompt Injection / Jailbreak
 INJECTION_PATTERNS = [
     # Фрази для скасування інструкцій
-    r'(забудь|ігноруй|скасуй|знехтуй|forget|ignore|override)\b.*?(інструкц|правил|промпт|prompt|rules|system)',
-    r'\b(you are now|system prompt|act as|pretend to be|say that i passed)\b',
-    # Спроби змусити видати маркери успіху чи спеціальні команди
-    r'(скажи|напиши|поверни|постав).*(пройшов|верифіковано|увага|\[SUCCESS_VERIFICATION\]|\[REFUSED_PHONE\])',
+    r'\b(забудь|ігноруй|скасуй|знехтуй|forget|ignore|override)\b.*?\b(інструкц|правил|промпт|prompt|rules|system)\b',
+    r'\b(you are now|system prompt|act as|pretend to be)\b',
+    # Спроби змусити видати маркери успіху або імперативно змусити вважати верифікацію пройденою
+    r'(?:напиши|поверни)\s+(?:маркер\s+)?\[?SUCCESS_VERIFICATION\]?',
+    r'(?:скажи|напиши|поверни)\s+(?:що|ніби|будто)?\s*(?:я|користувач)?\s*(?:успішно\s+)?пройшов\s+верифікацію\b',
     r'\[(SUCCESS_VERIFICATION|REFUSED_PHONE|OFFER_AMOBANK_INSTRUCTIONS|OFFER_LVIV_SUCCESS_SCREEN)\]',
-    # Системні модифікатори ролей
-    r'</?user_message>',
-    r'</?system>',
-    r'</?assistant>'
+    # Системні модифікатори ролей та XML-теги
+    r'</?(user_message|system|assistant)>'
 ]
 
 def sanitize_user_input(text: str) -> tuple[bool, str]:
@@ -38,33 +37,32 @@ def anonymize_pii_data(text: str) -> str:
     """
     Маскує персональні дані (PII) у тексті перед відправкою до зовнішніх AI API:
     - 16-значні номери банківських карток -> [КАРТКА_****_1234]
+    - Номери телефонів у різних форматах (+380..., 093..., +38 (093) 123-45-67) -> [ТЕЛЕФОН_ПРИХОВАНО]
     - 10-значні ІПН (РНОКПП) -> [ІПН_ПРИХОВАНО]
-    - Номери телефонів (міжнародний та локальний формат) -> [ТЕЛЕФОН_ПРИХОВАНО]
     """
     if not text:
         return text
 
     sanitized = text
 
-    # 1. Маскування 16-значних номерів карток (з пробілами або дефісами)
+    # 1. Маскування номерів банківських карток (4 групи по 4 цифри з розделителями чи разом)
     def card_replacer(match):
-        digits = re.sub(r'\D', '', match.group(0))
+        raw = match.group(0)
+        digits = re.sub(r'\D', '', raw)
         if len(digits) == 16:
             return f"[КАРТКА_****_{digits[-4:]}]"
-        return match.group(0)
+        return raw
 
-    sanitized = re.sub(r'\b(?:\d[ -]*?){16}\b', card_replacer, sanitized)
+    sanitized = re.sub(r'\b\d{4}[ -]?\d{4}[ -]?\d{4}[ -]?\d{4}\b', card_replacer, sanitized)
 
-    # 2. Маскування номерів телефонів (формат +380... або 0...)
-    sanitized = re.sub(r'\b(?:\+?380|0)\d{9}\b', '[ТЕЛЕФОН_ПРИХОВАНО]', sanitized)
+    # 2. Маскування номерів телефонів у різних форматах
+    # Наприклад: +380931234567, 0931234567, +38 (093) 123-45-67, 093 123 45 67, 093-123-4567
+    phone_pattern = r'(?:\+?38)?\s*\(?0\d{2}\)?[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}\b'
+    sanitized = re.sub(phone_pattern, '[ТЕЛЕФОН_ПРИХОВАНО]', sanitized)
 
-    # 3. Маскування 10-значних ІПН (РНОКПП) у полях анкетних даних
-    # Маскуємо тільки 10 підряд цифр (щоб не зачепити дати чи короткі ID)
-    def ipn_replacer(match):
-        digits = match.group(0)
-        # Перевіряємо, чи це не частина більшого числа
-        return '[ІПН_ПРИХОВАНО]'
-
-    sanitized = re.sub(r'\b\d{10}\b', ipn_replacer, sanitized)
+    # 3. Маскування 10-значних ІПН (РНОКПП)
+    # Маскуємо 10 підряд цифр, перевіряючи відсутність крапок чи слешів навколо (щоб не пошкодити дати/URL)
+    ipn_pattern = r'(?<![.\/\d])\b\d{10}\b(?![.\/\d])'
+    sanitized = re.sub(ipn_pattern, '[ІПН_ПРИХОВАНО]', sanitized)
 
     return sanitized

@@ -52,14 +52,14 @@ async def get_support_response(user_text: str = None, image_bytes: bytes = None,
     if not client:
         return "Дякуємо за звернення. Адміністратор відповість вам найближчим часом."
 
-    # 0. Захист від Prompt Injection / Маніпуляцій промптом
+    # 0. Захист від Prompt Injection / Маніпуляцій промптом та маскування PII
     safe_user_text = user_text
     if user_text:
         is_safe, check_res = sanitize_user_input(user_text)
         if not is_safe:
             logger.warning(f"Prompt Injection blocked for input: '{user_text[:40]}...'")
             return check_res
-        safe_user_text = check_res
+        safe_user_text = anonymize_pii_data(check_res)
 
     # 1. Перевірка детермінованих fallback-правил (без виклику AI)
     if safe_user_text:
@@ -80,13 +80,15 @@ async def get_support_response(user_text: str = None, image_bytes: bytes = None,
         {"role": "system", "content": system_instruction}
     ]
 
-    # Додаємо few-shot приклади з бази
+    # Додаємо few-shot приклади з бази (з анонімізацією PII)
     from bot import database as db
     try:
         examples = await db.get_active_ai_examples()
         for ex in examples:
-            messages.append({"role": "user", "content": [{"type": "text", "text": f"<user_message>{ex['client_message']}</user_message>"}]})
-            messages.append({"role": "assistant", "content": ex['bot_response']})
+            anon_client_msg = anonymize_pii_data(ex['client_message'])
+            anon_bot_resp = anonymize_pii_data(ex['bot_response'])
+            messages.append({"role": "user", "content": [{"type": "text", "text": f"<user_message>{anon_client_msg}</user_message>"}]})
+            messages.append({"role": "assistant", "content": anon_bot_resp})
     except Exception as ex_err:
         logger.error(f"Помилка завантаження few-shot прикладів: {ex_err}")
 
@@ -123,9 +125,28 @@ async def get_support_response(user_text: str = None, image_bytes: bytes = None,
             "content": "КОНТЕКСТ ПОТОЧНОГО КЛІЄНТА:\n" + "\n\n".join(context_parts)
         })
 
-    # Додаємо історію чату, якщо вона передана
+    # Додаємо історію чату (з анонімізацією PII у кожному повідомленні)
     if chat_history:
-        messages.extend(chat_history)
+        anonymized_chat = []
+        for msg in chat_history:
+            if isinstance(msg, dict) and "content" in msg:
+                msg_copy = dict(msg)
+                if isinstance(msg_copy["content"], str):
+                    msg_copy["content"] = anonymize_pii_data(msg_copy["content"])
+                elif isinstance(msg_copy["content"], list):
+                    new_content = []
+                    for c in msg_copy["content"]:
+                        if isinstance(c, dict) and c.get("type") == "text" and "text" in c:
+                            c_copy = dict(c)
+                            c_copy["text"] = anonymize_pii_data(c_copy["text"])
+                            new_content.append(c_copy)
+                        else:
+                            new_content.append(c)
+                    msg_copy["content"] = new_content
+                anonymized_chat.append(msg_copy)
+            else:
+                anonymized_chat.append(msg)
+        messages.extend(anonymized_chat)
 
     # Завантажуємо зразок успішної реєстрації з БД (використовуючи in-memory кеш)
     success_b64_images = []
@@ -203,12 +224,14 @@ async def analyze_chat_and_propose_rule(chat_history_text: str) -> str:
     """Аналіз історії діалогу з клієнтом за допомогою Gemini для генерації пропозиції нового правила."""
     if not client:
         return ""
-        
+
+    anon_chat_history = anonymize_pii_data(chat_history_text) if chat_history_text else ""
+
     prompt = f"""Ти — аналітик ШІ-підтримки для верифікації мобільних банків.
 Нижче наведено лог реального діалогу між Клієнтом (Client), ШІ-ботом (Bot) та Адміністратором/Менеджером (Admin), який підключився вручну для вирішення проблеми, оскільки бот не зміг упоратися або дав неправильну відповідь.
 
 ДІАЛОГ ДЛЯ АНАЛІЗУ:
-{chat_history_text}
+{anon_chat_history}
 
 ЗАВДАННЯ:
 1. Проаналізуй цей діалог і знайди, на якому етапі виникло непорозуміння, помилка додатку чи складність для клієнта.
