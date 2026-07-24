@@ -777,10 +777,10 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
         if "[OFFER_LVIV_SUCCESS_SCREEN]" in response:
             await state.set_state(RegistrationStates.waiting_lviv_success_confirm)
 
-        parts = [p.strip() for p in response.split("[SPLIT]") if p.strip()]
+        raw_parts = re.split(r'\[SPLIT\]?', response, flags=re.IGNORECASE)
         clean_parts = []
-        for part in parts:
-            clean_part = re.sub(r'\[[^\]]+\]', '', part).strip()
+        for part in raw_parts:
+            clean_part = re.sub(r'\[[^\]]*\]?', '', part).strip()
             if clean_part:
                 clean_parts.append(clean_part)
 
@@ -1024,9 +1024,9 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
             if "[OFFER_LVIV_SUCCESS_SCREEN]" in response:
                 await state.set_state(RegistrationStates.waiting_lviv_success_confirm)
 
-            parts = [p.strip() for p in response.split("[SPLIT]") if p.strip()]
+            raw_parts = re.split(r'\[SPLIT\]?', response, flags=re.IGNORECASE)
             clean_parts = []
-            for part in parts:
+            for part in raw_parts:
                 clean_part = re.sub(r'\[[^\]]*\]?', '', part).strip()
                 if clean_part:
                     clean_parts.append(clean_part)
