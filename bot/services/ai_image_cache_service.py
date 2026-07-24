@@ -61,26 +61,38 @@ async def get_cached_verdict(
     image_bytes: bytes,
     bank_name: str | None,
     task: str,
-    prompt_version: str = "1",
-    threshold: int = 4
+    prompt_version: str | None = None,
+    threshold: int | None = None
 ) -> dict | None:
     """
     Шукає вердикт у кеші ai_image_cache за допомогою pHash та threshold (Хеммінгової відстані).
-    Якщо знайдено відповідний вердикт з відстанню <= threshold, збільшує hit_count та повертає словник:
-    {'id': int, 'result_text': str, 'is_valid': bool, 'reason': str, 'extracted_data': dict, 'distance': int}
+    Якщо значення prompt_version або threshold не передано — вони читаються з налаштувань app_settings у БД.
     """
     if not image_bytes:
         return None
 
-    # Перевіряємо прапорець увімкнення кешу
+    # Перевіряємо прапорець увімкнення кешу та читаємо налаштування з БД
+    eff_threshold = threshold
+    eff_prompt_ver = prompt_version
     try:
         async with aiosqlite.connect(DB_FILE) as db:
-            async with db.execute("SELECT value FROM app_settings WHERE key = 'ai_image_cache_enabled'") as cursor:
-                row = await cursor.fetchone()
-                if row and row[0] == '0':
+            async with db.execute("SELECT key, value FROM app_settings WHERE key IN ('ai_image_cache_enabled', 'ai_image_cache_threshold', 'ai_image_cache_prompt_version')") as cursor:
+                settings_rows = await cursor.fetchall()
+                s_dict = {row[0]: row[1] for row in settings_rows}
+                if s_dict.get('ai_image_cache_enabled') == '0':
                     return None
+                if eff_threshold is None:
+                    try:
+                        eff_threshold = int(s_dict.get('ai_image_cache_threshold', '4'))
+                    except ValueError:
+                        eff_threshold = 4
+                if eff_prompt_ver is None:
+                    eff_prompt_ver = s_dict.get('ai_image_cache_prompt_version', '1')
     except Exception:
-        pass
+        if eff_threshold is None:
+            eff_threshold = 4
+        if eff_prompt_ver is None:
+            eff_prompt_ver = '1'
 
     img_hash = _compute_phash(image_bytes)
     if not img_hash:
@@ -98,7 +110,7 @@ async def get_cached_verdict(
                 FROM ai_image_cache
                 WHERE task = ? AND prompt_version = ? AND image_hash = ?
             """
-            params_exact = [task, prompt_version, img_hash]
+            params_exact = [task, eff_prompt_ver, img_hash]
             if norm_bank:
                 query_exact += " AND LOWER(bank_name) = ?"
                 params_exact.append(norm_bank)
@@ -125,7 +137,7 @@ async def get_cached_verdict(
                 FROM ai_image_cache
                 WHERE task = ? AND prompt_version = ?
             """
-            params_fuzzy = [task, prompt_version]
+            params_fuzzy = [task, eff_prompt_ver]
             if norm_bank:
                 query_fuzzy += " AND LOWER(bank_name) = ?"
                 params_fuzzy.append(norm_bank)
@@ -139,7 +151,7 @@ async def get_cached_verdict(
 
                 for r in rows:
                     dist = _hamming_distance(img_hash, r['image_hash'])
-                    if dist <= threshold and dist < min_dist:
+                    if dist <= eff_threshold and dist < min_dist:
                         min_dist = dist
                         best_match = r
 
@@ -167,12 +179,26 @@ async def save_verdict(
     is_valid: bool | None = None,
     reason: str | None = None,
     extracted_data: dict | None = None,
-    prompt_version: str = "1",
+    prompt_version: str | None = None,
     source_size: int = 0
 ) -> bool:
     """
     Зберігає новий ШІ-вердикт для зображення в ai_image_cache.
+    Якщо prompt_version не вказано — читається з налаштувань app_settings.
     """
+    eff_prompt_ver = prompt_version
+    if eff_prompt_ver is None:
+        try:
+            async with aiosqlite.connect(DB_FILE) as db:
+                async with db.execute("SELECT value FROM app_settings WHERE key = 'ai_image_cache_prompt_version'") as cursor:
+                    row = await cursor.fetchone()
+                    if row and row[0]:
+                        eff_prompt_ver = row[0]
+                    else:
+                        eff_prompt_ver = "1"
+        except Exception:
+            eff_prompt_ver = "1"
+
     img_hash = _compute_phash(image_bytes)
     if not img_hash:
         return False
@@ -194,7 +220,7 @@ async def save_verdict(
                     reason = excluded.reason,
                     extracted_data = excluded.extracted_data,
                     last_hit_at = CURRENT_TIMESTAMP
-            """, (img_hash, norm_bank, task, result_text, valid_int, reason, ext_json, prompt_version, source_size))
+            """, (img_hash, norm_bank, task, result_text, valid_int, reason, ext_json, eff_prompt_ver, source_size))
             await db.commit()
             return True
     except Exception as e:
@@ -217,17 +243,20 @@ async def bump_hit_count(cache_id: int):
     except Exception as e:
         logger.error(f"Error bumping cache hit_count for id {cache_id}: {e}")
 
-async def cleanup_old_cache(days: int = 30):
+async def cleanup_old_cache(days: int = 30, unactive_days: int = 90):
     """
-    Видаляє записи з ai_image_cache, до яких не зверталися довше ніж `days` днів і з hit_count = 0.
+    Видаляє записи з ai_image_cache:
+    1. Жодного разу не використані (hit_count = 0) і створені більше `days` днів тому.
+    2. Жодного разу не запитувані більше ніж `unactive_days` (за last_hit_at).
     """
     try:
         async with aiosqlite.connect(DB_FILE) as db:
             await db.execute("""
                 DELETE FROM ai_image_cache
-                WHERE hit_count = 0 AND created_at < datetime('now', '-' || ? || ' days')
-            """, (days,))
+                WHERE (hit_count = 0 AND created_at < datetime('now', '-' || ? || ' days'))
+                   OR (last_hit_at < datetime('now', '-' || ? || ' days'))
+            """, (days, unactive_days))
             await db.commit()
-            logger.info(f"Cleaned up old unused ai_image_cache entries older than {days} days.")
+            logger.info(f"Cleaned up ai_image_cache: unhit > {days}d or inactive > {unactive_days}d.")
     except Exception as e:
         logger.error(f"Error cleaning up old ai_image_cache: {e}")

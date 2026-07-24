@@ -1,7 +1,6 @@
 import pytest
 import cv2
 import numpy as np
-import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from bot.services.ai_image_cache_service import (

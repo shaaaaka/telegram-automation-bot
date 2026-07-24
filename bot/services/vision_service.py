@@ -96,8 +96,33 @@ async def verify_deletion_proof(client, media_bytes: bytes, media_type: str, ban
     )
     from bot.services.ai_image_cache_service import get_cached_verdict, save_verdict
 
+    cache_image_bytes = media_bytes
+    if media_type == 'video':
+        try:
+            import cv2
+            import tempfile
+            import os
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+                tmp.write(media_bytes)
+                tmp_path = tmp.name
+            cap = cv2.VideoCapture(tmp_path)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            if total_frames > 0:
+                mid_idx = int(total_frames * 0.4)
+                cap.set(cv2.CAP_PROP_POS_FRAMES, mid_idx)
+                ret, frame = cap.read()
+                if ret:
+                    frame_resized = cv2.resize(frame, (480, 640))
+                    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+                    _, buffer = cv2.imencode('.jpg', frame_resized, encode_param)
+                    cache_image_bytes = buffer.tobytes()
+            cap.release()
+            os.remove(tmp_path)
+        except Exception as vid_cache_err:
+            logger.warning(f"Error extracting video cache frame: {vid_cache_err}")
+
     # 1. Перевірка pHash кешу для доказу видалення
-    cached = await get_cached_verdict(media_bytes, bank_name=bank_name, task='deletion_proof')
+    cached = await get_cached_verdict(cache_image_bytes, bank_name=bank_name, task='deletion_proof')
     if cached and cached.get('is_valid') is not None:
         logger.info(f"AI Image Cache HIT for deletion proof (distance: {cached['distance']})")
         return cached['is_valid'], cached['reason'] or "Оцінено з кешу"
@@ -200,7 +225,7 @@ async def verify_deletion_proof(client, media_bytes: bytes, media_type: str, ban
         reason = lines[1] if len(lines) > 1 else "Оцінено ШІ"
         
         is_valid = "ТАК" in decision or "YES" in decision
-        await save_verdict(media_bytes, bank_name=bank_name, task='deletion_proof', is_valid=is_valid, reason=reason, source_size=len(media_bytes))
+        await save_verdict(cache_image_bytes, bank_name=bank_name, task='deletion_proof', is_valid=is_valid, reason=reason, source_size=len(media_bytes))
         return is_valid, reason
 
     except Exception as e:
