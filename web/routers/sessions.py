@@ -87,6 +87,26 @@ async def get_sessions():
             )
             return sessions_list
 
+@router.get("/api/sessions/completed")
+async def get_completed_sessions():
+    """Отримання списку завершених сесій клієнтів (ліміт 50)"""
+    async with aiosqlite.connect(DB_FILE) as conn:
+        conn.row_factory = aiosqlite.Row
+        async with conn.execute("SELECT * FROM sessions WHERE status = 'completed' ORDER BY created_at DESC LIMIT 50") as cursor:
+            rows = await cursor.fetchall()
+            
+            sessions_list = []
+            for row in rows:
+                session_dict = await _prepare_session_data(row, conn)
+                sessions_list.append(session_dict)
+            
+            # Сортуємо сесії за часом останнього повідомлення (або за часом створення, якщо повідомлень немає)
+            sessions_list.sort(
+                key=lambda s: s['last_message']['created_at'] if (s.get('last_message') and s['last_message'].get('created_at')) else s['created_at'],
+                reverse=True
+            )
+            return sessions_list
+
 @router.get("/api/sessions/{client_id}/chat")
 async def get_session_chat(client_id: int):
     """Отримання історії чату для конкретної сесії"""
@@ -155,11 +175,11 @@ async def save_client_banks(client_id: int, body: BanksSelection):
     
     new_selected = body.selected_banks
     
-    current_remaining_str = session.get('remaining_banks', '')
-    current_remaining = current_remaining_str.split(",") if current_remaining_str else []
+    current_remaining_str = session.get('remaining_banks') or ""
+    current_remaining = [b.strip() for b in current_remaining_str.split(",") if b.strip()]
     
-    current_selected_str = session.get('selected_banks', '')
-    current_selected = current_selected_str.split(",") if current_selected_str else []
+    current_selected_str = session.get('selected_banks') or ""
+    current_selected = [b.strip() for b in current_selected_str.split(",") if b.strip()]
     
     new_remaining = []
     for bank in new_selected:
@@ -205,30 +225,35 @@ async def verify_manually_endpoint(client_id: int):
 @router.post("/api/sessions/{client_id}/banks/readd")
 async def readd_session_bank(client_id: int, bank: str):
     """Додавання банку назад до списку залишкових (remaining_banks)"""
-    import sys
-    sys.stderr.write(f"DEBUG readd: client_id={client_id}, bank={bank}\n")
-    
     session = await db.get_session(client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    remaining_str = session['remaining_banks']
-    remaining = remaining_str.split(",") if remaining_str else []
-    selected_str = session['selected_banks']
-    selected = selected_str.split(",") if selected_str else []
-    
-    sys.stderr.write(f"DEBUG readd: before - remaining={remaining}, selected={selected}\n")
+    remaining_str = session.get('remaining_banks') or ""
+    remaining = [b.strip() for b in remaining_str.split(",") if b.strip()]
+    selected_str = session.get('selected_banks') or ""
+    selected = [b.strip() for b in selected_str.split(",") if b.strip()]
     
     if bank not in remaining:
         remaining.append(bank)
     if bank not in selected:
         selected.append(bank)
         
-    # Зберігаємо оновлений список
     new_remaining_str = ",".join(remaining)
     new_selected_str = ",".join(selected)
-    await db.update_session_banks(client_id, new_selected_str, new_remaining_str)
-    return {"status": "success", "remaining_banks": new_remaining_str, "selected_banks": new_selected_str}
+    
+    current_status = session.get('status')
+    new_status = 'registered' if current_status in ('completed', 'closed') else current_status
+
+    async with aiosqlite.connect(DB_FILE) as conn:
+        await conn.execute("""
+            UPDATE sessions 
+            SET selected_banks = ?, remaining_banks = ?, status = ?
+            WHERE client_id = ?
+        """, (new_selected_str, new_remaining_str, new_status, client_id))
+        await conn.commit()
+        
+    return {"status": "success", "remaining_banks": new_remaining_str, "selected_banks": new_selected_str, "new_session_status": new_status}
 
 @router.post("/api/sessions/{client_id}/banks/reset")
 async def reset_session_bank(client_id: int, bank: str):
@@ -246,10 +271,10 @@ async def reset_session_bank(client_id: int, bank: str):
         await conn.commit()
         
     # 2. Додаємо банк назад до remaining_banks та selected_banks у sessions
-    remaining_str = session['remaining_banks']
-    remaining = remaining_str.split(",") if remaining_str else []
-    selected_str = session['selected_banks']
-    selected = selected_str.split(",") if selected_str else []
+    remaining_str = session.get('remaining_banks') or ""
+    remaining = [b.strip() for b in remaining_str.split(",") if b.strip()]
+    selected_str = session.get('selected_banks') or ""
+    selected = [b.strip() for b in selected_str.split(",") if b.strip()]
     
     if bank not in remaining:
         remaining.append(bank)
@@ -452,6 +477,10 @@ async def toggle_session_ai(client_id: int):
                 new_state = 0 if row['is_paused'] else 1
                 await conn.execute("UPDATE sessions SET is_paused = ? WHERE client_id = ?", (new_state, client_id))
                 await conn.commit()
+
+                if new_state:
+                    from bot.services.ai_task_manager import cancel_ai_task
+                    cancel_ai_task(client_id)
                 
                 # Broadcast via websocket to synchronize all panels
                 await manager.broadcast({
@@ -479,24 +508,4 @@ async def delete_session_endpoint(client_id: int):
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete session: {str(e)}")
-
-@router.get("/api/sessions/completed")
-async def get_completed_sessions():
-    """Отримання списку завершених сесій клієнтів (ліміт 50)"""
-    async with aiosqlite.connect(DB_FILE) as conn:
-        conn.row_factory = aiosqlite.Row
-        async with conn.execute("SELECT * FROM sessions WHERE status = 'completed' ORDER BY created_at DESC LIMIT 50") as cursor:
-            rows = await cursor.fetchall()
-            
-            sessions_list = []
-            for row in rows:
-                session_dict = await _prepare_session_data(row, conn)
-                sessions_list.append(session_dict)
-            
-            # Сортуємо сесії за часом останнього повідомлення (або за часом створення, якщо повідомлень немає)
-            sessions_list.sort(
-                key=lambda s: s['last_message']['created_at'] if (s.get('last_message') and s['last_message'].get('created_at')) else s['created_at'],
-                reverse=True
-            )
-            return sessions_list
 

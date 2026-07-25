@@ -14,6 +14,139 @@ let chatWs = null;
 const chatLogsCache = {};
 let unreadMessagesInCurrentChat = 0;
 
+// Save the active chat scroll position before page reload so it can be restored afterwards.
+window.addEventListener('beforeunload', function() {
+    if (selectedChatClientId) {
+        const container = document.getElementById('chat-window-body-container');
+        if (container) {
+            try {
+                sessionStorage.setItem('chat_scroll_' + selectedChatClientId, container.scrollTop);
+            } catch (e) {}
+        }
+    }
+});
+
+window.openLightbox = function(src) {
+    console.log('[Lightbox] openLightbox called with src:', src);
+    if (!src) return;
+    const overlay = document.getElementById('image-lightbox');
+    const img = document.getElementById('lightbox-img');
+    const video = document.getElementById('lightbox-video');
+    if (!overlay) {
+        console.error('[Lightbox] overlay element not found');
+        return;
+    }
+
+    const isVideo = String(src).toLowerCase().endsWith('.mp4') ||
+                    String(src).toLowerCase().endsWith('.mov') ||
+                    String(src).toLowerCase().endsWith('.webm') ||
+                    String(src).startsWith('data:video/');
+
+    if (isVideo) {
+        if (img) img.style.display = 'none';
+        if (video) {
+            video.src = src;
+            video.style.display = 'block';
+            video.play().catch(() => {});
+        }
+    } else {
+        if (video) {
+            try { video.pause(); } catch(e) {}
+            video.style.display = 'none';
+        }
+        if (img) {
+            img.src = src;
+            img.style.display = 'block';
+            img.onload = function() { console.log('[Lightbox] image loaded, naturalWidth:', img.naturalWidth, 'naturalHeight:', img.naturalHeight); };
+            img.onerror = function(e) { console.error('[Lightbox] image failed to load', e); };
+        }
+    }
+
+    overlay.classList.add('active');
+    console.log('[Lightbox] overlay className after active:', overlay.className);
+    const computed = window.getComputedStyle(overlay);
+    console.log('[Lightbox] overlay computed opacity:', computed.opacity, 'visibility:', computed.visibility, 'display:', computed.display, 'zIndex:', computed.zIndex);
+    if (img) {
+        const rect = img.getBoundingClientRect();
+        console.log('[Lightbox] img rect:', rect.width, rect.height, rect.top, rect.left, rect.right, rect.bottom, 'src:', img.src, 'style.display:', img.style.display);
+    }
+};
+
+window.closeLightbox = function(source) {
+    console.log('[Lightbox] closeLightbox called, source:', source || 'unknown');
+    const overlay = document.getElementById('image-lightbox');
+    const video = document.getElementById('lightbox-video');
+    if (video) {
+        try { video.pause(); } catch(e) {}
+    }
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+};
+
+// Global Capture-Phase Failsafe Click Handler for Lightbox Previews
+document.addEventListener('click', function(e) {
+    const target = e.target;
+    if (!target) return;
+    const img = target.closest ? target.closest('.chat-msg-img, .chat-msg-gallery-img, .chat-reply-thumb, .chat-msg-quote-thumb') : null;
+    const src = img ? img.src : (target.tagName === 'IMG' && target.src && target.src.includes('/api/photos/') ? target.src : null);
+    if (src) {
+        console.log('[Lightbox] Click detected on photo, src:', src);
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.openLightbox === 'function') {
+            window.openLightbox(src);
+        } else {
+            console.error('[Lightbox] window.openLightbox is not a function');
+        }
+    }
+}, true);
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        window.closeLightbox();
+    }
+});
+
+window.checkGalleryImgLayout = function(img) {
+    if (!img) return;
+    const gallery = img.closest('.chat-msg-gallery');
+    if (!gallery) return;
+    
+    const images = Array.from(gallery.querySelectorAll('.chat-msg-gallery-img'));
+    // Wait until all gallery images are loaded
+    if (!images.every(i => i.complete && i.naturalWidth && i.naturalHeight)) return;
+    
+    const ratios = images.map(i => i.naturalWidth / i.naturalHeight);
+    const sumRatios = ratios.reduce((a, b) => a + b, 0);
+    if (!sumRatios) return;
+    
+    const galleryWidth = gallery.clientWidth || gallery.getBoundingClientRect().width || 680;
+    if (!galleryWidth) return;
+    
+    const gap = 4;
+    const totalGaps = gap * (images.length - 1);
+    const availableWidth = Math.max(galleryWidth - totalGaps, 0);
+    const galleryHeight = availableWidth / sumRatios;
+    if (!isFinite(galleryHeight)) return;
+    
+    gallery.style.display = 'flex';
+    gallery.style.alignItems = 'stretch';
+    gallery.style.height = galleryHeight + 'px';
+    gallery.style.gap = gap + 'px';
+    
+    images.forEach((image, idx) => {
+        image.style.flex = ratios[idx] + ' 0 0%';
+        image.style.width = 'auto';
+        image.style.height = '100%';
+        image.style.objectFit = 'contain';
+        image.style.objectPosition = 'center';
+        image.style.minWidth = '0';
+        image.style.border = 'none';
+        image.style.boxShadow = 'none';
+    });
+};
+
 function showScrollBottomButton(increment = 0) {
     const btn = document.getElementById('chat-scroll-bottom-btn');
     const badge = document.getElementById('chat-scroll-bottom-badge');
@@ -101,18 +234,25 @@ window.updateAllUnreadBadges = function(clientId) {
     }
 };
 
-function setChatSidebarTab(type) {
+async function setChatSidebarTab(type) {
     chatSidebarTab = type;
     try {
         localStorage.setItem('chatSidebarTab', type);
     } catch (e) {}
+    
     document.querySelectorAll('.sidebar-tab').forEach(btn => btn.classList.remove('active'));
-    const activeBtn = document.getElementById(`chat-sidebar-tab-${type}`);
+    const activeBtn = document.getElementById(type === 'completed' ? 'chat-sidebar-tab-completed' : 'chat-sidebar-tab-active');
     if (activeBtn) activeBtn.classList.add('active');
     
     if (type === 'completed') {
-        loadCompletedSessions();
+        await loadCompletedSessions();
     } else {
+        if (!lastFetchedSessions) {
+            try {
+                const res = await fetch('/api/sessions');
+                lastFetchedSessions = await res.json();
+            } catch (e) {}
+        }
         renderChatSidebar();
     }
 }
@@ -120,21 +260,29 @@ function setChatSidebarTab(type) {
 async function loadCompletedSessions() {
     try {
         const res = await fetch('/api/sessions/completed');
-        cachedCompletedSessions = await res.json();
+        if (res.ok) {
+            cachedCompletedSessions = await res.json();
+        }
         renderChatSidebar();
     } catch (err) {
         console.error("Failed to load completed sessions:", err);
     }
 }
 
-function loadChatSessions() {
+async function loadChatSessions() {
     document.querySelectorAll('.sidebar-tab').forEach(btn => btn.classList.remove('active'));
-    const activeBtn = document.getElementById(`chat-sidebar-tab-${chatSidebarTab}`);
+    const activeBtn = document.getElementById(chatSidebarTab === 'completed' ? 'chat-sidebar-tab-completed' : 'chat-sidebar-tab-active');
     if (activeBtn) activeBtn.classList.add('active');
 
     if (chatSidebarTab === 'completed') {
-        loadCompletedSessions();
+        await loadCompletedSessions();
     } else {
+        if (!lastFetchedSessions) {
+            try {
+                const res = await fetch('/api/sessions');
+                lastFetchedSessions = await res.json();
+            } catch (e) {}
+        }
         renderChatSidebar();
     }
 }
@@ -142,10 +290,26 @@ function loadChatSessions() {
 function renderChatSidebar() {
     const container = document.getElementById('chat-sidebar-list-container');
     if (!container) return;
-    container.innerHTML = '';
     
-    const searchQuery = document.getElementById('chat-search-input').value.toLowerCase().trim();
+    const searchInput = document.getElementById('chat-search-input');
+    const searchQuery = searchInput && searchInput.value ? searchInput.value.toLowerCase().trim() : '';
     const list = chatSidebarTab === 'completed' ? cachedCompletedSessions : lastFetchedSessions;
+    
+    document.querySelectorAll('.sidebar-tab').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById(chatSidebarTab === 'completed' ? 'chat-sidebar-tab-completed' : 'chat-sidebar-tab-active');
+    if (activeBtn) activeBtn.classList.add('active');
+
+    if (list === null) {
+        container.innerHTML = '<div style="padding:24px;text-align:center;color:rgba(255,255,255,0.4);font-size:0.85rem;">Завантаження...</div>';
+        return;
+    }
+
+    if (!list || list.length === 0) {
+        container.innerHTML = `<div style="padding:24px;text-align:center;color:rgba(255,255,255,0.35);font-size:0.85rem;">Немає ${chatSidebarTab === 'completed' ? 'архівних' : 'активних'} чатів</div>`;
+        return;
+    }
+    
+    container.innerHTML = '';
     
     const savedId = localStorage.getItem('selectedChatClientId');
     if (savedId && selectedChatClientId === null && list && list.length > 0) {
@@ -153,15 +317,10 @@ function renderChatSidebar() {
         if (list.some(s => s.client_id === parsedSavedId)) {
             setTimeout(() => {
                 if (selectedChatClientId === null) {
-                    selectChatClient(parsedSavedId);
+                    selectChatClient(parsedSavedId, true);
                 }
             }, 0);
         }
-    }
-
-    if (!list || list.length === 0) {
-        container.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.3);font-size:0.85rem;">Список порожній</div>';
-        return;
     }
     
     list.forEach(session => {
@@ -429,8 +588,11 @@ window.openClientControlCard = function(clientId) {
     }, 150);
 };
 
-async function selectChatClient(clientId) {
+async function selectChatClient(clientId, isInitialLoad = false) {
     if (window.resetViewportScale) window.resetViewportScale();
+    if (!isInitialLoad && selectedChatClientId !== null && selectedChatClientId !== clientId) {
+        window._justSwitchedChatClient = true;
+    }
     selectedChatClientId = clientId;
     try {
         localStorage.setItem('selectedChatClientId', clientId);
@@ -490,6 +652,7 @@ async function selectChatClient(clientId) {
                 </div>
             </div>
         </div>
+        <div id="chat-floating-date-badge" class="chat-floating-date-badge"></div>
         <div class="chat-window-body" id="chat-window-body-container">
             <div style="text-align:center;color:rgba(255,255,255,0.3);padding:20px;">Завантаження повідомлень...</div>
         </div>
@@ -504,6 +667,12 @@ async function selectChatClient(clientId) {
                     </svg>
                 </button>
                 <div class="chat-input-wrapper" style="align-items: center; flex: 1;">
+                    <button class="btn-attach-photo" onclick="triggerPhotoFileInput()" title="Прикріпити фото">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                        </svg>
+                    </button>
+                    <input type="file" id="chat-file-input" accept="image/*" style="display: none;" onchange="handlePhotoFileSelected(this)">
                     <textarea id="chat-msg-input" placeholder="Введіть повідомлення для клієнта..." rows="1" onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendChatPageMessage(); }"></textarea>
                     <button class="btn-send-message" onclick="sendChatPageMessage()" title="Надіслати">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -524,6 +693,8 @@ async function selectChatClient(clientId) {
         </div>
     `;
     
+    initChatTheme();
+    
     if (window.renderClientInfoPanel) {
         window.renderClientInfoPanel(session);
     }
@@ -543,6 +714,7 @@ async function selectChatClient(clientId) {
                 showScrollBottomButton(0);
             }
         });
+
     }
     hideScrollBottomButton();
     
@@ -623,9 +795,11 @@ function formatChatLogDate(utcDateStr) {
 }
 
 function renderChatLogsFromArray(container, logs) {
+    window._isRenderingChatLogs = true;
     container.innerHTML = '';
     if (!logs || logs.length === 0) {
         container.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.2);padding:40px;">Історія повідомлень порожня</div>';
+        window._isRenderingChatLogs = false;
         return;
     }
     
@@ -646,6 +820,7 @@ function renderChatLogsFromArray(container, logs) {
                 if (formattedDate) {
                     const dividerDiv = document.createElement('div');
                     dividerDiv.className = 'chat-date-divider';
+                    dividerDiv.setAttribute('data-date-label', formattedDate);
                     dividerDiv.innerHTML = `<span class="chat-date-divider-pill">— ${formattedDate} —</span>`;
                     container.appendChild(dividerDiv);
                 }
@@ -653,10 +828,191 @@ function renderChatLogsFromArray(container, logs) {
         }
         const nextLog = groupedLogs[index + 1];
         const hideAvatar = nextLog && getSenderGroup(nextLog.sender) === getSenderGroup(log.sender);
-        renderSingleChatMessage(container, log, hideAvatar);
+        renderSingleChatMessage(container, log, hideAvatar, true);
     });
     
-    scrollToBottom('chat-window-body-container', true);
+    setupFloatingDateScrollListener();
+
+    const scrollContainer = document.getElementById('chat-window-body-container');
+    let savedScrollPos = null;
+    try {
+        savedScrollPos = sessionStorage.getItem('chat_scroll_' + selectedChatClientId);
+    } catch(e) {}
+
+    const targetScroll = (savedScrollPos !== null) ? parseInt(savedScrollPos, 10) : null;
+    const shouldRestoreScroll = targetScroll !== null && !isNaN(targetScroll) && !window._justSwitchedChatClient;
+
+    if (shouldRestoreScroll) {
+        let restorationActive = true;
+        let restorationApplyCount = 0;
+        let pendingImages = 0;
+        let imagesDone = false;
+        const timeoutIds = [];
+        let fallbackEndTimeoutId = null;
+
+        function endRestoration() {
+            if (!restorationActive) return;
+            restorationActive = false;
+            window._isRenderingChatLogs = false;
+            if (scrollContainer) {
+                scrollContainer.removeEventListener('scroll', cancelOnScroll);
+            }
+            if (fallbackEndTimeoutId !== null) clearTimeout(fallbackEndTimeoutId);
+            timeoutIds.forEach(id => clearTimeout(id));
+        }
+
+        function applyChatScroll() {
+            if (!restorationActive || !scrollContainer) return;
+            restorationApplyCount++;
+            const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+            scrollContainer.scrollTop = Math.min(targetScroll, maxScroll);
+            setTimeout(() => { restorationApplyCount--; }, 50);
+        }
+
+        function cancelOnScroll() {
+            if (restorationApplyCount > 0) return;
+            endRestoration();
+        }
+
+        function maybeEndRestoration() {
+            if (imagesDone) {
+                // Wait a brief moment for any layout reflow, then end.
+                setTimeout(endRestoration, 50);
+            }
+        }
+
+        if (scrollContainer) {
+            scrollContainer.addEventListener('scroll', cancelOnScroll, { passive: true });
+        }
+
+        applyChatScroll();
+        requestAnimationFrame(applyChatScroll);
+        timeoutIds.push(setTimeout(applyChatScroll, 50));
+        timeoutIds.push(setTimeout(applyChatScroll, 150));
+        timeoutIds.push(setTimeout(applyChatScroll, 400));
+        timeoutIds.push(setTimeout(applyChatScroll, 800));
+
+        // Re-apply the saved position as each historical image loads, so late-loading
+        // photos do not push the viewport to the bottom. Stop as soon as the user scrolls.
+        if (scrollContainer) {
+            const images = scrollContainer.querySelectorAll('img');
+            pendingImages = images.length;
+            if (pendingImages === 0) {
+                imagesDone = true;
+                maybeEndRestoration();
+            } else {
+                images.forEach(img => {
+                    const onImgDone = () => {
+                        applyChatScroll();
+                        pendingImages--;
+                        if (pendingImages <= 0) {
+                            imagesDone = true;
+                            maybeEndRestoration();
+                        }
+                    };
+                    if (img.complete) {
+                        onImgDone();
+                    } else {
+                        img.addEventListener('load', onImgDone, { once: true });
+                        img.addEventListener('error', onImgDone, { once: true });
+                    }
+                });
+            }
+        }
+
+        // Fallback: end restoration after a reasonable timeout if images hang.
+        fallbackEndTimeoutId = setTimeout(() => {
+            imagesDone = true;
+            maybeEndRestoration();
+        }, 2500);
+    } else {
+        scrollToBottom('chat-window-body-container', true);
+        window._justSwitchedChatClient = false;
+        setTimeout(() => {
+            window._isRenderingChatLogs = false;
+        }, 500);
+    }
+}
+
+let dateBadgeTimeout = null;
+let lastChatScrollTop = 0;
+
+function setupFloatingDateScrollListener() {
+    const container = document.getElementById('chat-window-body-container');
+    if (!container || container._hasFloatingDateListener) return;
+    container._hasFloatingDateListener = true;
+    lastChatScrollTop = container.scrollTop;
+    
+    let badge = document.getElementById('chat-floating-date-badge');
+    if (!badge) {
+        badge = document.createElement('div');
+        badge.id = 'chat-floating-date-badge';
+        badge.className = 'chat-floating-date-badge';
+        const chatWindow = document.getElementById('chat-window-container');
+        if (chatWindow) {
+            chatWindow.appendChild(badge);
+        } else {
+            container.parentNode.appendChild(badge);
+        }
+    }
+    
+    container.addEventListener('scroll', function() {
+        if (selectedChatClientId && !window._isRenderingChatLogs) {
+            try {
+                sessionStorage.setItem('chat_scroll_' + selectedChatClientId, container.scrollTop);
+            } catch(e) {}
+        }
+        const badge = document.getElementById('chat-floating-date-badge');
+        if (!badge) return;
+
+        const currentScrollTop = container.scrollTop;
+
+        // При скролі до самого верху (scrollTop <= 35px) ховаємо плаваючий бейдж, щоб не дублювати статичний дівідер дати
+        if (currentScrollTop <= 35) {
+            badge.classList.remove('active');
+            if (dateBadgeTimeout) clearTimeout(dateBadgeTimeout);
+            return;
+        }
+
+        const delta = currentScrollTop - lastChatScrollTop;
+        lastChatScrollTop = currentScrollTop;
+
+        // Якщо скролять явно донизу (delta > 10px) — відразу ховаємо
+        if (delta > 10) {
+            badge.classList.remove('active');
+            if (dateBadgeTimeout) clearTimeout(dateBadgeTimeout);
+            return;
+        }
+
+        // Якщо скролять вгору (delta < -1px)
+        if (delta < -1) {
+            const dividers = container.querySelectorAll('.chat-date-divider, [data-date-label]');
+            let currentLabel = '';
+
+            const containerTop = container.getBoundingClientRect().top;
+            dividers.forEach(el => {
+                const rect = el.getBoundingClientRect();
+                if (rect.top - containerTop <= 90) {
+                    const label = el.getAttribute('data-date-label');
+                    if (label) {
+                        currentLabel = label;
+                    }
+                }
+            });
+
+            if (currentLabel) {
+                badge.textContent = currentLabel;
+                badge.classList.add('active');
+
+                if (dateBadgeTimeout) {
+                    clearTimeout(dateBadgeTimeout);
+                }
+                dateBadgeTimeout = setTimeout(() => {
+                    badge.classList.remove('active');
+                }, 1500);
+            }
+        }
+    }, { passive: true });
 }
 
 async function refreshChatPageMessages(clientId) {
@@ -680,7 +1036,7 @@ async function refreshChatPageMessages(clientId) {
     }
 }
 
-function renderSingleChatMessage(container, log, hideAvatar = false) {
+function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRender = false) {
     const allSessions = [...(lastFetchedSessions || []), ...(cachedCompletedSessions || [])];
     const session = allSessions.find(s => s.client_id === selectedChatClientId);
     const displayName = session ? extractDisplayName(session.client_data, session.username) : 'Клієнт';
@@ -689,6 +1045,20 @@ function renderSingleChatMessage(container, log, hideAvatar = false) {
     containerDiv.className = `chat-msg-container ${log.sender}`;
     if (hideAvatar) {
         containerDiv.classList.add('same-sender-next');
+    }
+
+    if (log.created_at) {
+        const formattedDate = formatChatLogDate(log.created_at);
+        if (formattedDate) {
+            containerDiv.setAttribute('data-date-label', formattedDate);
+        }
+    }
+
+    const targetMsgId = log.message_id || log.id;
+    if (targetMsgId) {
+        containerDiv.id = `chat-msg-log-${targetMsgId}`;
+        containerDiv.setAttribute('data-msg-id', String(log.message_id || ''));
+        containerDiv.setAttribute('data-log-id', String(log.id || ''));
     }
     
     let timeStr = '';
@@ -700,7 +1070,8 @@ function renderSingleChatMessage(container, log, hideAvatar = false) {
             timeStr = `${hours}:${minutes}`;
         } else {
             try {
-                timeStr = log.created_at.split(' ')[1]?.substring(0, 5) || '';
+                const timePart = log.created_at.split(' ')[1];
+                timeStr = timePart ? timePart.substring(0, 5) : '';
             } catch (e) {}
         }
     }
@@ -712,14 +1083,26 @@ function renderSingleChatMessage(container, log, hideAvatar = false) {
         if (repliedLog) {
             const rSender = repliedLog.sender === 'client' ? 'Клієнт' : (repliedLog.sender === 'bot' ? '🤖 AI-агент' : '👤 Оператор');
             const accentColor = repliedLog.sender === 'client' ? '#3b82f6' : (repliedLog.sender === 'bot' ? '#06b6d4' : '#a855f7');
-            const rText = (repliedLog.message_text || '[Медіа]').substring(0, 75);
+            
+            const photoId = repliedLog.photo_id || (repliedLog.photo_ids && repliedLog.photo_ids.length > 0 ? repliedLog.photo_ids[0] : null);
+            let quoteThumbHtml = '';
+            let rText = '';
+            if (photoId) {
+                quoteThumbHtml = `<img class="chat-msg-quote-thumb" src="/api/photos/${photoId}" alt="Photo" style="width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; max-width: 36px !important; max-height: 36px !important; object-fit: cover !important; border-radius: 6px !important; flex-shrink: 0 !important; display: inline-block !important; margin: 0 8px 0 0 !important;">`;
+                const captionText = repliedLog.message_text ? `: ${repliedLog.message_text}` : '';
+                rText = `Фото${captionText}`;
+            } else {
+                rText = repliedLog.message_text || '[Повідомлення]';
+            }
+            rText = rText.substring(0, 75);
+
             contentHtml += `
-                <div class="chat-msg-quote-box" style="--quote-accent-color: ${accentColor};">
-                    <div class="chat-msg-quote-header">
-                        <span class="chat-msg-quote-icon">↳</span>
-                        <span class="chat-msg-quote-sender-name">${rSender}</span>
+                <div class="chat-msg-quote-box ${photoId ? 'has-thumb' : ''}" style="--quote-accent-color: ${accentColor};" onclick="scrollToQuotedMessage('${targetReplyId}', event)">
+                    ${quoteThumbHtml}
+                    <div class="chat-msg-quote-content">
+                        <div class="chat-msg-quote-sender-name" style="color: ${accentColor};">${rSender}</div>
+                        <div class="chat-msg-quote-text">${escapeHtml(rText)}</div>
                     </div>
-                    <span class="chat-msg-quote-text">${escapeHtml(rText)}</span>
                 </div>
             `;
         }
@@ -738,14 +1121,19 @@ function renderSingleChatMessage(container, log, hideAvatar = false) {
         }
     }
 
+    const singlePhotoId = log.photo_id || (log.photo_ids && log.photo_ids.length > 0 ? log.photo_ids[0] : null);
+
     if (log.photo_ids && log.photo_ids.length > 1) {
-        contentHtml += `<div class="chat-msg-gallery">`;
+        const albumClass = log.photo_ids.length > 9 ? 'album-count-many' : `album-count-${log.photo_ids.length}`;
+        contentHtml += `<div class="chat-msg-gallery ${albumClass}">`;
         log.photo_ids.forEach(pid => {
-            contentHtml += `<img class="chat-msg-gallery-img" src="/api/photos/${pid}" onload="scrollToBottom('chat-window-body-container')" onclick="openLightbox(this.src)">`;
+            const scrollOnLoad = isHistoryRender ? '' : ' scrollToBottom(\'chat-window-body-container\')';
+            contentHtml += `<img class="chat-msg-gallery-img" src="/api/photos/${pid}" onload="checkGalleryImgLayout(this);${scrollOnLoad}">`;
         });
         contentHtml += `</div>`;
-    } else if (log.photo_id) {
-        contentHtml += `<img class="chat-msg-img" src="/api/photos/${log.photo_id}" onload="scrollToBottom('chat-window-body-container')" onclick="openLightbox(this.src)">`;
+    } else if (singlePhotoId) {
+        const scrollOnLoad = isHistoryRender ? '' : 'onload="scrollToBottom(\'chat-window-body-container\')"';
+        contentHtml += `<img class="chat-msg-img" src="/api/photos/${singlePhotoId}" ${scrollOnLoad}>`;
     }
     if (log.message_text) {
         let escapedText = escapeHtml(log.message_text);
@@ -760,25 +1148,14 @@ function renderSingleChatMessage(container, log, hideAvatar = false) {
     }
     contentHtml += `<span class="${timeClass}">${timeStr}</span>`;
     
-    let headerHtml = '';
     let avatarLetter = 'К';
     
     if (log.sender === 'client') {
         avatarLetter = displayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К';
     } else if (log.sender === 'bot') {
         avatarLetter = '🤖';
-        headerHtml = `
-            <div class="chat-msg-header" style="display: flex; margin-bottom: 4px;">
-                <span class="badge-ai">⚡ AI-агент</span>
-            </div>
-        `;
     } else {
         avatarLetter = '👤';
-        headerHtml = `
-            <div class="chat-msg-header" style="display: flex; margin-bottom: 4px;">
-                <span class="badge-operator">👤 Оператор</span>
-            </div>
-        `;
     }
     
     let avatarHtml = '';
@@ -799,7 +1176,6 @@ function renderSingleChatMessage(container, log, hideAvatar = false) {
     }
     
     containerDiv.innerHTML = `
-        ${headerHtml}
         <div class="chat-msg-body-row" style="position: relative;">
             ${avatarHtml}
             <div class="${bubbleClass}">
@@ -895,6 +1271,8 @@ function showTelegramContextMenu(e, log) {
 }
 
 function scrollToBottom(containerId, force = false) {
+    // Prevent auto-scroll from interfering while historical messages are still being rendered.
+    if (window._isRenderingChatLogs && !force) return;
     const container = document.getElementById(containerId);
     if (container) {
         const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
@@ -930,11 +1308,24 @@ function setChatReplyTo(log) {
     }
     if (previewBar) {
         const senderName = log.sender === 'client' ? 'Клієнта' : (log.sender === 'bot' ? 'Бота' : 'Оператора');
-        const textSnippet = (log.message_text || '[Медіа]').substring(0, 60);
+        const photoId = log.photo_id || (log.photo_ids && log.photo_ids.length > 0 ? log.photo_ids[0] : null);
+        
+        let replyThumbHtml = '';
+        let textSnippet = '';
+        if (photoId) {
+            replyThumbHtml = `<img class="chat-reply-thumb" src="/api/photos/${photoId}" alt="Photo">`;
+            const captionText = log.message_text ? `: ${log.message_text}` : '';
+            textSnippet = `Фото${captionText}`;
+        } else {
+            textSnippet = log.message_text || '[Повідомлення]';
+        }
+        textSnippet = textSnippet.substring(0, 60);
+
         previewBar.className = 'chat-reply-preview-bar';
         previewBar.innerHTML = `
             <div class="chat-reply-preview-content">
                 <span class="chat-reply-icon">↳</span>
+                ${replyThumbHtml}
                 <div class="chat-reply-text-wrapper">
                     <span class="chat-reply-sender">Відповідь для ${senderName}</span>
                     <span class="chat-reply-snippet">${escapeHtml(textSnippet)}</span>
@@ -942,6 +1333,8 @@ function setChatReplyTo(log) {
             </div>
             <button class="chat-reply-close-btn" onclick="cancelChatReply()" title="Скасувати відповідь">✕</button>
         `;
+        const replyColumn = document.querySelector('.chat-window-column');
+        if (replyColumn) replyColumn.classList.add('has-reply-preview');
         requestAnimationFrame(() => {
             previewBar.classList.add('active');
             smoothScrollSync(320);
@@ -950,6 +1343,33 @@ function setChatReplyTo(log) {
     const input = document.getElementById('chat-msg-input');
     if (input) input.focus();
 }
+
+window.scrollToQuotedMessage = function(targetId, event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    if (!targetId) return;
+
+    const bodyContainer = document.getElementById('chat-window-body-container');
+    if (!bodyContainer) return;
+
+    let el = document.getElementById(`chat-msg-log-${targetId}`);
+    if (!el) {
+        el = bodyContainer.querySelector(`[data-msg-id="${targetId}"], [data-log-id="${targetId}"]`);
+    }
+
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        el.classList.remove('quote-highlight-target');
+        void el.offsetWidth; // Trigger reflow for animation restart
+        el.classList.add('quote-highlight-target');
+        
+        setTimeout(() => {
+            el.classList.remove('quote-highlight-target');
+        }, 4000);
+    }
+};
 
 function smoothScrollSync(duration = 300) {
     const container = document.getElementById('chat-window-body-container');
@@ -974,6 +1394,8 @@ function cancelChatReply() {
         previewBar.classList.remove('active');
         smoothScrollSync(320);
     }
+    const replyColumn = document.querySelector('.chat-window-column');
+    if (replyColumn) replyColumn.classList.remove('has-reply-preview');
 }
 
 async function sendChatPageMessage() {
@@ -1139,16 +1561,16 @@ function handleIncomingWebSocketMessage(data) {
                         if (singleImg) {
                             // Convert single image to gallery
                             const gallery = document.createElement('div');
-                            gallery.className = 'chat-msg-gallery';
+                            gallery.className = 'chat-msg-gallery album-count-2';
                             
                             const img1 = singleImg.cloneNode();
                             img1.className = 'chat-msg-gallery-img';
+                            img1.onload = function() { checkGalleryImgLayout(img1); };
                             
                             const img2 = document.createElement('img');
                             img2.className = 'chat-msg-gallery-img';
                             img2.src = `/api/photos/${data.photo_id}`;
-                            img2.onclick = function() { openLightbox(img2.src); };
-                            img2.onload = function() { scrollToBottom('chat-window-body-container'); };
+                            img2.onload = function() { checkGalleryImgLayout(img2); checkGalleryImgLayout(img1); scrollToBottom('chat-window-body-container'); };
                             
                             gallery.appendChild(img1);
                             gallery.appendChild(img2);
@@ -1183,11 +1605,15 @@ function handleIncomingWebSocketMessage(data) {
                             const img = document.createElement('img');
                             img.className = 'chat-msg-gallery-img';
                             img.src = `/api/photos/${data.photo_id}`;
-                            img.onclick = function() { openLightbox(img.src); };
-                            img.onload = function() { scrollToBottom('chat-window-body-container'); };
+                            img.onload = function() { checkGalleryImgLayout(img); scrollToBottom('chat-window-body-container'); };
                             
                             existingGallery.appendChild(img);
-                            
+
+                            // Update grid layout class based on new photo count
+                            const newCount = existingGallery.children.length;
+                            const newAlbumClass = newCount > 9 ? 'album-count-many' : `album-count-${newCount}`;
+                            existingGallery.className = `chat-msg-gallery ${newAlbumClass}`;
+
                             // If the incoming message has text and the bubble doesn't, add it
                             if (data.message_text && !lastBubble.querySelector('.chat-msg-text')) {
                                 let escapedText = escapeHtml(data.message_text);
@@ -1269,7 +1695,8 @@ let currentPasteImageBlob = null;
 document.addEventListener('paste', function(e) {
     if (!selectedChatClientId) return;
     
-    const items = (e.clipboardData || window.clipboardData)?.items;
+    const clipboard = e.clipboardData || window.clipboardData;
+    const items = clipboard ? clipboard.items : null;
     if (!items) return;
     for (let index in items) {
         const item = items[index];
@@ -1294,10 +1721,44 @@ document.addEventListener('keydown', function(e) {
     if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
         return;
     }
-    
-    const textarea = document.getElementById('chat-msg-input');
-    if (textarea) {
-        textarea.focus();
+});
+
+window.triggerPhotoFileInput = function() {
+    const fileInput = document.getElementById('chat-file-input');
+    if (fileInput) {
+        fileInput.value = '';
+        fileInput.click();
+    }
+};
+
+window.handlePhotoFileSelected = function(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        if (file.type.startsWith('image/')) {
+            showPhotoUploadModal(file);
+        } else {
+            alert('Будь ласка, оберіть файл зображення (PNG, JPG, WEBP, тощо)');
+        }
+    }
+};
+
+// Drag & Drop Photo Files into Chat Window
+document.addEventListener('dragover', function(e) {
+    if (!selectedChatClientId) return;
+    if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+        e.preventDefault();
+    }
+});
+
+document.addEventListener('drop', function(e) {
+    if (!selectedChatClientId) return;
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        if (file.type.startsWith('image/')) {
+            e.preventDefault();
+            e.stopPropagation();
+            showPhotoUploadModal(file);
+        }
     }
 });
 
@@ -1437,26 +1898,6 @@ autocompleteStyle.textContent = `
     }
     .chat-autocomplete-menu::-webkit-scrollbar-thumb:hover {
         background: rgba(255, 255, 255, 0.25);
-    }
-    .chat-msg-gallery {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 6px;
-        max-width: 320px;
-        margin-bottom: 6px;
-        border-radius: 12px;
-        overflow: hidden;
-    }
-    .chat-msg-gallery-img {
-        width: 100%;
-        height: 120px;
-        object-fit: cover;
-        cursor: pointer;
-        border-radius: 8px;
-        transition: transform 0.2s ease;
-    }
-    .chat-msg-gallery-img:hover {
-        transform: scale(1.03);
     }
 `;
 document.head.appendChild(autocompleteStyle);
@@ -1820,6 +2261,8 @@ window.renderClientInfoPanel = function(session) {
 
     const cdata = parseClientDataObj(session);
     const displayName = extractDisplayName(session.client_data, session.username);
+    const username = session.username ? `@${session.username.replace(/^@/, '')}` : '—';
+    const isCompleted = session.status === 'completed';
     
     // Parse selected banks and statuses
     const selectedList = session.selected_banks ? session.selected_banks.split(',').filter(Boolean) : [];
@@ -1845,32 +2288,44 @@ window.renderClientInfoPanel = function(session) {
     const dob = cdata.dob || '—';
     const ipn = cdata.ipn || '—';
     const phone = cdata.phone || '—';
-    const username = session.username ? `@${session.username.replace(/^@/, '')}` : '—';
-    const bankIconGradient = (window.getBankIconGradient && currentBankKey && window.getBankIconGradient(currentBankKey)) || 'linear-gradient(135deg, #6366f1, #8b5cf6)';
-    const bankIcon = (window.getBankIcon && currentBankKey && window.getBankIcon(currentBankKey)) || '🏛️';
-    const isCompleted = session.status === 'completed';
+    const hasPhone = cdata.phone && cdata.phone.trim() !== '' && cdata.phone.trim() !== '—';
 
-    // Build "БАНКИ КЛІЄНТА" grouped HTML
+    let phoneItemHTML = '';
+    if (cdata.phone && cdata.phone.trim() !== '' && cdata.phone.trim() !== '—') {
+        phoneItemHTML = `
+                <!-- Phone -->
+                <div class="tg-info-item">
+                    <svg class="tg-info-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                    </svg>
+                    <div class="tg-info-content">
+                        <div class="tg-info-val tg-info-phone">${cdata.phone}</div>
+                        <div class="tg-info-label">Номер телефону</div>
+                    </div>
+                </div>
+        `;
+    }
+
     let selectedBanksHTML = '';
     if (allSessionBanks.length > 0) {
-        const pendingPills = [];
-        const completedPills = [];
-        const releasedPills = [];
-        const failedPills = [];
+        let pendingPills = [];
+        let completedPills = [];
+        let releasedPills = [];
+        let failedPills = [];
 
         allSessionBanks.forEach(bKey => {
             const historyKey = Object.keys(bankStatuses).find(x => x.toLowerCase() === bKey.toLowerCase());
             const status = historyKey ? bankStatuses[historyKey] : (bKey.toLowerCase() === (session.bank || '').toLowerCase() ? 'active' : 'pending');
             const bName = getBankNameHelper(bKey);
 
-            if (status === 'success') {
-                completedPills.push(`<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 0.76rem; font-weight: 600; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">✓ ${bName}</span>`);
+            if (status === 'success' || status === 'completed') {
+                completedPills.push(`<span class="tg-bank-pill completed"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> ${bName}</span>`);
             } else if (status === 'release' || status === 'released') {
-                releasedPills.push(`<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 0.76rem; font-weight: 600; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3);">↻ ${bName}</span>`);
-            } else if (status === 'banned' || status === 'failure') {
-                failedPills.push(`<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 0.76rem; font-weight: 600; background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3);">✕ ${bName}</span>`);
+                releasedPills.push(`<span class="tg-bank-pill released"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> ${bName}</span>`);
+            } else if (status === 'banned' || status === 'failure' || status === 'failed') {
+                failedPills.push(`<span class="tg-bank-pill failed"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> ${bName}</span>`);
             } else {
-                pendingPills.push(`<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 0.76rem; font-weight: 600; background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.3);">${bName}</span>`);
+                pendingPills.push(`<span class="tg-bank-pill pending"><span class="tg-pill-pulse-dot"></span> ${bName}</span>`);
             }
         });
 
@@ -1878,8 +2333,11 @@ window.renderClientInfoPanel = function(session) {
 
         if (pendingPills.length > 0) {
             sectionsHTML += `
-                <div style="display: flex; flex-direction: column; gap: 6px;">
-                    <div style="font-size: 0.7rem; color: rgba(255,255,255,0.45); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Обрані / В процесі</div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div class="tg-banks-section-title">
+                        <span class="tg-banks-dot pending"></span>
+                        Обрані / В процесі
+                    </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">${pendingPills.join('')}</div>
                 </div>
             `;
@@ -1888,8 +2346,11 @@ window.renderClientInfoPanel = function(session) {
         if (completedPills.length > 0) {
             const needsBorder = pendingPills.length > 0;
             sectionsHTML += `
-                <div style="display: flex; flex-direction: column; gap: 6px; ${needsBorder ? 'margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);' : ''}">
-                    <div style="font-size: 0.7rem; color: #34d399; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Пройдені банки</div>
+                <div style="display: flex; flex-direction: column; gap: 8px; ${needsBorder ? 'margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);' : ''}">
+                    <div class="tg-banks-section-title completed">
+                        <span class="tg-banks-dot completed"></span>
+                        Пройдені банки
+                    </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">${completedPills.join('')}</div>
                 </div>
             `;
@@ -1898,8 +2359,11 @@ window.renderClientInfoPanel = function(session) {
         if (releasedPills.length > 0) {
             const needsBorder = pendingPills.length > 0 || completedPills.length > 0;
             sectionsHTML += `
-                <div style="display: flex; flex-direction: column; gap: 6px; ${needsBorder ? 'margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);' : ''}">
-                    <div style="font-size: 0.7rem; color: #f59e0b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">В поверненні</div>
+                <div style="display: flex; flex-direction: column; gap: 8px; ${needsBorder ? 'margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);' : ''}">
+                    <div class="tg-banks-section-title released">
+                        <span class="tg-banks-dot released"></span>
+                        В поверненні
+                    </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">${releasedPills.join('')}</div>
                 </div>
             `;
@@ -1908,15 +2372,18 @@ window.renderClientInfoPanel = function(session) {
         if (failedPills.length > 0) {
             const needsBorder = pendingPills.length > 0 || completedPills.length > 0 || releasedPills.length > 0;
             sectionsHTML += `
-                <div style="display: flex; flex-direction: column; gap: 6px; ${needsBorder ? 'margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);' : ''}">
-                    <div style="font-size: 0.7rem; color: #fb7185; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Непройдені / Збій</div>
+                <div style="display: flex; flex-direction: column; gap: 8px; ${needsBorder ? 'margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);' : ''}">
+                    <div class="tg-banks-section-title failed">
+                        <span class="tg-banks-dot failed"></span>
+                        Непройдені / Збій
+                    </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">${failedPills.join('')}</div>
                 </div>
             `;
         }
 
         selectedBanksHTML = `
-            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; padding: 14px; background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px;">
+            <div class="tg-banks-card">
                 ${sectionsHTML}
             </div>
         `;
@@ -1924,23 +2391,34 @@ window.renderClientInfoPanel = function(session) {
 
     panel.innerHTML = `
         <div class="client-panel-header">
-            <div class="client-panel-title" style="font-size: 0.92rem; font-weight: 700; color: #fff;">Інформація про клієнта</div>
-            <button class="client-panel-close-btn" onclick="toggleClientInfoPanel(false)" title="Сховати панель">✕</button>
+            <div class="client-panel-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span>Інформація про клієнта</span>
+            </div>
+            <button class="client-panel-close-btn" onclick="toggleClientInfoPanel(false)" title="Сховати панель">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
         </div>
         
         <div class="client-panel-body" style="padding: 20px 16px;">
             <!-- Hero Section (Avatar + Name + Subtitle) -->
-            <div style="display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.06);">
-                <div style="width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 12px; box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35); font-size: 1.7rem; font-weight: 700; color: #fff; border: 2px solid rgba(59, 130, 246, 0.45); position: relative;">
+            <div class="client-hero-section" style="display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <div style="width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 12px; font-size: 1.7rem; font-weight: 700; color: #fff; position: relative;">
                     <span id="panel-avatar-placeholder-${session.client_id}" style="display: none;">${displayName.replace(/^@/, '').substring(0, 1).toUpperCase() || 'К'}</span>
                     <img src="/api/avatar/${session.client_id}" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0;" onerror="this.remove(); const el = document.getElementById('panel-avatar-placeholder-${session.client_id}'); if(el) el.style.display='inline-flex';">
                 </div>
-                <div style="font-size: 1.15rem; font-weight: 700; color: #ffffff; line-height: 1.25; margin-bottom: 6px; word-break: normal; overflow-wrap: break-word; max-width: 260px;">${displayName}</div>
-                <div style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 4px 12px; border-radius: 12px;">
-                    <span style="color: ${isCompleted ? '#fb7185' : (session.is_paused ? '#fb7185' : '#34d399')}; font-weight: 600;">${isCompleted ? 'Архів' : (session.is_paused ? 'Ручний режим' : 'ШІ Активний')}</span>
+                <div class="client-panel-user-name">${displayName}</div>
+                <div class="client-panel-status-pill">
+                    <span class="${isCompleted ? 'archived' : (session.is_paused ? 'paused' : 'active')}">${isCompleted ? 'Архів' : (session.is_paused ? 'Ручний режим' : 'ШІ Активний')}</span>
                 </div>
                 
-                <button onclick="openClientControlCard(${session.client_id})" style="margin-top: 14px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.16), rgba(99, 102, 241, 0.16)); border: 1px solid rgba(139, 92, 246, 0.35); color: #c084fc; font-weight: 600; font-size: 0.84rem; padding: 10px 16px; cursor: pointer; transition: all 0.25s ease; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.08);" onmouseover="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.28), rgba(99, 102, 241, 0.28))'; this.style.boxShadow='0 6px 16px rgba(139, 92, 246, 0.25)'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.16), rgba(99, 102, 241, 0.16))'; this.style.boxShadow='0 4px 12px rgba(139, 92, 246, 0.08)'; this.style.transform='translateY(0)';">
+                <button class="btn-open-control-card" onclick="openClientControlCard(${session.client_id})">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="4" width="18" height="16" rx="3"></rect>
                         <circle cx="9" cy="10" r="2.5"></circle>
@@ -1955,13 +2433,13 @@ window.renderClientInfoPanel = function(session) {
 
             <!-- Details List with Telegram Icons -->
             <div style="display: flex; flex-direction: column; background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; overflow: hidden;">
-                <!-- Telegram Username -->
+                <!-- Username -->
                 <div class="tg-info-item">
                     <svg class="tg-info-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
                     </svg>
                     <div class="tg-info-content">
-                        <div class="tg-info-val" style="color: #60a5fa; font-weight: 600;">${username}</div>
+                        <div class="tg-info-val tg-info-username">${username}</div>
                         <div class="tg-info-label">Ім'я користувача</div>
                     </div>
                 </div>
@@ -1973,7 +2451,7 @@ window.renderClientInfoPanel = function(session) {
                         <circle cx="12" cy="7" r="4"></circle>
                     </svg>
                     <div class="tg-info-content">
-                        <div class="tg-info-val" style="color: #ffffff; font-weight: 600;">${pib}</div>
+                        <div class="tg-info-val tg-info-pib">${pib}</div>
                         <div class="tg-info-label">ПІБ Клієнта</div>
                     </div>
                 </div>
@@ -1987,7 +2465,7 @@ window.renderClientInfoPanel = function(session) {
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
                     <div class="tg-info-content">
-                        <div class="tg-info-val">${dob}</div>
+                        <div class="tg-info-val tg-info-dob">${dob}</div>
                         <div class="tg-info-label">Дата народження</div>
                     </div>
                 </div>
@@ -2001,21 +2479,12 @@ window.renderClientInfoPanel = function(session) {
                         <line x1="7" y1="16" x2="10" y2="16"></line>
                     </svg>
                     <div class="tg-info-content">
-                        <div class="tg-info-val" style="font-family: 'JetBrains Mono', monospace; color: #c084fc; font-weight: 600;">${ipn}</div>
+                        <div class="tg-info-val tg-info-ipn">${ipn}</div>
                         <div class="tg-info-label">ІПН / РНОКПП</div>
                     </div>
                 </div>
 
-                <!-- Phone -->
-                <div class="tg-info-item">
-                    <svg class="tg-info-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                    </svg>
-                    <div class="tg-info-content">
-                        <div class="tg-info-val" style="font-family: 'JetBrains Mono', monospace; color: #34d399; font-weight: 600;">${phone}</div>
-                        <div class="tg-info-label">Номер телефону</div>
-                    </div>
-                </div>
+                ${phoneItemHTML}
             </div>
         </div>
     `;
@@ -2035,6 +2504,195 @@ window.renderClientInfoPanel = function(session) {
         panel.classList.remove('no-transition');
     }, 150);
 };
+
+// --- CHAT THEME SELECTOR LOGIC ---
+const AVAILABLE_THEMES = [
+    { id: 'default', name: 'Cosmic Dark', bg: 'linear-gradient(135deg, #03050c 0%, #8b5cf6 100%)' },
+    { id: 'pitch-black', name: 'OLED Black', bg: 'linear-gradient(135deg, #000000 0%, #a855f7 100%)' },
+    { id: 'light', name: 'Light White', bg: 'linear-gradient(135deg, #f8fafc 0%, #4f46e5 100%)' },
+    { id: 'telegram-midnight', name: 'Telegram Midnight', bg: 'linear-gradient(135deg, #0e1621 0%, #2b5278 100%)' },
+    { id: 'emerald', name: 'Emerald Mint', bg: 'linear-gradient(135deg, #04140e 0%, #10b981 100%)' }
+];
+
+window.initChatTheme = function() {
+    document.body.removeAttribute('data-theme');
+    const savedTheme = localStorage.getItem('crm_chat_theme') || 'default';
+    const chatLayout = document.getElementById('chat-page-layout-container');
+    if (chatLayout) {
+        if (savedTheme === 'default') {
+            chatLayout.removeAttribute('data-theme');
+        } else {
+            chatLayout.setAttribute('data-theme', savedTheme);
+        }
+    }
+    if (typeof window.updateSettingsThemeCardsActiveState === 'function') {
+        window.updateSettingsThemeCardsActiveState(savedTheme);
+    }
+    if (typeof window.initCustomBubbleColors === 'function') {
+        window.initCustomBubbleColors();
+    }
+};
+
+window.setChatTheme = function(themeId) {
+    document.body.removeAttribute('data-theme');
+    localStorage.setItem('crm_chat_theme', themeId);
+    
+    const chatLayout = document.getElementById('chat-page-layout-container');
+    if (chatLayout) {
+        if (themeId === 'default') {
+            chatLayout.removeAttribute('data-theme');
+        } else {
+            chatLayout.setAttribute('data-theme', themeId);
+        }
+    }
+    
+    const backdrop = document.getElementById('chat-theme-modal-backdrop');
+    if (backdrop) {
+        const buttons = backdrop.querySelectorAll('.chat-theme-option-btn');
+        buttons.forEach(btn => {
+            if (btn.dataset.themeId === themeId) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    if (typeof window.updateSettingsThemeCardsActiveState === 'function') {
+        window.updateSettingsThemeCardsActiveState(themeId);
+    }
+    if (typeof window.applyChatFont === 'function') {
+        window.applyChatFont();
+    }
+};
+
+window.selectThemeFromSettings = function(themeId) {
+    window.setChatTheme(themeId);
+    if (typeof showToast === 'function') {
+        showToast("Тему чату успішно застосовано", "success");
+    }
+};
+
+window.updateSettingsThemeCardsActiveState = function(currentTheme) {
+    const theme = currentTheme || localStorage.getItem('crm_chat_theme') || 'default';
+    document.querySelectorAll('.settings-theme-card').forEach(card => {
+        const checkIcon = card.querySelector('.theme-check-icon');
+        if (card.dataset.settingsTheme === theme) {
+            card.style.borderColor = '#4f46e5';
+            card.style.background = 'rgba(79, 70, 229, 0.12)';
+            if (checkIcon) checkIcon.style.display = 'inline-block';
+        } else {
+            card.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+            card.style.background = 'rgba(255, 255, 255, 0.02)';
+            if (checkIcon) checkIcon.style.display = 'none';
+        }
+    });
+};
+
+window.switchThemeInnerSubtab = function(tabName) {
+    try {
+        localStorage.setItem('active_theme_inner_tab', tabName);
+        const btnPresets = document.getElementById('btn-theme-tab-presets');
+        const btnCustom = document.getElementById('btn-theme-tab-custom');
+        const panePresets = document.getElementById('theme-subpane-presets');
+        const paneCustom = document.getElementById('theme-subpane-custom');
+
+        if (tabName === 'presets') {
+            if (btnPresets) btnPresets.classList.add('active');
+            if (btnCustom) btnCustom.classList.remove('active');
+            if (panePresets) {
+                panePresets.style.setProperty('display', 'block', 'important');
+                panePresets.classList.add('active');
+            }
+            if (paneCustom) {
+                paneCustom.style.setProperty('display', 'none', 'important');
+                paneCustom.classList.remove('active');
+            }
+        } else {
+            if (btnCustom) btnCustom.classList.add('active');
+            if (btnPresets) btnPresets.classList.remove('active');
+            if (paneCustom) {
+                paneCustom.style.setProperty('display', 'flex', 'important');
+                paneCustom.classList.add('active');
+            }
+            if (panePresets) {
+                panePresets.style.setProperty('display', 'none', 'important');
+                panePresets.classList.remove('active');
+            }
+            if (typeof window.updateLiveBubblePreview === 'function') {
+                window.updateLiveBubblePreview();
+            }
+        }
+    } catch(e) {
+        console.error("switchThemeInnerSubtab error:", e);
+    }
+};
+
+window.openThemeSelectorModal = function() {
+    let backdrop = document.getElementById('chat-theme-modal-backdrop');
+    const currentTheme = localStorage.getItem('crm_chat_theme') || 'default';
+
+    if (!backdrop) {
+        backdrop = document.createElement('div');
+        backdrop.id = 'chat-theme-modal-backdrop';
+        backdrop.className = 'chat-theme-modal-backdrop';
+        
+        let gridHtml = '';
+        AVAILABLE_THEMES.forEach(t => {
+            const isActive = t.id === currentTheme ? 'active' : '';
+            gridHtml += `
+                <button class="chat-theme-option-btn ${isActive}" data-theme-id="${t.id}" onclick="setChatTheme('${t.id}')">
+                    <div class="chat-theme-circle" style="background: ${t.bg};"></div>
+                    <span class="chat-theme-label">${t.name}</span>
+                </button>
+            `;
+        });
+
+        backdrop.innerHTML = `
+            <div class="chat-theme-modal" onclick="event.stopPropagation()">
+                <div class="chat-theme-modal-header">
+                    <span class="chat-theme-modal-title">🎨 Тема чату</span>
+                    <button class="chat-theme-modal-close" onclick="closeThemeSelectorModal()">✕</button>
+                </div>
+                <div class="chat-theme-options-grid">
+                    ${gridHtml}
+                </div>
+            </div>
+        `;
+        backdrop.onclick = function() {
+            closeThemeSelectorModal();
+        };
+        document.body.appendChild(backdrop);
+    } else {
+        const buttons = backdrop.querySelectorAll('.chat-theme-option-btn');
+        buttons.forEach(btn => {
+            if (btn.dataset.themeId === currentTheme) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    requestAnimationFrame(() => {
+        backdrop.classList.add('active');
+    });
+
+    const dropdown = document.getElementById('chat-actions-dropdown');
+    if (dropdown) dropdown.classList.remove('active');
+};
+
+window.closeThemeSelectorModal = function() {
+    const backdrop = document.getElementById('chat-theme-modal-backdrop');
+    if (backdrop) {
+        backdrop.classList.remove('active');
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.initChatTheme();
+});
+window.initChatTheme();
 
 
 

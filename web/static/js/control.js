@@ -1071,50 +1071,7 @@ function openChatModal(clientId, event) {
     selectChatClient(clientId);
 }
 
-// Lightbox view for image/video verification previews
-function openLightbox(src) {
-    const overlay = document.getElementById('image-lightbox');
-    const img = document.getElementById('lightbox-img');
-    const video = document.getElementById('lightbox-video');
-    if (!overlay) return;
-
-    // Check if source is a video file or base64 data-url with video mime
-    const isVideo = src.toLowerCase().endsWith('.mp4') || 
-                    src.toLowerCase().endsWith('.mov') || 
-                    src.toLowerCase().endsWith('.avi') || 
-                    src.toLowerCase().endsWith('.webm') ||
-                    src.startsWith('data:video/');
-
-    if (isVideo) {
-        if (img) img.style.display = 'none';
-        if (video) {
-            video.src = src;
-            video.style.display = 'block';
-            video.play().catch(() => {});
-        }
-    } else {
-        if (video) {
-            video.pause();
-            video.style.display = 'none';
-        }
-        if (img) {
-            img.src = src;
-            img.style.display = 'block';
-        }
-    }
-    overlay.classList.add('active');
-}
-
-function closeLightbox() {
-    const overlay = document.getElementById('image-lightbox');
-    const video = document.getElementById('lightbox-video');
-    if (video) {
-        video.pause();
-    }
-    if (overlay) {
-        overlay.classList.remove('active');
-    }
-}
+// Lightbox functions are defined in chat.js (window.openLightbox / window.closeLightbox)
 
 function extractDisplayName(clientData, username) {
     if (!clientData) return username ? `@${username}` : "Клієнт";

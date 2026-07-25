@@ -657,14 +657,17 @@ async def no_code_message_filter(message: Message) -> bool:
     return False
 async def simulate_typing(bot: Bot, chat_id: int, duration: float):
     """Імітує процес друку повідомлення в Telegram протягом вказаного часу"""
+    from bot.services.ai_task_manager import is_session_ai_paused
     start_time = asyncio.get_event_loop().time()
     while asyncio.get_event_loop().time() - start_time < duration:
+        if await is_session_ai_paused(chat_id):
+            raise asyncio.CancelledError("AI is paused for this client")
         try:
             await bot.send_chat_action(chat_id=chat_id, action="typing")
         except Exception:
             pass
         remaining = duration - (asyncio.get_event_loop().time() - start_time)
-        sleep_time = min(4.0, remaining)
+        sleep_time = min(2.0, remaining)
         if sleep_time > 0:
             await asyncio.sleep(sleep_time)
 async def handle_proceedings_screenshot(message: Message, photo: PhotoSize, session: dict, bot: Bot, state: FSMContext):

@@ -93,7 +93,7 @@ async function loadSettings() {
 
         // Restore active settings subtab
         let savedSubtab = localStorage.getItem('active_settings_subtab') || 'general';
-        if (!['general', 'banks', 'chats', 'ai'].includes(savedSubtab)) {
+        if (!['general', 'banks', 'chats', 'ai', 'theme'].includes(savedSubtab)) {
             savedSubtab = 'general';
         }
         switchSettingsSubtab(savedSubtab);
@@ -224,7 +224,7 @@ function switchSettingsSubtab(subtabId) {
     // 3. Show/hide global save button container
     const saveBtn = document.getElementById('settings-save-btn-container');
     if (saveBtn) {
-        if (subtabId === 'banks' || subtabId === 'ai') {
+        if (subtabId === 'banks' || subtabId === 'ai' || subtabId === 'theme') {
             saveBtn.style.display = 'none';
         } else {
             saveBtn.style.display = 'flex';
@@ -235,4 +235,134 @@ function switchSettingsSubtab(subtabId) {
     if (subtabId === 'ai' && typeof loadAISettings === 'function') {
         loadAISettings();
     }
+
+    // 5. Update theme cards active state if theme subtab
+    if (subtabId === 'theme') {
+        if (typeof window.updateSettingsThemeCardsActiveState === 'function') {
+            window.updateSettingsThemeCardsActiveState();
+        }
+        if (typeof window.updateSettingsFontCardsActiveState === 'function') {
+            window.updateSettingsFontCardsActiveState();
+        }
+    }
 }
+
+window.applyChatFont = function(fontName, fontWeight) {
+    if (!fontName) fontName = localStorage.getItem('crm_chat_font_family') || 'Inter';
+    if (!fontWeight) fontWeight = localStorage.getItem('crm_chat_font_weight') || '600';
+
+    let styleEl = document.getElementById('dynamic-chat-font-style');
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'dynamic-chat-font-style';
+        document.head.appendChild(styleEl);
+    }
+    
+    let fontCss = `'${fontName}', sans-serif`;
+    if (fontName === 'JetBrains Mono') {
+        fontCss = `'JetBrains Mono', monospace`;
+    }
+
+    styleEl.textContent = `
+        .chat-msg-bubble,
+        .chat-msg-text,
+        .chat-msg-quote-text,
+        .chat-msg-container .chat-msg-bubble,
+        .chat-msg-container .chat-msg-text,
+        .chat-msg-container .chat-msg-quote-text,
+        .chat-page-layout .chat-msg-text,
+        .chat-page-layout .chat-msg-bubble,
+        .chat-client-info-panel,
+        .chat-client-info-panel *,
+        .tg-info-val,
+        .client-panel-user-name,
+        #chat-window-body-container {
+            font-family: ${fontCss} !important;
+        }
+        .chat-msg-bubble,
+        .chat-msg-text,
+        .chat-msg-quote-text,
+        .chat-msg-container .chat-msg-bubble,
+        .chat-msg-container .chat-msg-text,
+        .chat-msg-container .chat-msg-quote-text,
+        .chat-page-layout .chat-msg-text,
+        .chat-page-layout .chat-msg-bubble {
+            font-weight: ${fontWeight} !important;
+        }
+        .font-sample-preview {
+            font-weight: ${fontWeight} !important;
+        }
+    `;
+
+    window.updateSettingsFontCardsActiveState(fontName);
+    window.updateSettingsFontWeightActiveState(fontWeight);
+};
+
+window.selectChatFont = function(fontName) {
+    localStorage.setItem('crm_chat_font_family', fontName);
+    window.applyChatFont(fontName);
+    if (typeof showToast === 'function') {
+        showToast(`Шрифт чату змінено на ${fontName}!`, "success");
+    }
+};
+
+window.selectChatFontWeight = function(weight) {
+    localStorage.setItem('crm_chat_font_weight', weight);
+    window.applyChatFont(null, weight);
+    if (typeof showToast === 'function') {
+        showToast(`Жирність шрифту змінено на ${weight}!`, "success");
+    }
+};
+
+window.updateSettingsFontCardsActiveState = function(fontName) {
+    if (!fontName) fontName = localStorage.getItem('crm_chat_font_family') || 'Inter';
+    const fontCards = document.querySelectorAll('.settings-font-card');
+    fontCards.forEach(card => {
+        if (card.dataset.font === fontName) {
+            card.classList.add('active');
+        } else {
+            card.classList.remove('active');
+        }
+    });
+};
+
+window.updateSettingsFontWeightActiveState = function(fontWeight) {
+    if (!fontWeight) fontWeight = localStorage.getItem('crm_chat_font_weight') || '600';
+    const weightBtns = document.querySelectorAll('.font-weight-btn');
+    weightBtns.forEach(btn => {
+        if (btn.dataset.weight === String(fontWeight)) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+};
+
+window.switchThemeSubtab = function(subtabName) {
+    if (!subtabName) subtabName = localStorage.getItem('crm_theme_subtab') || 'themes';
+    localStorage.setItem('crm_theme_subtab', subtabName);
+
+    const btnThemes = document.getElementById('btn-theme-subtab-themes');
+    const btnFonts = document.getElementById('btn-theme-subtab-fonts');
+    const paneThemes = document.getElementById('theme-subpane-themes');
+    const paneFonts = document.getElementById('theme-subpane-fonts');
+
+    if (subtabName === 'fonts') {
+        if (btnThemes) btnThemes.classList.remove('active');
+        if (btnFonts) btnFonts.classList.add('active');
+        if (paneThemes) paneThemes.style.display = 'none';
+        if (paneFonts) paneFonts.style.display = 'block';
+    } else {
+        if (btnThemes) btnThemes.classList.add('active');
+        if (btnFonts) btnFonts.classList.remove('active');
+        if (paneThemes) paneThemes.style.display = 'block';
+        if (paneFonts) paneFonts.style.display = 'none';
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.applyChatFont();
+    window.switchThemeSubtab();
+});
+window.applyChatFont();
+window.switchThemeSubtab();

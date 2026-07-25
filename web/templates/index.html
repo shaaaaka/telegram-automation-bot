@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=36.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=172.0">
 </head>
 <body>
     <div class="container">
@@ -146,7 +146,13 @@
                             <button class="sidebar-tab active" id="chat-sidebar-tab-active" onclick="setChatSidebarTab('active')">Активні</button>
                             <button class="sidebar-tab" id="chat-sidebar-tab-completed" onclick="setChatSidebarTab('completed')">Архів</button>
                         </div>
-                        <input type="text" id="chat-search-input" placeholder="Пошук клієнта за іменем..." oninput="filterChatSidebar()">
+                        <div class="chat-search-wrapper">
+                            <svg class="chat-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            <input type="text" id="chat-search-input" placeholder="Пошук клієнта за іменем..." oninput="filterChatSidebar()">
+                        </div>
                     </div>
                     <div class="chat-sidebar-list" id="chat-sidebar-list-container">
                         <!-- Динамічний список чатів -->
@@ -853,6 +859,14 @@
                             </svg>
                         </div>
                         <span>Налаштування ШІ</span>
+                    </button>
+                    <button type="button" class="settings-subtab-btn" id="subtab-btn-theme" onclick="switchSettingsSubtab('theme')">
+                        <div class="subtab-icon-wrapper">
+                            <svg class="subtab-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 22C6.5 22 2 17.5 2 12S6.5 2 12 2s10 4.5 10 10c0 2.5-1 4.5-3 4.5h-2c-1.1 0-2 .9-2 2v.5c0 1.4-1.1 3-3 3z"></path>
+                            </svg>
+                        </div>
+                        <span>Оформлення та теми</span>
                     </button>
                 </div>
 
@@ -1589,12 +1603,89 @@ Line {line_id} Return: {line_phone} | {bank}
                             <!-- Список прикладів -->
                             <div id="ai-examples-list-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 450px; overflow-y: auto; padding-right: 6px; width: 100%;">
                                 <!-- Динамічно -->
-                            </div>
                         </div>
                     </div> <!-- Close settings-content-ai -->
+
+                    <!-- Підвкладка: Оформлення та теми -->
+                    <div class="settings-subtab-content" id="settings-content-theme">
+                        <div class="settings-header-banner" style="margin-bottom: 20px;">
+                            <h2 style="font-size: 1.25rem; font-weight: 700; color: #fff; margin-bottom: 4px;">🎨 Оформлення та теми</h2>
+                            <p style="font-size: 0.88rem; color: rgba(255,255,255,0.6);">Персоналізуйте теми чату, кольорові палітри та шрифти інтерфейсу.</p>
+                        </div>
+
+                        <!-- Перемикач розділів тем/шрифтів -->
+                        <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px;">
+                            <button type="button" class="btn btn-secondary active" id="btn-theme-subtab-themes" onclick="switchThemeSubtab('themes')">🎨 Темы чату</button>
+                            <button type="button" class="btn btn-secondary" id="btn-theme-subtab-fonts" onclick="switchThemeSubtab('fonts')">🔤 Шрифти та стилі</button>
+                        </div>
+
+                        <!-- Розділ: Темы чату -->
+                        <div id="theme-subpane-themes">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px;">
+                                <div class="settings-theme-card" onclick="setChatTheme('default')" style="background: #0b1120; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px; cursor: pointer;">
+                                    <div style="height: 40px; border-radius: 8px; background: #1e293b; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #38bdf8;">Default Blue</div>
+                                    <div style="font-weight: 600; color: #fff; font-size: 0.95rem;">Стандартна темна</div>
+                                </div>
+                                <div class="settings-theme-card" onclick="setChatTheme('telegram-midnight')" style="background: #0e1621; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px; cursor: pointer;">
+                                    <div style="height: 40px; border-radius: 8px; background: #2b5278; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff;">Telegram</div>
+                                    <div style="font-weight: 600; color: #fff; font-size: 0.95rem;">Telegram Midnight</div>
+                                </div>
+                                <div class="settings-theme-card" onclick="setChatTheme('emerald')" style="background: #061712; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px; cursor: pointer;">
+                                    <div style="height: 40px; border-radius: 8px; background: #065f46; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #34d399;">Emerald</div>
+                                    <div style="font-weight: 600; color: #fff; font-size: 0.95rem;">Emerald Green</div>
+                                </div>
+                                <div class="settings-theme-card" onclick="setChatTheme('pitch-black')" style="background: #000000; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px; cursor: pointer;">
+                                    <div style="height: 40px; border-radius: 8px; background: #111111; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #e2e8f0;">OLED Black</div>
+                                    <div style="font-weight: 600; color: #fff; font-size: 0.95rem;">Pitch Black</div>
+                                </div>
+                                <div class="settings-theme-card" onclick="setChatTheme('light')" style="background: #f8fafc; border: 1px solid rgba(0,0,0,0.1); border-radius: 12px; padding: 14px; cursor: pointer;">
+                                    <div style="height: 40px; border-radius: 8px; background: #e2e8f0; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #0f172a;">Light Mode</div>
+                                    <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem;">Світла тема</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Розділ: Шрифти та стилі -->
+                        <div id="theme-subpane-fonts" style="display: none;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px;">
+                                <div class="settings-font-card" data-font="Inter" onclick="selectChatFont('Inter')" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; cursor: pointer;">
+                                    <div style="font-weight: 700; color: #fff; font-size: 1rem; margin-bottom: 4px;">Inter</div>
+                                    <div class="font-sample-preview" style="font-family: 'Inter', sans-serif; font-size: 0.85rem; color: rgba(255,255,255,0.6);">Сучасний стандартний шрифт</div>
+                                </div>
+                                <div class="settings-font-card" data-font="Outfit" onclick="selectChatFont('Outfit')" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; cursor: pointer;">
+                                    <div style="font-weight: 700; color: #fff; font-size: 1rem; margin-bottom: 4px;">Outfit</div>
+                                    <div class="font-sample-preview" style="font-family: 'Outfit', sans-serif; font-size: 0.85rem; color: rgba(255,255,255,0.6);">Елегантний та округлий</div>
+                                </div>
+                                <div class="settings-font-card" data-font="Plus Jakarta Sans" onclick="selectChatFont('Plus Jakarta Sans')" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; cursor: pointer;">
+                                    <div style="font-weight: 700; color: #fff; font-size: 1rem; margin-bottom: 4px;">Plus Jakarta Sans</div>
+                                    <div class="font-sample-preview" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.85rem; color: rgba(255,255,255,0.6);">Преміальний глянцевий</div>
+                                </div>
+                                <div class="settings-font-card" data-font="Roboto" onclick="selectChatFont('Roboto')" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; cursor: pointer;">
+                                    <div style="font-weight: 700; color: #fff; font-size: 1rem; margin-bottom: 4px;">Roboto</div>
+                                    <div class="font-sample-preview" style="font-family: 'Roboto', sans-serif; font-size: 0.85rem; color: rgba(255,255,255,0.6);">Класичний Android шрифт</div>
+                                </div>
+                                <div class="settings-font-card" data-font="JetBrains Mono" onclick="selectChatFont('JetBrains Mono')" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; cursor: pointer;">
+                                    <div style="font-weight: 700; color: #fff; font-size: 1rem; margin-bottom: 4px;">JetBrains Mono</div>
+                                    <div class="font-sample-preview" style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: rgba(255,255,255,0.6);">Моноширинний кодерський</div>
+                                </div>
+                            </div>
+
+                            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px;">
+                                <label style="font-weight: 600; color: #fff; font-size: 0.95rem; display: block; margin-bottom: 10px;">Товщина шрифту (Font Weight):</label>
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <button type="button" class="btn btn-secondary font-weight-btn" data-weight="400" onclick="selectChatFontWeight('400')">Normal (400)</button>
+                                    <button type="button" class="btn btn-secondary font-weight-btn" data-weight="500" onclick="selectChatFontWeight('500')">Medium (500)</button>
+                                    <button type="button" class="btn btn-secondary font-weight-btn" data-weight="600" onclick="selectChatFontWeight('600')">SemiBold (600)</button>
+                                    <button type="button" class="btn btn-secondary font-weight-btn" data-weight="700" onclick="selectChatFontWeight('700')">Bold (700)</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div> <!-- Close settings-content-pane -->
             </div> <!-- Close settings-container -->
         </div> <!-- Close tab-content-settings -->
+    </div> <!-- Close container -->
+    </div> <!-- Close container -->
 
         <!-- Custom Premium Modal Dialog -->
         <div id="custom-modal" class="modal-overlay">
@@ -1652,6 +1743,7 @@ Line {line_id} Return: {line_phone} | {bank}
 
     <!-- Image Lightbox Modal -->
     <div id="image-lightbox" class="lightbox-overlay" onclick="closeLightbox()">
+        <button class="lightbox-close" onclick="closeLightbox()" title="Закрити (Esc)">✕</button>
         <img id="lightbox-img" class="lightbox-image" src="" alt="Full Screen Preview" onclick="event.stopPropagation()">
         <video id="lightbox-video" class="lightbox-video" src="" controls style="max-width: 90%; max-height: 90vh; border-radius: 8px; display: none; outline: none; box-shadow: 0 10px 40px rgba(0,0,0,0.5);" onclick="event.stopPropagation()"></video>
     </div>
@@ -1676,8 +1768,8 @@ Line {line_id} Return: {line_phone} | {bank}
     </div>
 
     <script src="/static/js/main.js?v=10.0"></script>
-    <script src="/static/js/control.js?v=10.0"></script>
-    <script src="/static/js/chat.js?v=10.1"></script>
+    <script src="/static/js/control.js?v=10.2"></script>
+    <script src="/static/js/chat.js?v=10.32"></script>
     <script src="/static/js/stats.js?v=10.0"></script>
     <script src="/static/js/settings.js?v=10.0"></script>
     <script src="/static/js/settings-banks.js?v=18.0"></script>

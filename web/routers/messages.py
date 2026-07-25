@@ -1,4 +1,5 @@
 from typing import Optional
+import logging
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
@@ -7,6 +8,7 @@ from bot.database import current_sender
 from web.models import *
 import web.core
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -16,6 +18,10 @@ async def send_client_message(client_id: int, body: ClientMessage):
     if not web.core.bot:
         raise HTTPException(status_code=500, detail="Telegram bot is not initialized")
     
+    # Скасовуємо будь-яку активну генерацію ШІ для цього клієнта при втручанні оператора
+    from bot.services.ai_task_manager import cancel_ai_task
+    cancel_ai_task(client_id)
+
     # Встановлюємо sender як 'admin' для цього асинхронного контексту
     token = current_sender.set("admin")
     try:
@@ -69,6 +75,7 @@ async def send_client_photo(client_id: int, file: UploadFile = File(...), captio
             
         return {"status": "success"}
     except Exception as e:
+        logger.exception(f"Failed to send photo to client {client_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to send photo: {str(e)}")
     finally:
         current_sender.reset(token)

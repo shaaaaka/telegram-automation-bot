@@ -1,11 +1,14 @@
 import os
 import io
+import logging
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from web.core import PHOTOS_CACHE_DIR, AVATARS_CACHE_DIR
 import web.core
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter()
@@ -17,7 +20,8 @@ async def get_telegram_photo(file_id: str):
         raise HTTPException(status_code=500, detail="Bot is not configured")
     
     import re
-    if not file_id or not re.match(r'^[\w-]+$', file_id):
+    if not file_id or not re.match(r'^[\w-]+=?$', file_id):
+        logger.warning(f"Invalid file_id requested: {file_id!r}")
         raise HTTPException(status_code=400, detail="Invalid file_id format")
 
     cache_path = os.path.join(PHOTOS_CACHE_DIR, file_id)
@@ -44,6 +48,7 @@ async def get_telegram_photo(file_id: str):
             headers={"Cache-Control": "public, max-age=31536000, immutable"}
         )
     except Exception as e:
+        logger.exception(f"Failed to fetch photo {file_id!r} from Telegram: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch photo from Telegram: {e}")
 
 @router.get("/api/avatar/{client_id}")

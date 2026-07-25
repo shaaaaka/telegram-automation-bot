@@ -8,10 +8,23 @@ import bot.database as db
 import re
 import asyncio
 import logging
+import time
 
 from bot.handlers.client_helpers import *
 logger = logging.getLogger(__name__)
 router = Router()
+
+_client_reply_cooldowns = {}
+
+def should_send_client_reply(client_id: int, key: str = "default", cooldown: float = 3.0) -> bool:
+    """Перевіряє, чи не було аналогічної відповіді клієнту протягом останніх cooldown секунд (для захисту від дублів у альбомах/флуді)"""
+    now = time.time()
+    cache_key = (client_id, key)
+    last_time = _client_reply_cooldowns.get(cache_key, 0)
+    if now - last_time < cooldown:
+        return False
+    _client_reply_cooldowns[cache_key] = now
+    return True
 @router.message(F.text == "/id")
 async def cmd_get_chat_id(message: Message):
     await message.answer(f"ID цього чату: <code>{message.chat.id}</code>", parse_mode="HTML")
@@ -642,7 +655,8 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
             logger.info(f"AI bot is paused for client {client_id}. Ignoring automatic AI support response.")
             return
         if existing_session['status'] == 'registered':
-            await message.answer("Будь ласка, зачекайте, поки адміністратор призначить вам номер телефону для початку верифікації.")
+            if should_send_client_reply(client_id, key="registered_wait", cooldown=3.0):
+                await message.answer("Будь ласка, зачекайте, поки адміністратор призначить вам номер телефону для початку верифікації.")
             return
         elif existing_session['status'] == 'waiting_verification':
             if int(existing_session.get('waiting_proceedings') or 0) == 1:
@@ -726,77 +740,103 @@ async def handle_client_data_manual(message: Message, state: FSMContext, bot: Bo
             )
             return
 
-        from bot.openai_client import get_support_response
-        response = await get_support_response(
-            user_text=message.text,
-            client_data=client_data,
-            current_bank_name=current_bank_name,
-            chat_history=chat_history,
-            sent_codes_count=sent_codes_count
-        )
-        
-        # Імітація людського друку перед надсиланням відповіді
-        import random
-        char_count = len(response)
-        delay = min(7.0, max(3.0, char_count / 15.0)) + random.uniform(-0.5, 1.0)
-        delay = max(3.0, min(8.0, delay))
-        await simulate_typing(bot, client_id, delay)
-        
-        if "[SUCCESS_VERIFICATION]" in response:
-            bank_label = current_bank_name if current_bank_name else "банк"
-            await state.update_data(support_requests_count=0)
-            
-            success_text = None
-            if current_bank_name:
-                template = await db.get_bank_template_db(current_bank_name)
-                if template and template.get('success_text'):
-                    success_text = template['success_text']
-            
-            prompt_msg = success_text or f"Чудово! Будь ласка, надішліть скріншот, який підтверджує успішну реєстрацію в {bank_label}."
-            await message.answer(
-                prompt_msg,
-                reply_markup=ReplyKeyboardRemove()
+        from bot.services.ai_task_manager import register_ai_task, unregister_ai_task, is_session_ai_paused
+        current_task = asyncio.current_task()
+        if current_task:
+            register_ai_task(client_id, current_task)
+
+        try:
+            from bot.openai_client import get_support_response
+            response = await get_support_response(
+                user_text=message.text,
+                client_data=client_data,
+                current_bank_name=current_bank_name,
+                chat_history=chat_history,
+                sent_codes_count=sent_codes_count
             )
-            return
-
-        # Додаємо повідомлення в історію, якщо це не успішна верифікація
-        user_msg = {"role": "user", "content": message.text}
-        
-        raw_response = response
-        if "\n\nЯ всього автоматизатор" in response:
-            raw_response = response.split("\n\nЯ всього автоматизатор")[0].strip()
-        assistant_msg = {"role": "assistant", "content": raw_response}
-        
-        chat_history.append(user_msg)
-        chat_history.append(assistant_msg)
-        chat_history = chat_history[-10:] # Зберігаємо останні 10 повідомлень
-        await state.update_data(chat_history=chat_history)
-
-        if "[OFFER_AMOBANK_INSTRUCTIONS]" in response:
-            await state.set_state(RegistrationStates.waiting_amobank_instruction_confirm)
-        if "[OFFER_LVIV_SUCCESS_SCREEN]" in response:
-            await state.set_state(RegistrationStates.waiting_lviv_success_confirm)
-
-        raw_parts = re.split(r'\[SPLIT\]?', response, flags=re.IGNORECASE)
-        clean_parts = []
-        for part in raw_parts:
-            clean_part = re.sub(r'\[[^\]]*\]?', '', part).strip()
-            if clean_part:
-                clean_parts.append(clean_part)
-
-        for i, part in enumerate(clean_parts):
-            try:
-                await bot.send_chat_action(chat_id=client_id, action="typing")
-            except Exception:
-                pass
-            import random
-            char_count = len(part)
-            delay = min(4.0, max(1.5, char_count / 15.0)) + random.uniform(-0.3, 0.5)
-            await asyncio.sleep(delay)
             
-            is_last = (i == len(clean_parts) - 1)
-            reply_markup = ReplyKeyboardRemove() if is_last else None
-            await message.answer(part, reply_markup=reply_markup)
+            if await is_session_ai_paused(client_id):
+                logger.info(f"🛑 AI response cancelled for client {client_id} (paused in DB)")
+                return
+
+            # Імітація людського друку перед надсиланням відповіді
+            import random
+            char_count = len(response)
+            delay = min(7.0, max(3.0, char_count / 15.0)) + random.uniform(-0.5, 1.0)
+            delay = max(3.0, min(8.0, delay))
+            await simulate_typing(bot, client_id, delay)
+            
+            if await is_session_ai_paused(client_id):
+                logger.info(f"🛑 AI response cancelled for client {client_id} before sending answer")
+                return
+
+            if "[SUCCESS_VERIFICATION]" in response:
+                bank_label = current_bank_name if current_bank_name else "банк"
+                await state.update_data(support_requests_count=0)
+                
+                success_text = None
+                if current_bank_name:
+                    template = await db.get_bank_template_db(current_bank_name)
+                    if template and template.get('success_text'):
+                        success_text = template['success_text']
+                
+                prompt_msg = success_text or f"Чудово! Будь ласка, надішліть скріншот, який підтверджує успішну реєстрацію в {bank_label}."
+                await message.answer(
+                    prompt_msg,
+                    reply_markup=ReplyKeyboardRemove()
+                )
+                return
+
+            # Додаємо повідомлення в історію, якщо це не успішна верифікація
+            user_msg = {"role": "user", "content": message.text}
+            
+            raw_response = response
+            if "\n\nЯ всього автоматизатор" in response:
+                raw_response = response.split("\n\nЯ всього автоматизатор")[0].strip()
+            assistant_msg = {"role": "assistant", "content": raw_response}
+            
+            chat_history.append(user_msg)
+            chat_history.append(assistant_msg)
+            chat_history = chat_history[-10:] # Зберігаємо останні 10 повідомлень
+            await state.update_data(chat_history=chat_history)
+
+            if "[OFFER_AMOBANK_INSTRUCTIONS]" in response:
+                await state.set_state(RegistrationStates.waiting_amobank_instruction_confirm)
+            if "[OFFER_LVIV_SUCCESS_SCREEN]" in response:
+                await state.set_state(RegistrationStates.waiting_lviv_success_confirm)
+
+            raw_parts = re.split(r'\[SPLIT\]?', response, flags=re.IGNORECASE)
+            clean_parts = []
+            for part in raw_parts:
+                clean_part = re.sub(r'\[[^\]]*\]?', '', part).strip()
+                if clean_part:
+                    clean_parts.append(clean_part)
+
+            for i, part in enumerate(clean_parts):
+                if await is_session_ai_paused(client_id):
+                    logger.info(f"🛑 AI response cancelled for client {client_id} during part sending")
+                    return
+                try:
+                    await bot.send_chat_action(chat_id=client_id, action="typing")
+                except Exception:
+                    pass
+                import random
+                char_count = len(part)
+                delay = min(4.0, max(1.5, char_count / 15.0)) + random.uniform(-0.3, 0.5)
+                await asyncio.sleep(delay)
+                
+                if await is_session_ai_paused(client_id):
+                    logger.info(f"🛑 AI response cancelled for client {client_id} during part sending sleep")
+                    return
+
+                is_last = (i == len(clean_parts) - 1)
+                reply_markup = ReplyKeyboardRemove() if is_last else None
+                await message.answer(part, reply_markup=reply_markup)
+        except asyncio.CancelledError:
+            logger.info(f"🛑 AI Task cancelled via CancelledError for client {client_id}")
+            return
+        finally:
+            unregister_ai_task(client_id, current_task)
 
         if "[OFFER_LVIV_SUCCESS_SCREEN]" in response:
             import os
@@ -836,6 +876,11 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
     """Обробник скріншоту від користувача (ШІ розпізнавання помилок)"""
     client_id = message.from_user.id
     
+    # Якщо це частина альбому (media_group_id) і відповідь уже надсилалася — ігноруємо дубль
+    if message.media_group_id and not should_send_client_reply(client_id, key=f"mg_{message.media_group_id}", cooldown=5.0):
+        logger.info(f"Skipping duplicate media_group response for client {client_id}, mg: {message.media_group_id}")
+        return
+
     # Перевіряємо, чи є вже активна сесія
     existing_session = await db.get_session(client_id)
     if existing_session:
@@ -843,17 +888,20 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
             logger.info(f"AI bot is paused for client {client_id}. Ignoring automatic AI photo support response.")
             return
         if existing_session['status'] == 'registered':
-            await message.answer("Будь ласка, зачекайте, поки адміністратор призначить вам номер телефону для початку верифікації.")
+            if should_send_client_reply(client_id, key="registered_wait", cooldown=3.0):
+                await message.answer("Будь ласка, зачекайте, поки адміністратор призначить вам номер телефону для початку верифікації.")
             return
         elif existing_session['status'] == 'waiting_verification':
             if int(existing_session.get('waiting_proceedings') or 0) == 1:
                 # Дозволяємо надсилання скріншоту
                 pass
             else:
-                await message.answer("Ваша анкета знаходиться на перевірці у верифікатора. Будь ласка, зачекайте.")
+                if should_send_client_reply(client_id, key="verif_wait", cooldown=3.0):
+                    await message.answer("Ваша анкета знаходиться на перевірці у верифікатора. Будь ласка, зачекайте.")
                 return
         elif existing_session['status'] not in ('number_assigned', 'waiting_code'):
-            await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
+            if should_send_client_reply(client_id, key="start_prompt", cooldown=3.0):
+                await message.answer("Для початку верифікації напишіть **/start**.", parse_mode="Markdown")
             return
         
         # Беремо фото найкращої якості
@@ -914,21 +962,40 @@ async def handle_client_photo(message: Message, state: FSMContext, bot: Bot):
         
 
         
-        from bot.openai_client import get_support_response
-        response = await get_support_response(
-            user_text=message.caption,
-            image_bytes=photo_data,
-            client_data=client_data,
-            current_bank_name=current_bank_name,
-            sent_codes_count=sent_codes_count
-        )
-        
-        # Імітація людського друку перед надсиланням відповіді
-        import random
-        char_count = len(response)
-        delay = min(7.0, max(3.0, char_count / 15.0)) + random.uniform(-0.5, 1.0)
-        delay = max(3.0, min(8.0, delay))
-        await simulate_typing(bot, client_id, delay)
+        from bot.services.ai_task_manager import register_ai_task, unregister_ai_task, is_session_ai_paused
+        current_task = asyncio.current_task()
+        if current_task:
+            register_ai_task(client_id, current_task)
+
+        try:
+            from bot.openai_client import get_support_response
+            response = await get_support_response(
+                user_text=message.caption,
+                image_bytes=photo_data,
+                client_data=client_data,
+                current_bank_name=current_bank_name,
+                sent_codes_count=sent_codes_count
+            )
+            
+            if await is_session_ai_paused(client_id):
+                logger.info(f"🛑 AI photo response cancelled for client {client_id} (paused in DB)")
+                return
+
+            # Імітація людського друку перед надсиланням відповіді
+            import random
+            char_count = len(response)
+            delay = min(7.0, max(3.0, char_count / 15.0)) + random.uniform(-0.5, 1.0)
+            delay = max(3.0, min(8.0, delay))
+            await simulate_typing(bot, client_id, delay)
+
+            if await is_session_ai_paused(client_id):
+                logger.info(f"🛑 AI photo response cancelled for client {client_id} before sending answer")
+                return
+        except asyncio.CancelledError:
+            logger.info(f"🛑 AI photo Task cancelled via CancelledError for client {client_id}")
+            return
+        finally:
+            unregister_ai_task(client_id, current_task)
         
         is_bank_kd = current_bank_name and "bank.kd" in current_bank_name.lower()
         is_lvivbank = current_bank_name and "lviv" in current_bank_name.lower()
