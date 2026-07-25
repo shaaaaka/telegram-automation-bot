@@ -1131,22 +1131,34 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
             contentHtml += `<img class="chat-msg-gallery-img" src="/api/photos/${pid}" onload="checkGalleryImgLayout(this);${scrollOnLoad}">`;
         });
         contentHtml += `</div>`;
-    } else if (singlePhotoId) {
+        if (log.message_text) {
+            let escapedText = escapeHtml(log.message_text);
+            escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            escapedText = escapedText.replace(/`/g, '');
+            contentHtml += `<span class="chat-msg-text">${escapedText.replace(/\n/g, '<br>')}</span>`;
+        }
+        contentHtml += `<span class="chat-msg-time-inline">${timeStr}</span>`;
+    } else if (singlePhotoId && !log.message_text) {
         const scrollOnLoad = isHistoryRender ? '' : 'onload="scrollToBottom(\'chat-window-body-container\')"';
-        contentHtml += `<img class="chat-msg-img" src="/api/photos/${singlePhotoId}" ${scrollOnLoad}>`;
+        contentHtml += `
+            <div class="chat-msg-media-wrapper">
+                <img class="chat-msg-img" src="/api/photos/${singlePhotoId}" ${scrollOnLoad}>
+                <span class="chat-msg-time-inline photo-time">${timeStr}</span>
+            </div>
+        `;
+    } else {
+        if (singlePhotoId) {
+            const scrollOnLoad = isHistoryRender ? '' : 'onload="scrollToBottom(\'chat-window-body-container\')"';
+            contentHtml += `<img class="chat-msg-img" src="/api/photos/${singlePhotoId}" ${scrollOnLoad}>`;
+        }
+        if (log.message_text) {
+            let escapedText = escapeHtml(log.message_text);
+            escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            escapedText = escapedText.replace(/`/g, '');
+            contentHtml += `<span class="chat-msg-text">${escapedText.replace(/\n/g, '<br>')}</span>`;
+        }
+        contentHtml += `<span class="chat-msg-time-inline">${timeStr}</span>`;
     }
-    if (log.message_text) {
-        let escapedText = escapeHtml(log.message_text);
-        escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        escapedText = escapedText.replace(/`/g, '');
-        contentHtml += `<span class="chat-msg-text">${escapedText.replace(/\n/g, '<br>')}</span>`;
-    }
-    
-    let timeClass = 'chat-msg-time-inline';
-    if (log.photo_id && !log.message_text) {
-        timeClass += ' photo-time';
-    }
-    contentHtml += `<span class="${timeClass}">${timeStr}</span>`;
     
     let avatarLetter = 'К';
     

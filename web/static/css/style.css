@@ -7429,7 +7429,7 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
     box-shadow: none !important;
     filter: none !important;
     border-radius: 16px !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     position: relative !important;
     max-width: 480px !important;
     width: fit-content !important;
@@ -7440,6 +7440,18 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
     display: none !important;
 }
 
+.chat-msg-media-wrapper {
+    position: relative !important;
+    display: inline-block !important;
+    max-width: 480px !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    line-height: 0 !important;
+    vertical-align: bottom !important;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25) !important;
+}
+
+.chat-msg-media-wrapper .chat-msg-img,
 .chat-page-layout .chat-msg-container .chat-msg-bubble.photo-only .chat-msg-img {
     width: 100% !important;
     height: auto !important;
@@ -7450,19 +7462,22 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
     padding: 0 !important;
     border-radius: 16px !important;
     border: none !important;
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25) !important;
     cursor: pointer !important;
     transition: filter 0.2s ease !important;
 }
 
+.chat-msg-media-wrapper .chat-msg-img:hover,
 .chat-page-layout .chat-msg-container .chat-msg-bubble.photo-only .chat-msg-img:hover {
     filter: brightness(1.04) !important;
 }
 
+.chat-msg-media-wrapper .chat-msg-time-inline.photo-time,
 .chat-page-layout .chat-msg-container .chat-msg-bubble.photo-only .chat-msg-time-inline.photo-time {
     position: absolute !important;
     bottom: 6px !important;
     right: 6px !important;
+    top: auto !important;
+    left: auto !important;
     background: rgba(0, 0, 0, 0.45) !important;
     backdrop-filter: blur(6px) !important;
     -webkit-backdrop-filter: blur(6px) !important;
@@ -7473,9 +7488,11 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
     font-weight: 500 !important;
     line-height: 1.2 !important;
     margin: 0 !important;
-    z-index: 5 !important;
+    z-index: 10 !important;
     pointer-events: none !important;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+    display: inline-flex !important;
+    align-items: center !important;
 }
 
 
