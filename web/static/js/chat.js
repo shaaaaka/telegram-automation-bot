@@ -1109,6 +1109,7 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
     }
 
     let bubbleClass = 'chat-msg-bubble';
+    const hasText = Boolean(log.message_text && String(log.message_text).trim().length > 0);
     const hasPhoto = log.photo_id || (log.photo_ids && log.photo_ids.length > 0);
     const isGallery = log.photo_ids && log.photo_ids.length > 1;
     if (hasPhoto) {
@@ -1116,7 +1117,7 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
         if (isGallery) {
             bubbleClass += ' has-gallery';
         }
-        if (!log.message_text) {
+        if (!hasText) {
             bubbleClass += ' photo-only';
         }
     }
@@ -1131,14 +1132,14 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
             contentHtml += `<img class="chat-msg-gallery-img" src="/api/photos/${pid}" onload="checkGalleryImgLayout(this);${scrollOnLoad}">`;
         });
         contentHtml += `</div>`;
-        if (log.message_text) {
-            let escapedText = escapeHtml(log.message_text);
+        if (hasText) {
+            let escapedText = escapeHtml(log.message_text.trim());
             escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             escapedText = escapedText.replace(/`/g, '');
             contentHtml += `<span class="chat-msg-text">${escapedText.replace(/\n/g, '<br>')}</span>`;
         }
         contentHtml += `<span class="chat-msg-time-inline">${timeStr}</span>`;
-    } else if (singlePhotoId && !log.message_text) {
+    } else if (singlePhotoId && !hasText) {
         const scrollOnLoad = isHistoryRender ? '' : 'onload="scrollToBottom(\'chat-window-body-container\')"';
         contentHtml += `
             <div class="chat-msg-media-wrapper">
@@ -1151,8 +1152,8 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
             const scrollOnLoad = isHistoryRender ? '' : 'onload="scrollToBottom(\'chat-window-body-container\')"';
             contentHtml += `<img class="chat-msg-img" src="/api/photos/${singlePhotoId}" ${scrollOnLoad}>`;
         }
-        if (log.message_text) {
-            let escapedText = escapeHtml(log.message_text);
+        if (hasText) {
+            let escapedText = escapeHtml(log.message_text.trim());
             escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             escapedText = escapedText.replace(/`/g, '');
             contentHtml += `<span class="chat-msg-text">${escapedText.replace(/\n/g, '<br>')}</span>`;
