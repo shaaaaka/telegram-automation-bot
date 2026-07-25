@@ -380,17 +380,6 @@ h1 {
     box-shadow: 0 0 35px rgba(156, 163, 175, 0.06);
 }
 
-.session-card.finish-line {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%) !important;
-    border: 1px solid rgba(139, 92, 246, 0.35) !important;
-    box-shadow: 0 0 25px rgba(139, 92, 246, 0.06) !important;
-}
-.session-card.finish-line:hover {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.18) 0%, rgba(139, 92, 246, 0.18) 100%) !important;
-    border: 1px solid rgba(139, 92, 246, 0.5) !important;
-    box-shadow: 0 0 35px rgba(139, 92, 246, 0.12) !important;
-}
-
 /* Card Accordion Header */
 .card-header-bar {
     padding: 20px 24px;
@@ -521,9 +510,9 @@ h1 {
 }
 
 @keyframes statusPulse {
-    0% { opacity: 0.8; }
+    0% { opacity: 0.9; }
     50% { opacity: 1; }
-    100% { opacity: 0.8; }
+    100% { opacity: 0.9; }
 }
 
 .active-line-badge {
@@ -600,7 +589,7 @@ h1 {
     padding: 5px 10px;
     cursor: pointer;
     user-select: none;
-    transition: all 0.3s var(--transition-curve);
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
     font-size: 0.82rem;
     color: var(--text-muted);
     font-weight: 500;
@@ -617,6 +606,7 @@ h1 {
     background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.12);
     color: #ffffff;
+    transform: none;
 }
 
 /* Custom glow states for selected banks */
@@ -678,10 +668,10 @@ h1 {
     cursor: pointer !important;
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.1) !important;
     font-weight: 600;
-    transition: all 0.2s ease !important;
+    transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s !important;
 }
 .bank-chip.success-done:hover {
-    transform: translateY(-1px) !important;
+    transform: none !important;
     background: rgba(16, 185, 129, 0.15) !important;
     border-color: rgba(16, 185, 129, 0.6) !important;
 }
@@ -693,10 +683,10 @@ h1 {
     cursor: pointer !important;
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.1) !important;
     font-weight: 600;
-    transition: all 0.2s ease !important;
+    transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s !important;
 }
 .bank-chip.failure-done:hover {
-    transform: translateY(-1px) !important;
+    transform: none !important;
     background: rgba(239, 68, 68, 0.15) !important;
     border-color: rgba(239, 68, 68, 0.6) !important;
 }
@@ -4279,6 +4269,11 @@ input[type=number] {
     filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3)) !important;
     border: none !important;
     word-break: break-word !important;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 /* Authentic Telegram Speech Bubble Tail (Pointing Left Towards Avatar) */
@@ -6261,6 +6256,11 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
     transform: translateY(6px);
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     backdrop-filter: blur(12px);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .chat-reply-preview-bar.active {
@@ -6356,6 +6356,10 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
     transition: background 0.15s ease !important;
     position: relative !important;
     overflow: hidden !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
 }
 
 .chat-msg-quote-box:hover {
@@ -6400,68 +6404,556 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
 
 .settings-subtab-content.active {
     display: block !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+}
+
+/* Non-form subtabs (banks, ai, theme) are absolutely positioned within the pane to avoid flex collapse */
+#settings-content-banks.active,
+#settings-content-ai.active,
+#settings-content-theme.active {
+    position: absolute !important;
+    top: 24px !important;
+    left: 24px !important;
+    right: 24px !important;
+    bottom: 24px !important;
+    height: auto !important;
+    overflow-y: auto !important;
+}
+
+/* --- Appearance / Themes tab polished design --- */
+.settings-header-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+    padding: 18px;
+    background: rgba(139, 92, 246, 0.08);
+    border: 1px solid rgba(139, 92, 246, 0.18);
+    border-radius: 16px;
+    backdrop-filter: blur(8px);
+}
+
+.settings-header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(59, 130, 246, 0.15));
+    color: #a78bfa;
+    flex-shrink: 0;
+}
+
+.settings-header-icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.settings-header-text h2 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 4px 0;
+}
+
+.settings-header-text p {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0;
+}
+
+.theme-subtab-switcher {
+    display: inline-flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+}
+
+.theme-subtab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.theme-subtab-btn svg {
+    width: 17px;
+    height: 17px;
+    opacity: 0.7;
+}
+
+.theme-subtab-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.theme-subtab-btn.active {
+    color: #ffffff;
+    background: rgba(139, 92, 246, 0.2);
+    box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.4);
+}
+
+.theme-subtab-btn.active svg {
+    opacity: 1;
+    color: #a78bfa;
 }
 
 .settings-theme-card,
 .settings-font-card {
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition: border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s ease;
     position: relative;
+    border-radius: 16px !important;
+    padding: 16px !important;
+    cursor: pointer;
+    overflow: hidden;
 }
 
 .settings-theme-card:hover,
 .settings-font-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-    border-color: rgba(139, 92, 246, 0.4) !important;
+    border-color: rgba(99, 102, 241, 0.55);
 }
 
 .settings-theme-card.active,
 .settings-font-card.active {
-    border-color: #8b5cf6 !important;
-    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3), 0 8px 24px rgba(139, 92, 246, 0.2) !important;
-    background: rgba(139, 92, 246, 0.08) !important;
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.1);
 }
 
 .settings-theme-card.active::after,
 .settings-font-card.active::after {
-    content: "✓";
+    content: "";
     position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 20px;
-    height: 20px;
+    top: 12px;
+    right: 12px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    background: #8b5cf6;
-    color: #ffffff;
-    font-size: 0.75rem;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/13px no-repeat;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
 }
 
-.font-weight-btn {
-    transition: all 0.2s ease !important;
-    padding: 8px 16px !important;
-    font-size: 0.85rem !important;
-    border-radius: 8px !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    background: rgba(255, 255, 255, 0.04) !important;
-    color: rgba(255, 255, 255, 0.8) !important;
+.settings-theme-card > div:first-child,
+.settings-font-card > div:first-child {
+    border-radius: 10px;
+    margin-bottom: 12px;
+}
+
+.settings-theme-card > div:last-child,
+.settings-font-card > div:last-child {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #fff;
+}
+
+.font-weight-control {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 16px 20px 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
+.font-weight-control-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.font-weight-control-header > label {
+    font-weight: 600;
+    color: #fff;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+.font-weight-slider-wrap {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.font-weight-slider-box {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.font-weight-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    outline: none;
     cursor: pointer;
 }
 
-.font-weight-btn:hover {
-    background: rgba(255, 255, 255, 0.1) !important;
-    color: #ffffff !important;
+.font-weight-tick-labels {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 8px;
+    margin-top: 8px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.45);
 }
 
-.font-weight-btn.active {
-    background: var(--accent-primary, #8b5cf6) !important;
-    color: #ffffff !important;
-    border-color: var(--accent-primary, #8b5cf6) !important;
-    box-shadow: 0 2px 10px rgba(139, 92, 246, 0.3) !important;
-    font-weight: 700 !important;
+.font-weight-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent-primary, #8b5cf6);
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 10px rgba(139, 92, 246, 0.5);
+    margin-top: -7px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.font-weight-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent-primary, #8b5cf6);
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 10px rgba(139, 92, 246, 0.5);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+}
+
+.font-weight-slider::-moz-range-progress {
+    height: 6px;
+    background: var(--accent-primary, #8b5cf6);
+    border-radius: 10px;
+}
+
+.font-weight-slider::-webkit-slider-runnable-track {
+    height: 6px;
+    background: linear-gradient(to right, var(--accent-primary, #8b5cf6) 0%, var(--accent-primary, #8b5cf6) var(--value, 50%), rgba(255,255,255,0.08) var(--value, 50%));
+    border-radius: 10px;
+}
+
+.font-weight-slider:hover::-webkit-slider-thumb,
+.font-weight-slider:focus::-webkit-slider-thumb {
+    transform: scale(1.15);
+    box-shadow: 0 4px 14px rgba(139, 92, 246, 0.7);
+}
+
+.font-weight-slider:hover::-moz-range-thumb,
+.font-weight-slider:focus::-moz-range-thumb {
+    transform: scale(1.15);
+    box-shadow: 0 4px 14px rgba(139, 92, 246, 0.7);
+}
+
+.font-weight-value {
+    position: static;
+    display: inline-block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #ffffff;
+    text-align: center;
+    white-space: nowrap;
+    padding: 5px 12px;
+    background: rgba(139, 92, 246, 0.14);
+    border: 1px solid rgba(139, 92, 246, 0.32);
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(139, 92, 246, 0.12);
+}
+
+/* Compact font weight slider when nested inside the active font card */
+#settings-font-weight-control {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    visibility: hidden;
+    transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease, visibility 0s linear 0.4s;
+}
+
+.settings-font-card #settings-font-weight-control {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    margin-top: 0;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    visibility: hidden;
+    will-change: max-height, opacity, margin-top, visibility;
+    transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease, margin-top 0.4s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.4s;
+}
+
+.settings-font-card.active #settings-font-weight-control {
+    max-height: 140px;
+    opacity: 1;
+    visibility: visible;
+    margin-top: 12px;
+    transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease, margin-top 0.4s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0s;
+}
+
+.settings-font-card .font-weight-control-header {
+    margin-bottom: 6px;
+}
+
+.settings-font-card .font-weight-control-header > label {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.settings-font-card .font-weight-value {
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border-radius: 8px;
+}
+
+.settings-font-card .font-weight-slider {
+    height: 4px;
+}
+
+.settings-font-card .font-weight-slider::-webkit-slider-thumb {
+    width: 14px;
+    height: 14px;
+    border-width: 1.5px;
+    margin-top: -5px;
+}
+
+.settings-font-card .font-weight-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-width: 1.5px;
+}
+
+.settings-font-card .font-weight-slider::-moz-range-progress {
+    height: 4px;
+}
+
+.settings-font-card .font-weight-slider::-webkit-slider-runnable-track {
+    height: 4px;
+}
+
+.settings-font-card .font-weight-tick-labels {
+    margin-top: 4px;
+    font-size: 0.6rem;
+    padding: 0 4px;
+}
+
+/* --- Theme and font live preview cards --- */
+.settings-fonts-row,
+#theme-subpane-fonts {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.settings-fonts-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 14px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin-bottom: 24px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+
+.settings-fonts-row::-webkit-scrollbar {
+    height: 6px;
+}
+
+.settings-fonts-row::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+}
+
+.settings-fonts-row::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.45);
+    border-radius: 10px;
+}
+
+.settings-fonts-row .settings-font-card {
+    flex: 0 0 auto;
+    min-width: 240px;
+    scroll-snap-align: start;
+}
+
+.theme-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 26px 14px 14px;
+    border-radius: 16px;
+    margin-bottom: 12px;
+    min-height: 150px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+    position: relative;
+    backdrop-filter: blur(2px);
+}
+
+.theme-preview::before {
+    content: "Чат";
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.55rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.9px;
+    color: rgba(255,255,255,0.35);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 2px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.theme-preview-bubble {
+    display: inline-block;
+    width: fit-content;
+    max-width: 86%;
+    padding: 9px 13px;
+    border-radius: 14px 14px 14px 4px;
+    font-size: 0.8rem;
+    line-height: 1.35;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    align-self: flex-start;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.theme-preview-bubble.theme-preview-bot,
+.theme-preview-bubble.theme-preview-operator {
+    align-self: flex-start !important;
+    border-radius: 14px 14px 14px 4px !important;
+}
+
+.theme-preview-sender {
+    display: block;
+    font-size: 0.58rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+    opacity: 0.75;
+}
+
+.theme-card-label {
+    font-weight: 600;
+    color: #fff;
+    font-size: 0.95rem;
+    letter-spacing: 0.3px;
+    text-align: center;
+}
+
+/* Default theme preview colors */
+.settings-theme-card[data-settings-theme="default"] .theme-preview-client { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.08); color: #f8fafc; }
+.settings-theme-card[data-settings-theme="default"] .theme-preview-bot { background: linear-gradient(135deg, rgba(14,165,233,0.25), rgba(6,182,212,0.12)); border: 1px solid rgba(14,165,233,0.25); color: #ffffff; }
+.settings-theme-card[data-settings-theme="default"] .theme-preview-operator { background: linear-gradient(135deg, rgba(139,92,246,0.28), rgba(99,102,241,0.16)); border: 1px solid rgba(139,92,246,0.25); color: #ffffff; }
+
+/* Telegram Midnight theme preview colors */
+.settings-theme-card[data-settings-theme="telegram-midnight"] .theme-preview-client { background: #1c2b3d; border: 1px solid #2b4259; color: #f5f5f5; }
+.settings-theme-card[data-settings-theme="telegram-midnight"] .theme-preview-bot { background: #356088; border: 1px solid #4676a3; color: #ffffff; }
+.settings-theme-card[data-settings-theme="telegram-midnight"] .theme-preview-operator { background: #4b6082; border: 1px solid #65799c; color: #ffffff; }
+
+/* Emerald Green theme preview colors */
+.settings-theme-card[data-settings-theme="emerald"] .theme-preview-client { background: #162b23; border: 1px solid #244538; color: #e6f7f0; }
+.settings-theme-card[data-settings-theme="emerald"] .theme-preview-bot { background: linear-gradient(135deg, #059669, #10b981); border: 1px solid #34d399; color: #ffffff; }
+.settings-theme-card[data-settings-theme="emerald"] .theme-preview-operator { background: linear-gradient(135deg, #7c3aed, #6366f1); border: 1px solid rgba(167,139,250,0.55); color: #ffffff; }
+
+/* Pitch Black theme preview colors */
+.settings-theme-card[data-settings-theme="pitch-black"] .theme-preview-client { background: #16161b; border: 1px solid #2e2e33; color: #f4f4f5; }
+.settings-theme-card[data-settings-theme="pitch-black"] .theme-preview-bot { background: #0ea5e9; border: 1px solid #38bdf8; color: #ffffff; }
+.settings-theme-card[data-settings-theme="pitch-black"] .theme-preview-operator { background: #8b5cf6; border: 1px solid #a78bfa; color: #ffffff; }
+
+/* Font preview cards */
+.settings-font-card {
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s ease;
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.settings-font-card:hover {
+    border-color: rgba(139, 92, 246, 0.35) !important;
+}
+
+.settings-font-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--accent-primary, #8b5cf6);
+    opacity: 0.6;
+}
+
+.settings-font-card[data-font="Inter"]::before { background: #818cf8; }
+.settings-font-card[data-font="Outfit"]::before { background: #f472b6; }
+.settings-font-card[data-font="Plus Jakarta Sans"]::before { background: #34d399; }
+.settings-font-card[data-font="Roboto"]::before { background: #38bdf8; }
+.settings-font-card[data-font="JetBrains Mono"]::before { background: #a78bfa; }
+
+.font-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    z-index: 1;
+}
+
+.font-preview-glyph {
+    display: none;
+}
+
+.font-preview-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.65);
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+}
+
+.font-preview-alphabet {
+    display: none;
+}
+
+.font-preview-sample {
+    font-size: 1.1rem;
+    color: #ffffff;
+    font-weight: var(--settings-font-weight, 600);
+    line-height: 1.4;
+    white-space: nowrap;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px 14px 4px 14px;
+    padding: 12px 14px;
+    background: rgba(0, 0, 0, 0.15);
+    align-self: flex-end;
+    width: fit-content;
 }
 
 /* Client Info Panel Control Card Button */
@@ -7317,27 +7809,32 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
 
 /* Settings Theme Cards & Mini Previews styling */
 .settings-theme-card {
-    background: rgba(255, 255, 255, 0.025);
-    border: 1.5px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1.5px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
     padding: 16px;
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s ease;
     position: relative;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    min-height: 260px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(8px);
 }
 
 .settings-theme-card:hover {
-    border-color: rgba(99, 102, 241, 0.45);
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    transform: translateY(-4px);
+    border-color: rgba(99, 102, 241, 0.55);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .settings-theme-card.active {
     border-color: #6366f1 !important;
     background: linear-gradient(135deg, rgba(99, 102, 241, 0.16) 0%, rgba(79, 70, 229, 0.08) 100%) !important;
-    box-shadow: 0 0 24px rgba(99, 102, 241, 0.3) !important;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25), 0 8px 30px rgba(99, 102, 241, 0.15);
+    transform: translateY(-2px);
 }
 
 .settings-theme-card .theme-check-icon {
@@ -7360,26 +7857,32 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
 
 /* Settings Font Cards styling */
 .settings-font-card {
-    background: rgba(255, 255, 255, 0.025);
-    border: 1.5px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1.5px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
     padding: 12px 14px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: border-color 0.3s ease, background 0.3s ease, min-height 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    will-change: min-height;
 }
 
 .settings-font-card:hover {
-    border-color: rgba(99, 102, 241, 0.45);
-    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(99, 102, 241, 0.55);
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .settings-font-card.active {
     border-color: #6366f1 !important;
     background: linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(79, 70, 229, 0.1) 100%) !important;
-    box-shadow: 0 0 16px rgba(99, 102, 241, 0.25) !important;
+    min-height: 230px;
+    box-shadow: 0 8px 30px rgba(99, 102, 241, 0.12);
 }
 
 .theme-card-mini-preview {
@@ -7824,7 +8327,7 @@ html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-gall
     max-height: none !important;
     min-width: 0 !important;
     min-height: 0 !important;
-    object-fit: contain !important;
+    object-fit: cover !important;
     object-position: center center !important;
     background: #090d16 !important;
     border: none !important;
@@ -7832,4 +8335,66 @@ html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-gall
     box-shadow: none !important;
     display: block !important;
     cursor: pointer !important;
+}
+
+/* --- Chat theme CSS variables (fonts + photo/gallery backgrounds) --- */
+html body .chat-page-layout {
+    --chat-font-family: 'Inter', sans-serif;
+    --chat-font-weight: 400;
+    --chat-photo-bg: #090d16;
+    --chat-gallery-bg: #090d16;
+    --chat-time-bg: rgba(0, 0, 0, 0.55);
+    --chat-time-color: #ffffff;
+}
+
+html body .chat-page-layout[data-theme="telegram-midnight"] {
+    --chat-photo-bg: #0e1621;
+    --chat-gallery-bg: #0e1621;
+    --chat-time-bg: rgba(0, 0, 0, 0.55);
+    --chat-time-color: #ffffff;
+}
+
+html body .chat-page-layout[data-theme="emerald"] {
+    --chat-photo-bg: #04140e;
+    --chat-gallery-bg: #04140e;
+    --chat-time-bg: rgba(0, 0, 0, 0.55);
+    --chat-time-color: #ffffff;
+}
+
+html body .chat-page-layout[data-theme="pitch-black"] {
+    --chat-photo-bg: #000000;
+    --chat-gallery-bg: #000000;
+    --chat-time-bg: rgba(0, 0, 0, 0.55);
+    --chat-time-color: #ffffff;
+}
+
+html body .chat-page-layout,
+html body .chat-page-layout * {
+    font-family: var(--chat-font-family) !important;
+    font-weight: var(--chat-font-weight) !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-photo-wrapper,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-photo-wrapper,
+html body div.chat-page-layout div.chat-msg-container .chat-msg-media-wrapper,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-media-wrapper,
+html body div.chat-page-layout div.chat-msg-container .chat-msg-gallery,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-gallery {
+    background: var(--chat-photo-bg) !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-media-wrapper .chat-msg-time-inline.photo-time,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-media-wrapper .chat-msg-time-inline.photo-time,
+html body div.chat-page-layout div.chat-msg-container .chat-msg-bubble.photo-only .chat-msg-time-inline.photo-time,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-bubble.photo-only .chat-msg-time-inline.photo-time {
+    background: var(--chat-time-bg) !important;
+    color: var(--chat-time-color) !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-time-inline,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-time-inline {
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+    letter-spacing: -0.02em !important;
 }

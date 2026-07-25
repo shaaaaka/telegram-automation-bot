@@ -14,6 +14,10 @@ let chatWs = null;
 const chatLogsCache = {};
 let unreadMessagesInCurrentChat = 0;
 
+function stripMessageQuotes(text) {
+    return (text || '').toString().trim().replace(/^[\s'"`"«»“”‘’]+|[\s'"`"«»“”‘’]+$/g, '');
+}
+
 // Save the active chat scroll position before page reload so it can be restored afterwards.
 window.addEventListener('beforeunload', function() {
     if (selectedChatClientId) {
@@ -29,7 +33,7 @@ window.addEventListener('beforeunload', function() {
 // Mark photo wrappers/galleries as loaded once their images load so blur/placeholder is hidden.
 window.addEventListener('load', function(e) {
     const target = e.target;
-    if (target && (target.classList.contains('chat-msg-img') || target.classList.contains('chat-msg-gallery-img'))) {
+    if (target && target.classList && (target.classList.contains('chat-msg-img') || target.classList.contains('chat-msg-gallery-img'))) {
         const wrapper = target.closest('.chat-msg-photo-wrapper, .chat-msg-gallery');
         if (wrapper) wrapper.classList.add('loaded');
     }
@@ -163,38 +167,42 @@ window.checkGalleryImgLayout = function(img) {
     let rows = '';
 
     if (count === 2) {
-        // Two photos side-by-side using flex so each image keeps its natural aspect
-        // ratio exactly and there are no dark bars from grid rounding.
+        // Two photos side-by-side in equal-width grid cells using cover so the
+        // album is fully filled with no gaps, Telegram-style.
         const r1 = ratios[0] || 1;
         const r2 = ratios[1] || 1;
         const sumR = r1 + r2;
         heightPx = Math.min(Math.max((maxGalleryWidth - gap) / sumR, 140), maxGalleryHeight);
         widthPx = maxGalleryWidth;
 
-        gallery.style.setProperty('display', 'flex', 'important');
-        gallery.style.setProperty('align-items', 'stretch', 'important');
-        gallery.style.setProperty('justify-content', 'center', 'important');
-        gallery.style.setProperty('width', Math.round(widthPx) + 'px', 'important');
-        gallery.style.setProperty('height', Math.round(heightPx) + 'px', 'important');
+        const widthStr = Math.round(widthPx) + 'px';
+        const heightStr = Math.round(heightPx) + 'px';
+
+        gallery.style.setProperty('display', 'grid', 'important');
+        gallery.style.setProperty('grid-template-columns', '1fr 1fr', 'important');
+        gallery.style.setProperty('grid-template-rows', heightStr, 'important');
+        gallery.style.setProperty('width', widthStr, 'important');
+        gallery.style.setProperty('height', heightStr, 'important');
         gallery.style.setProperty('max-width', '100%', 'important');
         gallery.style.setProperty('gap', gap + 'px', 'important');
         gallery.style.setProperty('border-radius', '14px', 'important');
         gallery.style.setProperty('overflow', 'hidden', 'important');
         gallery.style.setProperty('background', '#090d16', 'important');
+        gallery.style.setProperty('align-items', 'stretch', 'important');
+        gallery.style.setProperty('justify-items', 'stretch', 'important');
 
         images.forEach(image => {
-            image.style.setProperty('width', 'auto', 'important');
+            image.style.setProperty('width', '100%', 'important');
             image.style.setProperty('height', '100%', 'important');
-            image.style.setProperty('object-fit', 'contain', 'important');
-            image.style.setProperty('flex', '0 0 auto', 'important');
-            image.style.setProperty('min-width', '0', 'important');
+            image.style.setProperty('object-fit', 'cover', 'important');
+            image.style.setProperty('object-position', 'center center', 'important');
             image.style.setProperty('background', '#090d16', 'important');
         });
 
         const wrapper = gallery.closest('.chat-msg-media-wrapper');
         if (wrapper) {
-            wrapper.style.setProperty('width', Math.round(widthPx) + 'px', 'important');
-            wrapper.style.setProperty('height', Math.round(heightPx) + 'px', 'important');
+            wrapper.style.setProperty('width', widthStr, 'important');
+            wrapper.style.setProperty('height', heightStr, 'important');
             wrapper.style.setProperty('max-width', '100%', 'important');
             wrapper.style.setProperty('overflow', 'hidden', 'important');
             wrapper.style.setProperty('border-radius', '14px', 'important');
@@ -202,7 +210,7 @@ window.checkGalleryImgLayout = function(img) {
 
         const bubble = gallery.closest('.chat-msg-bubble');
         if (bubble) {
-            bubble.style.setProperty('width', Math.round(widthPx) + 'px', 'important');
+            bubble.style.setProperty('width', widthStr, 'important');
             bubble.style.setProperty('max-width', '100%', 'important');
             bubble.style.setProperty('height', 'auto', 'important');
         }
@@ -1218,10 +1226,10 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
             let rText = '';
             if (photoId) {
                 quoteThumbHtml = `<img class="chat-msg-quote-thumb" src="/api/photos/${photoId}" alt="Photo" style="width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; max-width: 36px !important; max-height: 36px !important; object-fit: cover !important; border-radius: 6px !important; flex-shrink: 0 !important; display: inline-block !important; margin: 0 8px 0 0 !important;">`;
-                const captionText = repliedLog.message_text ? `: ${repliedLog.message_text}` : '';
+                const captionText = repliedLog.message_text ? `: ${stripMessageQuotes(repliedLog.message_text)}` : '';
                 rText = `Фото${captionText}`;
             } else {
-                rText = repliedLog.message_text || '[Повідомлення]';
+                rText = stripMessageQuotes(repliedLog.message_text) || '[Повідомлення]';
             }
             rText = rText.substring(0, 75);
 
@@ -1261,9 +1269,9 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
             `</div>`;
         if (hasText) {
             contentHtml += galleryHtml;
-            let escapedText = escapeHtml(log.message_text.trim());
+            let rawText = stripMessageQuotes(log.message_text);
+            let escapedText = escapeHtml(rawText);
             escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            escapedText = escapedText.replace(/`/g, '');
             contentHtml += `<div class="chat-msg-caption-box">
                 <span class="chat-msg-text">${escapedText.replace(/\n/g, '<br>')}</span>
                 <span class="chat-msg-time-inline">${timeStr}</span>
@@ -1298,9 +1306,9 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
             `;
         }
         if (hasText) {
-            let escapedText = escapeHtml(log.message_text.trim());
+            let rawText = stripMessageQuotes(log.message_text);
+            let escapedText = escapeHtml(rawText);
             escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            escapedText = escapedText.replace(/`/g, '');
             if (singlePhotoId) {
                 contentHtml += `<div class="chat-msg-caption-box">
                     <span class="chat-msg-text">${escapedText.replace(/\n/g, '<br>')}</span>
@@ -1481,10 +1489,10 @@ function setChatReplyTo(log) {
         let textSnippet = '';
         if (photoId) {
             replyThumbHtml = `<img class="chat-reply-thumb" src="/api/photos/${photoId}" alt="Photo">`;
-            const captionText = log.message_text ? `: ${log.message_text}` : '';
+            const captionText = log.message_text ? `: ${stripMessageQuotes(log.message_text)}` : '';
             textSnippet = `Фото${captionText}`;
         } else {
-            textSnippet = log.message_text || '[Повідомлення]';
+            textSnippet = stripMessageQuotes(log.message_text) || '[Повідомлення]';
         }
         textSnippet = textSnippet.substring(0, 60);
 
@@ -1495,11 +1503,16 @@ function setChatReplyTo(log) {
                 ${replyThumbHtml}
                 <div class="chat-reply-text-wrapper">
                     <span class="chat-reply-sender">Відповідь для ${senderName}</span>
-                    <span class="chat-reply-snippet">${escapeHtml(textSnippet)}</span>
+                    <span class="chat-reply-snippet">${escapeHtml(stripMessageQuotes(textSnippet))}</span>
                 </div>
             </div>
             <button class="chat-reply-close-btn" onclick="cancelChatReply()" title="Скасувати відповідь">✕</button>
         `;
+        previewBar.onclick = function(event) {
+            if (event && event.target.closest('.chat-reply-close-btn')) return;
+            const input = document.getElementById('chat-msg-input');
+            if (input) input.focus();
+        };
         const replyColumn = document.querySelector('.chat-window-column');
         if (replyColumn) replyColumn.classList.add('has-reply-preview');
         requestAnimationFrame(() => {
@@ -1752,9 +1765,9 @@ function handleIncomingWebSocketMessage(data) {
                             
                             // If the incoming message has text and the bubble doesn't, add it
                             if (data.message_text && !lastBubble.querySelector('.chat-msg-text')) {
-                                let escapedText = escapeHtml(data.message_text);
+                                let rawText = stripMessageQuotes(data.message_text);
+                                let escapedText = escapeHtml(rawText);
                                 escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                                escapedText = escapedText.replace(/`/g, '');
                                 const textSpan = document.createElement('span');
                                 textSpan.className = 'chat-msg-text';
                                 textSpan.innerHTML = escapedText.replace(/\n/g, '<br>');
@@ -1785,9 +1798,9 @@ function handleIncomingWebSocketMessage(data) {
 
                             // If the incoming message has text and the bubble doesn't, add it
                             if (data.message_text && !lastBubble.querySelector('.chat-msg-text')) {
-                                let escapedText = escapeHtml(data.message_text);
+                                let rawText = stripMessageQuotes(data.message_text);
+                                let escapedText = escapeHtml(rawText);
                                 escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                                escapedText = escapedText.replace(/`/g, '');
                                 const textSpan = document.createElement('span');
                                 textSpan.className = 'chat-msg-text';
                                 textSpan.innerHTML = escapedText.replace(/\n/g, '<br>');
@@ -2677,10 +2690,9 @@ window.renderClientInfoPanel = function(session) {
 // --- CHAT THEME SELECTOR LOGIC ---
 const AVAILABLE_THEMES = [
     { id: 'default', name: 'Cosmic Dark', bg: 'linear-gradient(135deg, #03050c 0%, #8b5cf6 100%)' },
-    { id: 'pitch-black', name: 'OLED Black', bg: 'linear-gradient(135deg, #000000 0%, #a855f7 100%)' },
-    { id: 'light', name: 'Light White', bg: 'linear-gradient(135deg, #f8fafc 0%, #4f46e5 100%)' },
     { id: 'telegram-midnight', name: 'Telegram Midnight', bg: 'linear-gradient(135deg, #0e1621 0%, #2b5278 100%)' },
-    { id: 'emerald', name: 'Emerald Mint', bg: 'linear-gradient(135deg, #04140e 0%, #10b981 100%)' }
+    { id: 'emerald', name: 'Emerald Mint', bg: 'linear-gradient(135deg, #04140e 0%, #10b981 100%)' },
+    { id: 'pitch-black', name: 'OLED Black', bg: 'linear-gradient(135deg, #000000 0%, #a855f7 100%)' }
 ];
 
 window.initChatTheme = function() {
@@ -2696,6 +2708,9 @@ window.initChatTheme = function() {
     }
     if (typeof window.updateSettingsThemeCardsActiveState === 'function') {
         window.updateSettingsThemeCardsActiveState(savedTheme);
+    }
+    if (typeof window.applyChatFont === 'function') {
+        window.applyChatFont();
     }
     if (typeof window.initCustomBubbleColors === 'function') {
         window.initCustomBubbleColors();
@@ -2745,15 +2760,10 @@ window.selectThemeFromSettings = function(themeId) {
 window.updateSettingsThemeCardsActiveState = function(currentTheme) {
     const theme = currentTheme || localStorage.getItem('crm_chat_theme') || 'default';
     document.querySelectorAll('.settings-theme-card').forEach(card => {
-        const checkIcon = card.querySelector('.theme-check-icon');
         if (card.dataset.settingsTheme === theme) {
-            card.style.borderColor = '#4f46e5';
-            card.style.background = 'rgba(79, 70, 229, 0.12)';
-            if (checkIcon) checkIcon.style.display = 'inline-block';
+            card.classList.add('active');
         } else {
-            card.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-            card.style.background = 'rgba(255, 255, 255, 0.02)';
-            if (checkIcon) checkIcon.style.display = 'none';
+            card.classList.remove('active');
         }
     });
 };

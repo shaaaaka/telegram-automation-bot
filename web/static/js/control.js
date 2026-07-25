@@ -406,7 +406,6 @@ function renderSessions(sessions) {
         filtered.forEach(session => {
             activeClientIds.add(session.client_id);
             const isExpanded = expandedSessions.has(session.client_id);
-            const isFinishLine = session.line_id && session.success_photo_id;
 
             let card = existingCards[session.client_id];
             let isNewCard = !card;
@@ -415,12 +414,12 @@ function renderSessions(sessions) {
                 card.setAttribute('data-id', session.client_id);
             }
 
-            const targetClassName = `session-card ${session.status} ${isExpanded ? 'expanded' : ''} ${isFinishLine ? 'finish-line' : ''}`;
+            const targetClassName = `session-card ${session.status} ${isExpanded ? 'expanded' : ''}`;
             if (card.className !== targetClassName) {
                 card.className = targetClassName;
             }
 
-            const displayName = extractDisplayName(session.client_data, session.username) + (isFinishLine ? ' 💳' : '');
+            const displayName = extractDisplayName(session.client_data, session.username);
 
             let statusText = 'Новий';
             if (session.status === 'registering') statusText = 'В анкеті';

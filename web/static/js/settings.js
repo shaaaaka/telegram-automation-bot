@@ -210,24 +210,36 @@ function switchSettingsSubtab(subtabId) {
     document.querySelectorAll('.settings-subtab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    // Find active button
-    const activeBtn = document.querySelector(`.settings-subtab-btn[onclick="switchSettingsSubtab('${subtabId}')"]`);
+    // Find active button by ID or fallback selector
+    const activeBtn = document.getElementById(`subtab-btn-${subtabId}`) || document.querySelector(`.settings-subtab-btn[onclick*="${subtabId}"]`);
     if (activeBtn) activeBtn.classList.add('active');
 
     // 2. Show/hide subtab contents
     document.querySelectorAll('.settings-subtab-content').forEach(pane => {
         pane.classList.remove('active');
+        pane.style.display = 'none';
     });
     const activePane = document.getElementById(`settings-content-${subtabId}`);
-    if (activePane) activePane.classList.add('active');
+    if (activePane) {
+        activePane.classList.add('active');
+        activePane.style.display = 'block';
+    }
 
-    // 3. Show/hide global save button container
+    // 3. Show/hide global save button container and the main form for non-form subtabs
     const saveBtn = document.getElementById('settings-save-btn-container');
+    const generalForm = document.getElementById('general-settings-form');
     if (saveBtn) {
         if (subtabId === 'banks' || subtabId === 'ai' || subtabId === 'theme') {
             saveBtn.style.display = 'none';
         } else {
             saveBtn.style.display = 'flex';
+        }
+    }
+    if (generalForm) {
+        if (subtabId === 'general' || subtabId === 'chats') {
+            generalForm.style.display = 'flex';
+        } else {
+            generalForm.style.display = 'none';
         }
     }
 
@@ -238,6 +250,9 @@ function switchSettingsSubtab(subtabId) {
 
     // 5. Update theme cards active state if theme subtab
     if (subtabId === 'theme') {
+        if (typeof window.switchThemeSubtab === 'function') {
+            window.switchThemeSubtab();
+        }
         if (typeof window.updateSettingsThemeCardsActiveState === 'function') {
             window.updateSettingsThemeCardsActiveState();
         }
@@ -247,95 +262,167 @@ function switchSettingsSubtab(subtabId) {
     }
 }
 
+function getStoredFontWeight(fontName) {
+    if (!fontName) fontName = localStorage.getItem('crm_chat_font_family') || 'Inter';
+    const perFont = localStorage.getItem(`crm_chat_font_weight_${fontName}`);
+    if (perFont) return perFont;
+    const global = localStorage.getItem('crm_chat_font_weight') || '600';
+    return global;
+}
+
+function getWeightLabel(numericWeight) {
+    if (numericWeight < 450) return 'Тонкий';
+    if (numericWeight < 550) return 'Середній';
+    if (numericWeight < 650) return 'Напівжирний';
+    return 'Жирний';
+}
+
 window.applyChatFont = function(fontName, fontWeight) {
     if (!fontName) fontName = localStorage.getItem('crm_chat_font_family') || 'Inter';
-    if (!fontWeight) fontWeight = localStorage.getItem('crm_chat_font_weight') || '600';
+    if (!fontWeight) fontWeight = getStoredFontWeight(fontName);
 
+    let fontCss = `'${fontName}', sans-serif`;
+    if (fontName === 'JetBrains Mono') {
+        fontCss = `'JetBrains Mono', monospace`;
+    }
+
+    const chatLayout = document.getElementById('chat-page-layout-container');
+    if (chatLayout) {
+        chatLayout.style.setProperty('--chat-font-family', fontCss);
+        chatLayout.style.setProperty('--chat-font-weight', fontWeight);
+    }
+
+    // Also expose for settings preview cards
+    document.documentElement.style.setProperty('--settings-font-family', fontCss);
+    document.documentElement.style.setProperty('--settings-font-weight', fontWeight);
+
+    // Fallback style block for cases where the chat layout isn't in the DOM yet
     let styleEl = document.getElementById('dynamic-chat-font-style');
     if (!styleEl) {
         styleEl = document.createElement('style');
         styleEl.id = 'dynamic-chat-font-style';
         document.head.appendChild(styleEl);
     }
-    
-    let fontCss = `'${fontName}', sans-serif`;
-    if (fontName === 'JetBrains Mono') {
-        fontCss = `'JetBrains Mono', monospace`;
-    }
-
     styleEl.textContent = `
-        .chat-msg-bubble,
-        .chat-msg-text,
-        .chat-msg-quote-text,
-        .chat-msg-container .chat-msg-bubble,
-        .chat-msg-container .chat-msg-text,
-        .chat-msg-container .chat-msg-quote-text,
-        .chat-page-layout .chat-msg-text,
-        .chat-page-layout .chat-msg-bubble,
-        .chat-client-info-panel,
-        .chat-client-info-panel *,
-        .tg-info-val,
-        .client-panel-user-name,
-        #chat-window-body-container {
-            font-family: ${fontCss} !important;
-        }
-        .chat-msg-bubble,
-        .chat-msg-text,
-        .chat-msg-quote-text,
-        .chat-msg-container .chat-msg-bubble,
-        .chat-msg-container .chat-msg-text,
-        .chat-msg-container .chat-msg-quote-text,
-        .chat-page-layout .chat-msg-text,
-        .chat-page-layout .chat-msg-bubble {
-            font-weight: ${fontWeight} !important;
-        }
-        .font-sample-preview {
-            font-weight: ${fontWeight} !important;
+        .chat-page-layout {
+            --chat-font-family: ${fontCss};
+            --chat-font-weight: ${fontWeight};
         }
     `;
 
     window.updateSettingsFontCardsActiveState(fontName);
+    window.updateSettingsFontCardsWeightPreview();
     window.updateSettingsFontWeightActiveState(fontWeight);
 };
 
 window.selectChatFont = function(fontName) {
+    const activeCard = document.querySelector('.settings-font-card.active');
+    if (activeCard && activeCard.dataset.font === fontName) {
+        window.deselectFontCard();
+        return;
+    }
     localStorage.setItem('crm_chat_font_family', fontName);
+    localStorage.setItem('crm_font_card_active', fontName);
     window.applyChatFont(fontName);
     if (typeof showToast === 'function') {
         showToast(`Шрифт чату змінено на ${fontName}!`, "success");
     }
 };
 
-window.selectChatFontWeight = function(weight) {
-    localStorage.setItem('crm_chat_font_weight', weight);
+let fontWeightDebounceTimer = null;
+
+window.updateFontWeightPreview = function(weight) {
+    const slider = document.getElementById('settings-font-weight-slider');
+    const valueLabel = document.getElementById('settings-font-weight-value');
+    const numericWeight = Number(weight) || 600;
+    const progress = ((numericWeight - 400) / 300) * 100;
+    if (slider) {
+        slider.style.setProperty('--value', `${progress}%`);
+    }
+    if (valueLabel) {
+        valueLabel.textContent = getWeightLabel(numericWeight);
+    }
+
+    if (fontWeightDebounceTimer) clearTimeout(fontWeightDebounceTimer);
+    fontWeightDebounceTimer = setTimeout(() => {
+        window.selectChatFontWeight(weight, false);
+    }, 120);
+};
+
+window.selectChatFontWeight = function(weight, showNotification = true) {
+    const fontName = localStorage.getItem('crm_chat_font_family') || 'Inter';
+    localStorage.setItem(`crm_chat_font_weight_${fontName}`, weight);
     window.applyChatFont(null, weight);
-    if (typeof showToast === 'function') {
-        showToast(`Жирність шрифту змінено на ${weight}!`, "success");
+    if (showNotification && typeof showToast === 'function') {
+        showToast(`Жирність шрифту змінено на ${getWeightLabel(Number(weight) || 600)}!`, "success");
     }
 };
 
 window.updateSettingsFontCardsActiveState = function(fontName) {
     if (!fontName) fontName = localStorage.getItem('crm_chat_font_family') || 'Inter';
+    const storedActive = localStorage.getItem('crm_font_card_active');
+    let activeFontName = fontName;
+    if (storedActive === 'none') {
+        activeFontName = null;
+    } else if (storedActive) {
+        activeFontName = storedActive;
+    }
     const fontCards = document.querySelectorAll('.settings-font-card');
+    const weightControl = document.getElementById('settings-font-weight-control');
+    let activeCard = null;
     fontCards.forEach(card => {
-        if (card.dataset.font === fontName) {
+        if (card.dataset.font === activeFontName) {
             card.classList.add('active');
+            activeCard = card;
         } else {
             card.classList.remove('active');
+        }
+    });
+    if (weightControl) {
+        if (activeCard) {
+            activeCard.appendChild(weightControl);
+            weightControl.style.display = '';
+            weightControl.onclick = function(e) {
+                e.stopPropagation();
+            };
+        } else {
+            weightControl.style.display = 'none';
+        }
+    }
+};
+
+window.deselectFontCard = function() {
+    const fontCards = document.querySelectorAll('.settings-font-card');
+    fontCards.forEach(card => card.classList.remove('active'));
+    localStorage.setItem('crm_font_card_active', 'none');
+};
+
+window.updateSettingsFontCardsWeightPreview = function() {
+    const fontCards = document.querySelectorAll('.settings-font-card');
+    fontCards.forEach(card => {
+        const sample = card.querySelector('.font-preview-sample');
+        if (sample) {
+            sample.style.fontWeight = getStoredFontWeight(card.dataset.font);
         }
     });
 };
 
 window.updateSettingsFontWeightActiveState = function(fontWeight) {
-    if (!fontWeight) fontWeight = localStorage.getItem('crm_chat_font_weight') || '600';
-    const weightBtns = document.querySelectorAll('.font-weight-btn');
-    weightBtns.forEach(btn => {
-        if (btn.dataset.weight === String(fontWeight)) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
-    });
+    if (!fontWeight) {
+        const fontName = localStorage.getItem('crm_chat_font_family') || 'Inter';
+        fontWeight = getStoredFontWeight(fontName);
+    }
+    const slider = document.getElementById('settings-font-weight-slider');
+    const valueLabel = document.getElementById('settings-font-weight-value');
+    const numericWeight = Number(fontWeight) || 600;
+    const progress = ((numericWeight - 400) / 300) * 100;
+    if (slider) {
+        slider.value = String(numericWeight);
+        slider.style.setProperty('--value', `${progress}%`);
+    }
+    if (valueLabel) {
+        valueLabel.textContent = getWeightLabel(numericWeight);
+    }
 };
 
 window.switchThemeSubtab = function(subtabName) {
@@ -360,9 +447,28 @@ window.switchThemeSubtab = function(subtabName) {
     }
 };
 
+function attachFontPaneDeselect() {
+    const themeContent = document.getElementById('settings-content-theme');
+    if (themeContent && !themeContent.dataset.deselectAttached) {
+        themeContent.dataset.deselectAttached = '1';
+        themeContent.addEventListener('click', function(e) {
+            const fontsPane = document.getElementById('theme-subpane-fonts');
+            if (!fontsPane || fontsPane.style.display === 'none') return;
+            if (!e.target.closest) return;
+            if (e.target.closest('.settings-font-card') || e.target.closest('.font-weight-control') || e.target.closest('.theme-subtab-switcher')) return;
+            window.deselectFontCard();
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     window.applyChatFont();
     window.switchThemeSubtab();
+    attachFontPaneDeselect();
 });
-window.applyChatFont();
-window.switchThemeSubtab();
+
+if (document.readyState !== 'loading') {
+    window.applyChatFont();
+    window.switchThemeSubtab();
+    attachFontPaneDeselect();
+}

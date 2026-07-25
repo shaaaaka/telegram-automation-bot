@@ -46,9 +46,7 @@ async def send_client_message(client_id: int, body: ClientMessage):
             
         return {"status": "success"}
     except Exception as e:
-        import logging
-        logging.error(f"Error in send_client_message: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send message: {str(e)}")
+        logger.error(f"Error in send_client_message: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to send message: {str(e)}")
     finally:
         current_sender.reset(token)
@@ -65,7 +63,7 @@ async def send_client_photo(client_id: int, file: UploadFile = File(...), captio
         file_bytes = await file.read()
         input_file = BufferedInputFile(file_bytes, filename=file.filename)
         
-        await web.core.bot.send_photo(chat_id=client_id, photo=input_file, caption=caption)
+        sent_msg = await web.core.bot.send_photo(chat_id=client_id, photo=input_file, caption=caption)
         
         # Якщо сесія була в статусі waiting_code, а адмін написав клієнту повідомлення,
         # то автоматично скасовуємо статус очікування коду і повертаємо до number_assigned.
