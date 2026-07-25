@@ -4313,19 +4313,15 @@ input[type=number] {
 .chat-msg-container.same-sender-next .chat-msg-bubble {
     border-radius: 16px !important;
 }
-/* --- Photo & Gallery Media Bubbles (Telegram 1:1 Clean No Frame & No Cropping) --- */
-.chat-msg-bubble.has-photo,
-.chat-msg-bubble.has-gallery,
-.chat-msg-container .chat-msg-bubble.has-photo,
-.chat-msg-container .chat-msg-bubble.has-gallery,
-.chat-msg-container.client .chat-msg-bubble.has-photo,
-.chat-msg-container.client .chat-msg-bubble.has-gallery,
-.chat-msg-container.bot .chat-msg-bubble.has-photo,
-.chat-msg-container.bot .chat-msg-bubble.has-gallery,
-.chat-msg-container.admin .chat-msg-bubble.has-photo,
-.chat-msg-container.admin .chat-msg-bubble.has-gallery,
-.chat-msg-container.operator .chat-msg-bubble.has-photo,
-.chat-msg-container.operator .chat-msg-bubble.has-gallery {
+/* --- Photo & Gallery Media Bubbles (Telegram 1:1 Clean No Frame & No Cropping with Blurred Backdrop) --- */
+.chat-msg-bubble.photo-only,
+.chat-msg-bubble.has-gallery.photo-only,
+.chat-msg-container .chat-msg-bubble.photo-only,
+.chat-msg-container .chat-msg-bubble.has-gallery.photo-only,
+.chat-msg-container.client .chat-msg-bubble.photo-only,
+.chat-msg-container.bot .chat-msg-bubble.photo-only,
+.chat-msg-container.admin .chat-msg-bubble.photo-only,
+.chat-msg-container.operator .chat-msg-bubble.photo-only {
     padding: 0 !important;
     background: transparent !important;
     border: none !important;
@@ -4334,33 +4330,126 @@ input[type=number] {
     position: relative !important;
     overflow: visible !important;
     border-radius: 14px !important;
-    max-width: 520px !important;
+    max-width: min(480px, 92vw) !important;
     width: fit-content !important;
 }
 
-.chat-msg-bubble.has-photo .chat-msg-img {
+.chat-msg-bubble.has-photo:not(.photo-only),
+.chat-msg-bubble.has-gallery:not(.photo-only) {
+    padding: 0 !important;
+    overflow: visible !important;
+    max-width: min(460px, 90vw) !important;
+    width: fit-content !important;
+    border-radius: 16px 16px 16px 4px !important;
+    display: inline-flex !important;
+    flex-direction: column !important;
+    background: rgba(15, 23, 42, 0.9) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+.chat-msg-container.admin .chat-msg-bubble.has-photo:not(.photo-only),
+.chat-msg-container.admin .chat-msg-bubble.has-gallery:not(.photo-only),
+.chat-msg-container.operator .chat-msg-bubble.has-photo:not(.photo-only),
+.chat-msg-container.operator .chat-msg-bubble.has-gallery:not(.photo-only) {
+    border-radius: 16px 16px 4px 16px !important;
+}
+
+.chat-msg-container.same-sender-next .chat-msg-bubble.has-photo:not(.photo-only),
+.chat-msg-container.same-sender-next .chat-msg-bubble.has-gallery:not(.photo-only) {
+    border-radius: 16px !important;
+}
+
+.chat-msg-photo-wrapper {
+    position: relative !important;
+    overflow: hidden !important;
     width: 100% !important;
+    max-width: min(480px, 92vw) !important;
+    max-height: 520px !important;
+    min-height: 200px !important;
+    border-radius: 14px 14px 0 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #090d16 !important;
+}
+
+.chat-msg-bubble.photo-only .chat-msg-photo-wrapper {
+    border-radius: 14px !important;
+}
+
+.chat-msg-photo-blur-bg {
+    position: absolute !important;
+    top: -20px !important;
+    left: -20px !important;
+    right: -20px !important;
+    bottom: -20px !important;
+    background-size: cover !important;
+    background-position: center !important;
+    filter: blur(28px) brightness(0.5) saturate(1.2) !important;
+    transform: scale(1.25) !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+}
+
+.chat-msg-photo-wrapper .chat-msg-img,
+.chat-msg-bubble.has-photo .chat-msg-img {
+    position: relative !important;
+    z-index: 2 !important;
+    width: auto !important;
+    max-width: 100% !important;
     height: auto !important;
     max-height: 520px !important;
     object-fit: contain !important;
     display: block !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: 0 4px 25px rgba(0, 0, 0, 0.35) !important;
+    cursor: pointer !important;
+    transition: filter 0.2s ease !important;
+}
+
+.chat-msg-photo-wrapper .chat-msg-img:hover {
+    filter: brightness(1.06) !important;
+}
+
+.chat-msg-caption-box {
+    padding: 6px 10px 6px 10px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    z-index: 3 !important;
+    margin-top: 0 !important;
+}
+
+.chat-msg-caption-box .chat-msg-text {
+    flex: 1 1 auto !important;
     margin: 0 !important;
     padding: 0 !important;
-    border-radius: 14px !important;
-    border: none !important;
-    box-shadow: none !important;
-    cursor: pointer;
-    transition: filter 0.2s ease;
+    word-break: break-word !important;
+    font-size: 0.88rem !important;
+    line-height: 1.35 !important;
 }
 
-.chat-msg-bubble.has-photo .chat-msg-img:hover {
-    filter: brightness(1.06);
-}
-
-.chat-msg-bubble.has-photo .chat-msg-text {
-    padding: 8px 10px 8px 10px !important;
-    display: inline !important;
-    margin: 0 !important;
+.chat-msg-caption-box .chat-msg-time-inline {
+    flex: 0 0 auto !important;
+    float: none !important;
+    margin-left: auto !important;
+    font-size: 0.84rem !important;
+    font-weight: 700 !important;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace) !important;
+    opacity: 0.85 !important;
+    white-space: nowrap !important;
+    line-height: 1 !important;
+    margin-bottom: 0 !important;
+    top: 0 !important;
 }
 
 /* 1. Client Message Bubbles (Left) */
@@ -4828,11 +4917,11 @@ body.sidebar-hidden .tab-content {
 .chat-msg-container {
     display: flex;
     flex-direction: column;
-    margin-bottom: 12px;
+    margin-bottom: 16px !important;
     width: 100%;
 }
 .chat-msg-container.same-sender-next {
-    margin-bottom: 5px;
+    margin-bottom: 8px !important;
 }
 .chat-msg-container.client.no-avatar .chat-msg-bubble,
 .chat-msg-container.bot.no-avatar .chat-msg-bubble,
@@ -5044,11 +5133,13 @@ body.sidebar-hidden .tab-content {
     bottom: auto !important;
     right: auto !important;
     margin-left: 10px !important;
-    margin-top: 5px !important;
+    margin-top: 4px !important;
     display: inline-block !important;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace) !important;
     font-size: 0.84rem !important;
-    font-weight: 600 !important;
-    color: rgba(255, 255, 255, 0.78) !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+    color: rgba(255, 255, 255, 0.82) !important;
     user-select: none !important;
     line-height: 1 !important;
     white-space: nowrap !important;
@@ -5065,8 +5156,9 @@ body.sidebar-hidden .tab-content {
     border-radius: 12px !important;
     margin: 0 !important;
     color: #ffffff !important;
-    font-size: 0.78rem !important;
-    font-weight: 600 !important;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace) !important;
+    font-size: 0.84rem !important;
+    font-weight: 700 !important;
     backdrop-filter: blur(4px) !important;
     -webkit-backdrop-filter: blur(4px) !important;
     z-index: 10 !important;
@@ -6006,9 +6098,9 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
 
 /* Image Attachment & Gallery Styling (Telegram 1:1 Clean No Frame) */
 .chat-msg-img {
-    width: 100% !important;
+    max-width: 100% !important;
     height: auto !important;
-    max-height: 640px !important;
+    max-height: 520px !important;
     object-fit: contain !important;
     border: none !important;
     box-shadow: none !important;
@@ -6026,22 +6118,29 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
 .chat-msg-gallery {
     display: flex;
     align-items: stretch;
-    gap: 4px;
-    width: 100%;
-    max-width: 680px;
+    gap: 2px;
+    width: 440px;
+    max-width: 100%;
     padding: 0;
     box-sizing: border-box;
-    border: none;
-    box-shadow: none;
-    background: transparent;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
     border-radius: 12px;
     overflow: hidden;
 }
 
 .chat-msg-gallery-img {
+    flex: 1 1 0%;
     min-width: 0;
-    border-radius: 8px;
-    border: none;
+    width: 100%;
+    height: 100% !important;
+    max-height: none !important;
+    object-fit: cover !important;
+    object-position: center top !important;
+    background: transparent !important;
+    border-radius: 2px;
+    border: none !important;
     box-shadow: none;
     outline: none;
     cursor: pointer;
@@ -6056,7 +6155,7 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
 }
 
 .chat-msg-bubble.has-gallery {
-    max-width: min(680px, 85%) !important;
+    max-width: min(520px, 85%) !important;
 }
 
 /* Inline Timestamps in JetBrains Mono */
@@ -7443,24 +7542,26 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
 .chat-msg-media-wrapper {
     position: relative !important;
     display: inline-block !important;
-    max-width: 480px !important;
-    border-radius: 16px !important;
+    max-width: 520px !important;
+    width: fit-content !important;
+    border-radius: 14px !important;
     overflow: hidden !important;
     line-height: 0 !important;
     vertical-align: bottom !important;
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25) !important;
+    box-shadow: none !important;
 }
 
 .chat-msg-media-wrapper .chat-msg-img,
 .chat-page-layout .chat-msg-container .chat-msg-bubble.photo-only .chat-msg-img {
-    width: 100% !important;
+    width: auto !important;
     height: auto !important;
+    max-width: 100% !important;
     max-height: 520px !important;
     object-fit: contain !important;
     display: block !important;
     margin: 0 !important;
     padding: 0 !important;
-    border-radius: 16px !important;
+    border-radius: 14px !important;
     border: none !important;
     cursor: pointer !important;
     transition: filter 0.2s ease !important;
@@ -7475,12 +7576,12 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
 .chat-page-layout .chat-msg-container .chat-msg-bubble.photo-only .chat-msg-time-inline.photo-time {
     position: absolute !important;
     bottom: 6px !important;
-    right: 6px !important;
+    right: 8px !important;
     top: auto !important;
     left: auto !important;
     background: rgba(0, 0, 0, 0.45) !important;
-    backdrop-filter: blur(6px) !important;
-    -webkit-backdrop-filter: blur(6px) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
     padding: 2px 7px !important;
     border-radius: 10px !important;
     color: #ffffff !important;
@@ -7488,11 +7589,32 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
     font-weight: 500 !important;
     line-height: 1.2 !important;
     margin: 0 !important;
-    z-index: 10 !important;
+    z-index: 30 !important;
     pointer-events: none !important;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
     display: inline-flex !important;
     align-items: center !important;
+}
+
+.chat-msg-container.photo-only-msg {
+    margin-bottom: 16px !important;
+}
+
+.chat-msg-container.photo-only-msg.same-sender-next {
+    margin-bottom: 8px !important;
+}
+
+.chat-msg-container.photo-only-msg .chat-msg-body-row {
+    gap: 10px !important;
+}
+
+.chat-msg-media-wrapper {
+    box-shadow: none !important;
+    max-width: min(800px, 90%) !important;
+}
+
+.chat-msg-bubble.photo-only {
+    max-width: min(800px, 90%) !important;
 }
 
 /* ABSOLUTE MAXIMUM SPECIFICITY OVERRIDE FOR TELEGRAM 1:1 PHOTO BUBBLE */
@@ -7541,3 +7663,173 @@ html body div.chat-page-layout[data-theme] div.chat-msg-container div.chat-msg-b
 
 
 
+
+
+/* --- CRM Photo Grid & Single Photo Display Fixes --- */
+html body div.chat-page-layout div.chat-msg-container .chat-msg-media-wrapper,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-media-wrapper {
+    position: relative !important;
+    display: inline-block !important;
+    width: fit-content !important;
+    height: fit-content !important;
+    min-width: 120px !important;
+    min-height: 120px !important;
+    max-width: min(480px, 92vw) !important;
+    max-height: 520px !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+    line-height: 0 !important;
+    vertical-align: bottom !important;
+    background: #090d16 !important;
+    box-shadow: none !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-photo-wrapper,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-photo-wrapper {
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: fit-content !important;
+    height: fit-content !important;
+    min-width: 120px !important;
+    min-height: 120px !important;
+    max-width: min(480px, 92vw) !important;
+    max-height: 520px !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+    background: #090d16 !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-photo-wrapper .chat-msg-img,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-photo-wrapper .chat-msg-img,
+html body div.chat-page-layout div.chat-msg-container div.chat-msg-bubble.photo-only .chat-msg-img,
+html body div.chat-page-layout[data-theme] div.chat-msg-container div.chat-msg-bubble.photo-only .chat-msg-img,
+html body div.chat-page-layout div.chat-msg-container div.chat-msg-bubble.has-photo .chat-msg-img,
+html body div.chat-page-layout[data-theme] div.chat-msg-container div.chat-msg-bubble.has-photo .chat-msg-img {
+    position: relative !important;
+    z-index: 2 !important;
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: 100% !important;
+    max-height: 520px !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-photo-blur-bg,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-photo-blur-bg {
+    z-index: 1 !important;
+    filter: blur(28px) brightness(0.35) saturate(1.2) !important;
+    opacity: 0.7 !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-photo-wrapper:not(.loaded) .chat-msg-photo-blur-bg,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-photo-wrapper:not(.loaded) .chat-msg-photo-blur-bg {
+    opacity: 0 !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-time-inline,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-time-inline {
+    font-family: var(--font-mono, 'JetBrains Mono', monospace) !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+    letter-spacing: -0.02em !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-media-wrapper .chat-msg-time-inline.photo-time,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-media-wrapper .chat-msg-time-inline.photo-time,
+html body div.chat-page-layout div.chat-msg-container .chat-msg-bubble.photo-only .chat-msg-time-inline.photo-time,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-bubble.photo-only .chat-msg-time-inline.photo-time {
+    position: absolute !important;
+    bottom: 10px !important;
+    right: 10px !important;
+    top: auto !important;
+    left: auto !important;
+    z-index: 30 !important;
+    background: rgba(0, 0, 0, 0.55) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    padding: 4px 9px !important;
+    border-radius: 10px !important;
+    color: #ffffff !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+    pointer-events: none !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-gallery,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-gallery {
+    display: grid !important;
+    gap: 2px !important;
+    width: fit-content !important;
+    height: fit-content !important;
+    max-width: min(480px, 92vw) !important;
+    max-height: 520px !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+    background: #090d16 !important;
+    align-items: stretch !important;
+    justify-items: stretch !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-gallery.album-count-2,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-gallery.album-count-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: minmax(180px, 360px) !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-gallery.album-count-3,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-gallery.album-count-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(2, minmax(120px, 180px)) !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-gallery.album-count-3 .chat-msg-gallery-img:first-child,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-gallery.album-count-3 .chat-msg-gallery-img:first-child {
+    grid-row: 1 / span 2 !important;
+    grid-column: 1 !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-gallery.album-count-4,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-gallery.album-count-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(2, minmax(120px, 180px)) !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-gallery.album-count-many,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-gallery.album-count-many {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(auto-fit, minmax(100px, 140px)) !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-gallery-img,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-gallery-img {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+    background: #090d16 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    display: block !important;
+    cursor: pointer !important;
+}
