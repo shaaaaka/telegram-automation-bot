@@ -7495,6 +7495,35 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
     align-items: center !important;
 }
 
+/* ABSOLUTE MAXIMUM SPECIFICITY OVERRIDE FOR TELEGRAM 1:1 PHOTO BUBBLE */
+html body div.chat-page-layout div.chat-msg-container div.chat-msg-bubble.photo-only,
+html body div.chat-page-layout[data-theme] div.chat-msg-container div.chat-msg-bubble.photo-only,
+html body div.chat-page-layout[data-theme] div.chat-msg-container.client div.chat-msg-bubble.photo-only,
+html body div.chat-page-layout[data-theme] div.chat-msg-container.bot div.chat-msg-bubble.photo-only,
+html body div.chat-page-layout[data-theme] div.chat-msg-container.operator div.chat-msg-bubble.photo-only,
+html body div.chat-page-layout[data-theme] div.chat-msg-container.admin div.chat-msg-bubble.photo-only,
+html body div.chat-page-layout[data-theme] div.chat-msg-container.support div.chat-msg-bubble.photo-only,
+html body div#chat-page-layout-container div.chat-msg-container div.chat-msg-bubble.photo-only {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    border-radius: 16px !important;
+    overflow: visible !important;
+    position: relative !important;
+    max-width: 480px !important;
+    width: fit-content !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container div.chat-msg-bubble.photo-only::before,
+html body div.chat-page-layout[data-theme] div.chat-msg-container div.chat-msg-bubble.photo-only::before {
+    display: none !important;
+    content: none !important;
+}
+
 
 
 
