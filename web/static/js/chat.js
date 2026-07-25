@@ -718,7 +718,7 @@ async function selectChatClient(clientId, isInitialLoad = false) {
     }
     hideScrollBottomButton();
     
-    await refreshChatPageMessages(clientId);
+    await refreshChatPageMessages(clientId, true);
     
     // Auto-focus the input textarea
     const textarea = document.getElementById('chat-msg-input');
@@ -1015,7 +1015,7 @@ function setupFloatingDateScrollListener() {
     }, { passive: true });
 }
 
-async function refreshChatPageMessages(clientId) {
+async function refreshChatPageMessages(clientId, force = false) {
     try {
         const res = await fetch(`/api/sessions/${clientId}/chat`);
         const logs = await res.json();
@@ -1028,7 +1028,7 @@ async function refreshChatPageMessages(clientId) {
         
         chatLogsCache[clientId] = logs;
         
-        if (prevLogsStr !== newLogsStr || !bodyContainer.firstElementChild || bodyContainer.innerHTML.includes('Завантаження повідомлень...')) {
+        if (force || prevLogsStr !== newLogsStr || !bodyContainer.firstElementChild || bodyContainer.innerHTML.includes('Завантаження повідомлень...')) {
             renderChatLogsFromArray(bodyContainer, logs);
         }
     } catch (err) {
