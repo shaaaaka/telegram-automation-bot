@@ -7414,6 +7414,70 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
     gap: 12px;
 }
 
+/* --- Authentic Telegram 1:1 Photo-Only Bubble (Zero Padding, Transparent BG, Translucent Floating Badge) --- */
+.chat-page-layout .chat-msg-container .chat-msg-bubble.photo-only,
+.chat-page-layout[data-theme] .chat-msg-container .chat-msg-bubble.photo-only,
+.chat-page-layout[data-theme] .chat-msg-container.client .chat-msg-bubble.photo-only,
+.chat-page-layout[data-theme] .chat-msg-container.bot .chat-msg-bubble.photo-only,
+.chat-page-layout[data-theme] .chat-msg-container.operator .chat-msg-bubble.photo-only,
+.chat-page-layout[data-theme] .chat-msg-container.admin .chat-msg-bubble.photo-only,
+.chat-page-layout[data-theme] .chat-msg-container.support .chat-msg-bubble.photo-only,
+#chat-page-layout-container[style] .chat-msg-container .chat-msg-bubble.photo-only {
+    background: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    position: relative !important;
+    max-width: 480px !important;
+    width: fit-content !important;
+}
+
+.chat-page-layout .chat-msg-container .chat-msg-bubble.photo-only::before,
+.chat-page-layout[data-theme] .chat-msg-container .chat-msg-bubble.photo-only::before {
+    display: none !important;
+}
+
+.chat-page-layout .chat-msg-container .chat-msg-bubble.photo-only .chat-msg-img {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 520px !important;
+    object-fit: contain !important;
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 16px !important;
+    border: none !important;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25) !important;
+    cursor: pointer !important;
+    transition: filter 0.2s ease !important;
+}
+
+.chat-page-layout .chat-msg-container .chat-msg-bubble.photo-only .chat-msg-img:hover {
+    filter: brightness(1.04) !important;
+}
+
+.chat-page-layout .chat-msg-container .chat-msg-bubble.photo-only .chat-msg-time-inline.photo-time {
+    position: absolute !important;
+    bottom: 6px !important;
+    right: 6px !important;
+    background: rgba(0, 0, 0, 0.45) !important;
+    backdrop-filter: blur(6px) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
+    padding: 2px 7px !important;
+    border-radius: 10px !important;
+    color: #ffffff !important;
+    font-size: 0.72rem !important;
+    font-weight: 500 !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+    z-index: 5 !important;
+    pointer-events: none !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
 
 
 
