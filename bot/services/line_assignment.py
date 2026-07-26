@@ -98,8 +98,11 @@ async def send_line_assignment_messages(client_id: int, line_id: int, bot: Bot, 
         key, template = await db.get_bank_template_with_key_db(bank_name)
         allow_relink = template.get('allow_relink') if template else 0
 
-        # Якщо дозволено перев'яз і банк ще не сповіщений, пропонуємо вибір
-        if allow_relink == 1 and not is_already_notified:
+        # Якщо вибір уже зроблено на старті (ask_relink_at_start) — використовуємо його
+        session_is_relink = session.get('is_relink')
+        if session_is_relink is not None:
+            client_msg_id = await send_assigned_phone_to_client(client_id, line_id, bot, delay_before_phone=delay_before_phone, is_relink=bool(session_is_relink))
+        elif allow_relink == 1 and not is_already_notified:
             from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
             markup = InlineKeyboardMarkup(inline_keyboard=[
                 [
@@ -125,9 +128,9 @@ async def send_line_assignment_messages(client_id: int, line_id: int, bot: Bot, 
                 "line_info": line_info,
                 "client_msg_id": choice_msg.message_id,
             }
-
-        # Інакше йдемо за стандартним флоу надсилання телефону
-        client_msg_id = await send_assigned_phone_to_client(client_id, line_id, bot, delay_before_phone=delay_before_phone)
+        else:
+            # Інакше йдемо за стандартним флоу надсилання телефону
+            client_msg_id = await send_assigned_phone_to_client(client_id, line_id, bot, delay_before_phone=delay_before_phone)
     except Exception as e:
         logger.error("Помилка надсилання повідомлення клієнту: %s", e)
         # Відкочуємо призначення, щоб не лишити лінію "зайнятою" без повідомлення

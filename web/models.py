@@ -15,6 +15,9 @@ __all__ = [
     "AIExampleCreate",
     "AISettingsUpdate",
     "AILearnRequest",
+    "VerificationMethodCreate",
+    "VerificationMethodUpdate",
+    "SessionMethodUpdate",
 ]
 
 
@@ -71,3 +74,28 @@ class AISettingsUpdate(BaseModel):
     ai_password_other: str
 class AILearnRequest(BaseModel):
     client_ids: list[int] = None
+class VerificationMethodCreate(BaseModel):
+    key: str
+    display_name: str
+    required_client_fields: List[str] = []
+    required_screenshots: int = 0
+    screenshot_instructions: Optional[str] = None
+    initial_message: Optional[str] = None
+    report_template: Optional[str] = None
+    ai_rules: Optional[str] = None
+    allowed_banks: List[str] = []
+    ask_relink_at_start: Optional[int] = 0
+    is_active: Optional[int] = 1
+class VerificationMethodUpdate(BaseModel):
+    display_name: str
+    required_client_fields: List[str] = []
+    required_screenshots: int = 0
+    screenshot_instructions: Optional[str] = None
+    initial_message: Optional[str] = None
+    report_template: Optional[str] = None
+    ai_rules: Optional[str] = None
+    allowed_banks: List[str] = []
+    ask_relink_at_start: Optional[int] = 0
+    is_active: Optional[int] = 1
+class SessionMethodUpdate(BaseModel):
+    method_key: str

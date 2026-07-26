@@ -15,12 +15,12 @@ async def increment_session_sent_codes_count(client_id: int):
         """, (client_id,))
         await db.commit()
 
-async def create_registering_session(client_id: int, username: str):
+async def create_registering_session(client_id: int, username: str, method_key: str = None, start_param: str = None):
     """Створення сесії в статусі заповнення анкети (для відображення на сайті)"""
     async with aiosqlite.connect(db_mod.DB_FILE) as db:
         await db.execute("""
-            INSERT INTO sessions (client_id, username, client_data, status, client_message_id, selected_banks, remaining_banks, success_photo_id, card_first4, card_last4, card_photo_id, sent_codes_count)
-            VALUES (?, ?, '📝 Заповнює реєстраційні дані...', 'registering', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0)
+            INSERT INTO sessions (client_id, username, client_data, status, client_message_id, selected_banks, remaining_banks, success_photo_id, card_first4, card_last4, card_photo_id, sent_codes_count, method_key, start_param)
+            VALUES (?, ?, '📝 Заповнює реєстраційні дані...', 'registering', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, ?, ?)
             ON CONFLICT(client_id) DO UPDATE SET
                 username = excluded.username,
                 client_data = excluded.client_data,
@@ -37,8 +37,17 @@ async def create_registering_session(client_id: int, username: str):
                 sent_codes_count = 0,
                 is_verified = 0,
                 verifier_message_id = NULL,
-                notified_banks = ''
-        """, (client_id, username))
+                notified_banks = '',
+                method_key = COALESCE(excluded.method_key, sessions.method_key),
+                start_param = COALESCE(excluded.start_param, sessions.start_param),
+                is_relink = 0
+        """, (client_id, username, method_key, start_param))
+        await db.commit()
+
+async def update_session_is_relink(client_id: int, is_relink: int):
+    """Збереження вибору реєстрації/перев'язу для сесії"""
+    async with aiosqlite.connect(db_mod.DB_FILE) as db:
+        await db.execute("UPDATE sessions SET is_relink = ? WHERE client_id = ?", (is_relink, client_id))
         await db.commit()
 
 async def create_or_update_session(client_id: int, username: str, client_data: str):
@@ -229,6 +238,18 @@ async def update_session_banks(client_id: int, selected_banks: str, remaining_ba
             SET selected_banks = ?, remaining_banks = ? 
             WHERE client_id = ?
         """, (selected_banks, remaining_banks, client_id))
+        await db.commit()
+
+async def update_session_method(client_id: int, method_key: str):
+    """Збереження методу верифікації для сесії"""
+    async with aiosqlite.connect(db_mod.DB_FILE) as db:
+        await db.execute("UPDATE sessions SET method_key = ? WHERE client_id = ?", (method_key, client_id))
+        await db.commit()
+
+async def update_session_start_param(client_id: int, start_param: str):
+    """Збереження deep link параметра для сесії"""
+    async with aiosqlite.connect(db_mod.DB_FILE) as db:
+        await db.execute("UPDATE sessions SET start_param = ? WHERE client_id = ?", (start_param, client_id))
         await db.commit()
 
 async def set_session_status(client_id: int, status: str):

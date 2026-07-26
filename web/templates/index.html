@@ -45,6 +45,13 @@
                 <span class="tab-text">Бан-лист</span>
             </button>
 
+            <button class="tab-btn" id="tab-btn-methods" onclick="switchTab('methods')" title="Методи верифікації">
+                <span class="tab-icon-wrapper">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                </span>
+                <span class="tab-text">Методи</span>
+            </button>
+
             <button class="tab-btn tab-btn-settings" id="tab-btn-settings" onclick="switchTab('settings')" title="Налаштування">
                 <span class="tab-icon-wrapper">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.5 1z"></path></svg>
@@ -300,6 +307,11 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Вкладка Методи верифікації -->
+        <div id="tab-content-methods" class="tab-content" style="padding: 0; overflow: hidden;">
+            <iframe id="methods-iframe" src="/methods" style="width: 100%; height: calc(100vh - 100px); border: none;" title="Методи верифікації"></iframe>
         </div>
 
         <!-- Вкладка 3: Налаштування -->
@@ -1834,7 +1846,7 @@ Line {line_id} Return: {line_phone} | {bank}
     </div>
 
     <script src="/static/js/main.js?v=12.0"></script>
-    <script src="/static/js/control.js?v=11.0"></script>
+    <script src="/static/js/control.js?v=12.2"></script>
     <script src="/static/js/chat.js?v=17.3"></script>
     <script src="/static/js/stats.js?v=10.0"></script>
     <script src="/static/js/settings.js?v=15.2"></script>

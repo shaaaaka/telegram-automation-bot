@@ -1,4 +1,5 @@
 import logging
+import json
 
 import aiosqlite
 from fastapi import APIRouter, HTTPException, BackgroundTasks
@@ -7,11 +8,11 @@ from aiogram.types import (
 )
 
 import bot.database as db
-from bot.config import DB_FILE
+from bot.config import DB_FILE, normalize_bank_name
 from bot.services.line_assignment import send_line_assignment_messages
 from bot.services.session_completion import send_completion_client_messages
 from web.models import *
-from web.core import dp, manager
+from web.core import manager
 import web.core
 
 
@@ -64,7 +65,36 @@ async def _prepare_session_data(row, conn) -> dict:
             }
         else:
             session_dict['last_message'] = None
-            
+
+    # Завантажуємо allowed_banks методу для сесії
+    method_key = session_dict.get('method_key')
+    allowed_banks_list = []
+    allowed_set = None
+    if method_key:
+        async with conn.execute("SELECT allowed_banks FROM verification_methods WHERE key = ?", (method_key,)) as m_cursor:
+            m_row = await m_cursor.fetchone()
+            if m_row and m_row['allowed_banks']:
+                try:
+                    allowed_banks_list = json.loads(m_row['allowed_banks'])
+                    if allowed_banks_list:
+                        allowed_set = {normalize_bank_name(b) for b in allowed_banks_list}
+                except (json.JSONDecodeError, TypeError):
+                    pass
+    session_dict['allowed_banks'] = allowed_banks_list
+
+    if allowed_set:
+        def is_allowed_bank(bank_name):
+            return normalize_bank_name(bank_name) in allowed_set
+
+        selected = [b.strip() for b in (session_dict.get('selected_banks') or '').split(",") if b.strip()]
+        session_dict['selected_banks'] = ','.join([b for b in selected if is_allowed_bank(b)])
+
+        remaining = [b.strip() for b in (session_dict.get('remaining_banks') or '').split(",") if b.strip()]
+        session_dict['remaining_banks'] = ','.join([b for b in remaining if is_allowed_bank(b)])
+
+        bank_statuses = session_dict.get('bank_statuses') or {}
+        session_dict['bank_statuses'] = {k: v for k, v in bank_statuses.items() if is_allowed_bank(k)}
+
     return session_dict
 
 @router.get("/api/sessions")
@@ -193,6 +223,25 @@ async def save_client_banks(client_id: int, body: BanksSelection):
     remaining_str = ",".join(new_remaining)
     
     await db.update_session_banks(client_id, selected_str, remaining_str)
+
+    # Якщо клієнт чекає вибору банку — запускаємо наступний крок
+    if session.get('status') == 'waiting_admin_bank_selection' and new_selected:
+        method_key = session.get('method_key')
+        method = await db.get_verification_method(method_key) if method_key else None
+        if method and web.core.bot:
+            await db.set_session_status(client_id, 'registering')
+            from aiogram.fsm.storage.base import StorageKey
+            from aiogram.fsm.context import FSMContext
+            client_state = FSMContext(
+                storage=web.core.dp.storage if web.core.dp else None,
+                key=StorageKey(bot_id=web.core.bot.id, chat_id=client_id, user_id=client_id)
+            )
+            from bot.handlers.client import continue_client_flow, ask_start_relink_choice
+            if method.get('ask_relink_at_start'):
+                await ask_start_relink_choice(client_id, web.core.bot, client_state, method_key)
+            else:
+                await continue_client_flow(client_id, web.core.bot, client_state, method_key, session.get('is_relink', 0))
+
     return {"status": "success", "selected_banks": new_selected}
 
 @router.post("/api/sessions/{client_id}/send-to-verifier")
@@ -212,11 +261,30 @@ async def send_to_verifier_endpoint(client_id: int):
 
 @router.post("/api/sessions/{client_id}/verify-manually")
 async def verify_manually_endpoint(client_id: int):
-    """Ручне схвалення анкети дропа (без перевірки верифікатором)"""
+    """Ручне схвалення анкети дропа (без перевірки верифікатором) або запуск флоу після вибору банку"""
     session = await db.get_session(client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-        
+    
+    # Якщо сесія ще чекає вибору банку — запускаємо флоу
+    if session.get('status') == 'waiting_admin_bank_selection' and session.get('selected_banks'):
+        method_key = session.get('method_key')
+        method = await db.get_verification_method(method_key) if method_key else None
+        if method and web.core.bot:
+            await db.set_session_status(client_id, 'registering')
+            from aiogram.fsm.storage.base import StorageKey
+            from aiogram.fsm.context import FSMContext
+            client_state = FSMContext(
+                storage=web.core.dp.storage if web.core.dp else None,
+                key=StorageKey(bot_id=web.core.bot.id, chat_id=client_id, user_id=client_id)
+            )
+            from bot.handlers.client import continue_client_flow, ask_start_relink_choice
+            if method.get('ask_relink_at_start'):
+                await ask_start_relink_choice(client_id, web.core.bot, client_state, method_key)
+            else:
+                await continue_client_flow(client_id, web.core.bot, client_state, method_key, session.get('is_relink', 0))
+            return {"status": "success", "started": True}
+    
     await db.set_session_verified(client_id, 1)
     await db.set_session_status(client_id, 'registered')
             
@@ -391,12 +459,12 @@ async def terminate_session(client_id: int):
     # Якщо сесія у статусі заповнення анкети
     if session['status'] == 'registering':
         # Скидаємо FSM стан бота
-        if dp:
+        if web.core.dp:
             try:
                 from aiogram.fsm.storage.base import StorageKey
                 key = StorageKey(bot_id=web.core.bot.id, chat_id=client_id, user_id=client_id)
-                await dp.storage.set_state(key, None)
-                await dp.storage.set_data(key, {})
+                await web.core.dp.storage.set_state(key, None)
+                await web.core.dp.storage.set_data(key, {})
             except Exception as e:
                 logging.error(f"Помилка при скиданні FSM стану для {client_id}: {e}")
 

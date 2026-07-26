@@ -454,6 +454,12 @@ function renderSessions(sessions) {
                 customOrder = ["bank.kd", "izibank", "alliance", "lvivbank", "amobank"];
             }
 
+            // allowed_banks для поточного методу (якщо задані)
+            const methodAllowed = session.allowed_banks || [];
+            const allowedSet = new Set();
+            methodAllowed.forEach(b => allowedSet.add(b.toLowerCase()));
+            const pumbAllowed = allowedSet.has('pumb');
+
             const allPossibleBanks = [];
             const seenLower = new Set();
             const inputSources = [...availableBanks, ...selectedList, ...historyBanks];
@@ -461,7 +467,7 @@ function renderSessions(sessions) {
             // 1. Add all banks from customOrder (preserving settings order)
             customOrder.forEach(b => {
                 const lower = b.toLowerCase();
-                if (!seenLower.has(lower) && lower !== 'ecobank' && lower !== 'pumb') {
+                if (!seenLower.has(lower) && lower !== 'ecobank' && (lower !== 'pumb' || pumbAllowed)) {
                     seenLower.add(lower);
                     const matched = inputSources.find(x => x.toLowerCase() === lower);
                     allPossibleBanks.push(matched || b);
@@ -472,7 +478,7 @@ function renderSessions(sessions) {
             inputSources.forEach(b => {
                 if (b) {
                     const lower = b.toLowerCase();
-                    if (!seenLower.has(lower) && lower !== 'ecobank' && lower !== 'pumb') {
+                    if (!seenLower.has(lower) && lower !== 'ecobank' && (lower !== 'pumb' || pumbAllowed)) {
                         seenLower.add(lower);
                         allPossibleBanks.push(b);
                     }
@@ -488,6 +494,13 @@ function renderSessions(sessions) {
                 if (idxB !== -1) return 1;
                 return a.localeCompare(b);
             });
+
+            // 4. Якщо для методу задані дозволені банки — залишаємо тільки їх
+            if (allowedSet.size > 0) {
+                const filteredBanks = allPossibleBanks.filter(b => allowedSet.has(b.toLowerCase()));
+                allPossibleBanks.length = 0;
+                allPossibleBanks.push(...filteredBanks);
+            }
 
             const isRegistering = session.status === 'registering';
 
@@ -536,11 +549,6 @@ function renderSessions(sessions) {
                     }
                 }
                 
-                if (isRegistering) {
-                    chipClasses += ' disabled';
-                    onclickAttr = '';
-                }
-
                 bankChipsHTML += `
                     <div class="${chipClasses}" ${onclickAttr}>
                         <input type="checkbox" data-bank="${bank}" ${isSelected ? 'checked' : ''} style="display: none;">
@@ -1176,16 +1184,18 @@ async function verifyManually(clientId) {
             method: 'POST'
         });
         if (res.ok) {
-            showToast("Анкету схвалено вручну!", "success");
+            const data = await res.json().catch(() => ({}));
+            const msg = data.started ? "Флоу запущено, повідомлення надіслано клієнту" : "Анкету схвалено вручну!";
+            showToast(msg, "success");
             if (typeof pollData === 'function') {
                 await pollData();
             }
         } else {
             const err = await res.json();
-            showToast("Помилка схвалення: " + (err.detail || "невідома помилка"), "error");
+            showToast("Помилка: " + (err.detail || "невідома помилка"), "error");
         }
     } catch (err) {
-        showToast("Не вдалося схвалити анкету", "error");
+        showToast("Не вдалося обробити запит", "error");
     }
 }
 

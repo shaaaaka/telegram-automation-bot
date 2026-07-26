@@ -19,6 +19,7 @@ database.db
 
 # Private environment variables
 .env
+.env.test
 
 # Local logs
 *.log

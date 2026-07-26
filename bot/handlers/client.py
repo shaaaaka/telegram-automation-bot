@@ -2,13 +2,16 @@ from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart, StateFilter
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove, FSInputFile
 from aiogram.fsm.context import FSMContext
-from bot.config import BANK_TEMPLATES, get_template_photo, get_admin_id
-from bot.services.line_assignment import get_all_banks_for_selection, build_bank_selection_rows
+from bot.config import (
+    BANK_TEMPLATES, get_template_photo, get_admin_id, DEFAULT_METHOD_KEY,
+    PUMB_NEW_REG_INSTRUCTION, PUMB_RELINK_INSTRUCTION, PUMB_NEW_REG_EXAMPLES_DIR
+)
 import bot.database as db
 import re
 import asyncio
 import logging
 import time
+import os
 
 from bot.handlers.client_helpers import *
 logger = logging.getLogger(__name__)
@@ -37,7 +40,11 @@ async def handle_waiting_number_text(message: Message):
 @router.message(F.chat.type == "private", F.text.in_({"Розпочати знову", "🔄 Розпочати знову"}))
 async def cmd_start(message: Message, state: FSMContext):
     """Обробник команди /start для клієнта"""
-    if message.from_user.id == get_admin_id():
+    # Якщо адмін пише просто /start без deep link — показуємо адмін-меню
+    # Якщо є deep link параметр — запускаємо клієнт-флоу (для тестування різних методів)
+    is_admin_user = message.from_user.id == get_admin_id()
+    has_start_param = bool(message.text and message.text.startswith("/start ") and message.text.split(" ", 1)[1].strip())
+    if is_admin_user and not has_start_param:
         from bot.handlers.admin import get_admin_keyboard, clear_previous_admin_messages, register_admin_message
         msg = await message.answer(
             "Привіт, Адміне!\n\n"
@@ -81,11 +88,27 @@ async def cmd_start(message: Message, state: FSMContext):
 
     await state.clear()
     username_db = message.from_user.username or "Немає юзернейму"
-    await db.create_registering_session(client_id, username_db)
+
+    # Визначаємо метод з deep link (/start wolf, /start manager_x)
+    start_param = ""
+    method_key = DEFAULT_METHOD_KEY
+    if message.text and message.text.startswith("/start "):
+        start_param = message.text.split(" ", 1)[1].strip()
+        method = await db.get_verification_method(start_param)
+        if method and method.get('is_active'):
+            method_key = start_param
+        else:
+            start_param = ""
+
+    await db.create_registering_session(client_id, username_db, method_key=method_key, start_param=start_param)
     await register_reg_msg(state, message.message_id)
     
-    # Перевіряємо можливість автозаповнення з попередньої/поточної сесії
-    if existing_session and existing_session['client_data']:
+    # Перевіряємо можливість автозаповнення з попередньої/поточної сесії (тільки для методів з ПІБ/Дата/ІПН)
+    method = await db.get_verification_method(method_key)
+    required_fields = await db.get_method_required_fields(method_key)
+    has_pib_dob_ipn = {"pib", "dob", "ipn"}.issubset(set(required_fields))
+
+    if has_pib_dob_ipn and existing_session and existing_session['client_data']:
         ipn_match = re.search(r'ІПН:\s*(\d+)', existing_session['client_data'])
         pib_match = re.search(r'ПІБ:\s*(.+)', existing_session['client_data'])
         dob_match = re.search(r'Дата:\s*(.+)', existing_session['client_data'])
@@ -108,19 +131,17 @@ async def cmd_start(message: Message, state: FSMContext):
             ])
             msg = await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
             await register_reg_msg(state, msg.message_id)
-            await state.update_data(welcome_msg_ids=[msg.message_id], old_pib=pib, old_dob=dob, old_ipn=ipn)
+            await state.update_data(welcome_msg_ids=[msg.message_id], old_pib=pib, old_dob=dob, old_ipn=ipn, method_key=method_key)
             await state.set_state(RegistrationStates.waiting_pib_dob)
             return
 
-    # Крок 1: Запитуємо ПІБ та Дату народження
-    await db.update_session_client_phone(client_id, None)
-    pib_msg = await message.answer(
-        "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
-        reply_markup=get_cancel_keyboard()
-    )
-    await register_reg_msg(state, pib_msg.message_id)
-    await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
-    await state.set_state(RegistrationStates.waiting_pib_dob)
+    # Для методів з ask_relink_at_start спочатку чекаємо вибору банку адміном
+    if method and method.get('ask_relink_at_start'):
+        await wait_for_admin_bank_selection(client_id, message.bot, state, method_key, username_db, start_param)
+        return
+
+    # Інакше одразу запускаємо збір даних/скріншотів
+    await _start_method_flow(message, state, method_key, is_relink=0)
 @router.callback_query(F.data == "autofill_use")
 async def handle_autofill_use(callback: CallbackQuery, state: FSMContext):
     """Обробник вибору використання попередніх даних"""
@@ -180,6 +201,148 @@ async def handle_autofill_new(callback: CallbackQuery, state: FSMContext):
     await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
     await state.set_state(RegistrationStates.waiting_pib_dob)
     await callback.answer()
+async def continue_client_flow(client_id: int, bot: Bot, client_state: FSMContext, method_key: str, is_relink: int = 0):
+    """Запускає збір текстових полів або скріншотів для обраного методу"""
+    await db.update_session_is_relink(client_id, is_relink)
+
+    method = await db.get_verification_method(method_key)
+    required_fields = await db.get_method_required_fields(method_key)
+
+    initial_message = method.get('initial_message') if method else None
+    if not initial_message:
+        initial_message = "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження"
+
+    await db.update_session_client_phone(client_id, None)
+
+    if required_fields:
+        if required_fields == ["pib", "dob", "ipn"]:
+            pib_msg = await bot.send_message(chat_id=client_id, text=initial_message, reply_markup=get_cancel_keyboard())
+            await register_reg_msg(client_state, pib_msg.message_id)
+            await client_state.update_data(pib_prompt_msg_id=pib_msg.message_id, method_key=method_key)
+            await client_state.set_state(RegistrationStates.waiting_pib_dob)
+        else:
+            msg = await bot.send_message(chat_id=client_id, text=initial_message, reply_markup=get_cancel_keyboard())
+            await register_reg_msg(client_state, msg.message_id)
+            await client_state.update_data(
+                method_key=method_key,
+                required_fields=required_fields,
+                current_field_idx=0,
+                collected_data={}
+            )
+            await client_state.set_state(RegistrationStates.collecting_method_field)
+    else:
+        # Спеціальний флоу для ПУМБ (diia_screens) — нова реєстрація vs перев'яз
+        if method and method.get('key') == 'diia_screens':
+            if is_relink:
+                msg = await bot.send_message(chat_id=client_id, text=PUMB_RELINK_INSTRUCTION, reply_markup=get_cancel_keyboard())
+                await register_reg_msg(client_state, msg.message_id)
+                await client_state.update_data(
+                    method_key=method_key,
+                    required_screenshots=1,
+                    collected_screenshots=[],
+                    collected_data={}
+                )
+                await client_state.set_state(RegistrationStates.waiting_method_screenshots)
+            else:
+                # Нова реєстрація: інструкція + приклади фото
+                instruction_msg = await bot.send_message(chat_id=client_id, text=PUMB_NEW_REG_INSTRUCTION, reply_markup=get_cancel_keyboard())
+                await register_reg_msg(client_state, instruction_msg.message_id)
+
+                # Шукаємо будь-які фото у папці прикладів
+                valid_paths = []
+                if os.path.isdir(PUMB_NEW_REG_EXAMPLES_DIR):
+                    for fname in sorted(os.listdir(PUMB_NEW_REG_EXAMPLES_DIR)):
+                        if fname.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                            valid_paths.append(os.path.join(PUMB_NEW_REG_EXAMPLES_DIR, fname))
+
+                if valid_paths:
+                    from aiogram.types import InputMediaPhoto
+                    media = [InputMediaPhoto(media=FSInputFile(p), caption="Приклад" if idx == 0 else None) for idx, p in enumerate(valid_paths)]
+                    try:
+                        await bot.send_media_group(chat_id=client_id, media=media)
+                    except Exception as e:
+                        logger.error("Помилка надсилання прикладів фото для ПУМБ: %s", e)
+                else:
+                    logger.warning("Приклади фото для ПУМБ не знайдено у %s", PUMB_NEW_REG_EXAMPLES_DIR)
+
+                await client_state.update_data(
+                    method_key=method_key,
+                    required_screenshots=method.get('required_screenshots', 0) if method else 0,
+                    collected_screenshots=[],
+                    collected_data={}
+                )
+                await client_state.set_state(RegistrationStates.waiting_method_screenshots)
+        else:
+            screenshot_instructions = method.get('screenshot_instructions') if method else "Надішліть, будь ласка, необхідні скріншоти."
+            msg = await bot.send_message(chat_id=client_id, text=screenshot_instructions, reply_markup=get_cancel_keyboard())
+            await register_reg_msg(client_state, msg.message_id)
+            await client_state.update_data(
+                method_key=method_key,
+                required_screenshots=method.get('required_screenshots', 0) if method else 0,
+                collected_screenshots=[],
+                collected_data={}
+            )
+            await client_state.set_state(RegistrationStates.waiting_method_screenshots)
+
+async def _start_method_flow(message: Message, state: FSMContext, method_key: str, is_relink: int = 0):
+    """Запускає збір даних одразу (для методів без очікування вибору банку)"""
+    await continue_client_flow(message.from_user.id, message.bot, state, method_key, is_relink)
+
+async def ask_start_relink_choice(client_id: int, bot: Bot, client_state: FSMContext, method_key: str):
+    """Запитуємо клієнта про тип верифікації після вибору банку адміном"""
+    await client_state.update_data(method_key=method_key)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🆕 Нова реєстрація", callback_data=f"start_relink_new_{method_key}")],
+        [InlineKeyboardButton(text="🔄 Перев'яз існуючого акаунту", callback_data=f"start_relink_relink_{method_key}")]
+    ])
+    msg = await bot.send_message(
+        chat_id=client_id,
+        text="Оберіть, будь ласка, тип верифікації:",
+        reply_markup=keyboard
+    )
+    await register_reg_msg(client_state, msg.message_id)
+    await client_state.set_state(RegistrationStates.waiting_start_relink_choice)
+
+async def wait_for_admin_bank_selection(client_id: int, bot: Bot, state: FSMContext, method_key: str, username: str, start_param: str = None):
+    """Ставимо клієнта в очікування, поки адмін не обере банк"""
+    await state.set_state(RegistrationStates.waiting_admin_bank_selection)
+    await db.set_session_status(client_id, 'waiting_admin_bank_selection')
+    wait_msg = await bot.send_message(
+        chat_id=client_id,
+        text="Будь ласка, зачекайте. Адміністратор обирає банк для верифікації..."
+    )
+    await register_reg_msg(state, wait_msg.message_id)
+    await notify_admin_for_bank_selection(client_id, username, "Очікує вибору банку адміністратором", bot, method_key=method_key, start_param=start_param)
+
+@router.callback_query(RegistrationStates.waiting_start_relink_choice, F.data.startswith("start_relink_"))
+async def handle_start_relink_choice(callback: CallbackQuery, state: FSMContext):
+    """Обробник вибору Нова реєстрація / Перев'яз після вибору банку"""
+    data = callback.data
+    is_relink = None
+    method_key = None
+
+    prefix_new = "start_relink_new_"
+    prefix_relink = "start_relink_relink_"
+    if data.startswith(prefix_new):
+        method_key = data[len(prefix_new):]
+        is_relink = 0
+    elif data.startswith(prefix_relink):
+        method_key = data[len(prefix_relink):]
+        is_relink = 1
+    else:
+        await callback.answer("Невідомий вибір", show_alert=True)
+        return
+
+    await callback.answer("Нова реєстрація" if is_relink == 0 else "Перев'яз акаунту")
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+
+    client_id = callback.from_user.id
+    await db.update_session_is_relink(client_id, is_relink)
+    await continue_client_flow(client_id, callback.bot, state, method_key, is_relink)
+
 @router.message(RegistrationStates.waiting_pib_dob, F.chat.type == "private")
 async def process_pib_dob(message: Message, state: FSMContext):
     """Отримання ПІБ та Дати народження (можна окремими повідомленнями)"""
@@ -469,6 +632,15 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
 
     # Створюємо нову сесію в базі даних
     await db.create_or_update_session(client_id, username_db, client_data)
+    
+    # Зберігаємо метод, якщо він є в стані
+    state_data = await state.get_data()
+    method_key = state_data.get('method_key')
+    start_param = state_data.get('start_param')
+    if method_key:
+        await db.update_session_method(client_id, method_key)
+    if start_param:
+        await db.update_session_start_param(client_id, start_param)
         
     msg = await callback.message.answer(
         "Зачекайте будь ласка кілька хвилин",
@@ -477,42 +649,8 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
     await db.update_session_waiting_message_id(client_id, msg.message_id)
     await callback.answer("Дані підтверджено!")
 
-    # Отримуємо унікальні назви банків для вибору адміном
-    all_banks = await get_all_banks_for_selection()
-    
-    warning_text = ""
-    if not all_banks:
-        warning_text = "\n\n⚠️ *Попередження:* немає доступних ліній/номерів у базі! Додайте номери через сайт або в чат."
-        
-    # Отримуємо історію верифікацій клієнта
-    history = await db.get_client_verification_history(client_id)
-    passed_banks = {h['bank'] for h in history if h['status'] == 'success'}
-    banned_banks = {h['bank'] for h in history if h['status'] in ('banned', 'failure')}
-
-    # Створюємо кнопки вибору банків
-    keyboard_buttons = build_bank_selection_rows(
-        all_banks, client_id, passed_banks=passed_banks, banned_banks=banned_banks
-    )
-    
-    # Додаємо керівні кнопки
-    keyboard_buttons.append([InlineKeyboardButton(text="Зберегти та продовжити", callback_data=f"savebanks_{client_id}")])
-    keyboard_buttons.append([InlineKeyboardButton(text="Відхилити запит", callback_data=f"reject_{client_id}")])
-    
-    markup = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-    
-    # Сповіщаємо адміна в Telegram
-    import html
-    escaped_username = html.escape(username) if username else "Невідомий"
-    escaped_client_data = html.escape(client_data)
-    escaped_warning = html.escape(warning_text) if warning_text else ""
-    admin_msg = (
-        f"Новий клієнт на верифікацію!\n"
-        f"• Telegram: @{escaped_username} (ID: {client_id})\n"
-        f"• Дані:\n<pre>{escaped_client_data}</pre>\n"
-        f"Оберіть банки, які має пройти клієнт:{escaped_warning}"
-    )
-    
-    await bot.send_message(chat_id=get_admin_id(), text=admin_msg, reply_markup=markup, parse_mode="HTML")
+    # Сповіщаємо адміна для вибору банків
+    await notify_admin_for_bank_selection(client_id, username, client_data, bot, method_key=method_key, start_param=start_param)
 @router.callback_query(F.data == "restart_reg")
 async def handle_restart_reg(callback: CallbackQuery, state: FSMContext):
     """Обробник скасування та заповнення анкети заново"""
@@ -1458,3 +1596,149 @@ async def process_relink_initial_screenshot(message: Message, state: FSMContext,
         except Exception:
             pass
         await message.answer("Виникла технічна затримка під час авто-перевірки. Надішліть скріншот ще раз.")
+
+
+@router.message(RegistrationStates.collecting_method_field, F.chat.type == "private")
+async def process_method_field(message: Message, state: FSMContext, bot: Bot):
+    """Універсальний обробник збору текстових полів методу верифікації"""
+    state_data = await state.get_data()
+    method_key = state_data.get('method_key', 'volk')
+    required_fields = state_data.get('required_fields', [])
+    current_idx = state_data.get('current_field_idx', 0)
+    collected_data = state_data.get('collected_data', {})
+
+    method = await db.get_verification_method(method_key)
+    if not method or not required_fields or current_idx >= len(required_fields):
+        await message.answer("Помилка: метод не знайдено або всі поля вже зібрані. Спробуйте /start.")
+        await state.clear()
+        return
+
+    field_key = required_fields[current_idx]
+    is_valid, value_or_error = validate_method_field(field_key, message.text or "")
+
+    if not is_valid:
+        await message.answer(f"{value_or_error}\n\n{get_field_prompt(field_key, method)}", reply_markup=get_cancel_keyboard())
+        return
+
+    collected_data[field_key] = value_or_error
+    current_idx += 1
+
+    if current_idx >= len(required_fields):
+        # Всі поля зібрані
+        await state.update_data(collected_data=collected_data)
+        await _finish_method_collection(message, state, bot, method, collected_data)
+        return
+
+    # Запитуємо наступне поле
+    next_field = required_fields[current_idx]
+    await state.update_data(current_field_idx=current_idx, collected_data=collected_data)
+    next_prompt = get_field_prompt(next_field, method)
+    msg = await message.answer(next_prompt, reply_markup=get_cancel_keyboard())
+    await register_reg_msg(state, msg.message_id)
+
+
+@router.message(RegistrationStates.waiting_method_screenshots, F.chat.type == "private")
+async def process_method_screenshots(message: Message, state: FSMContext, bot: Bot):
+    """Обробник збору скріншотів для методів без текстових полів"""
+    state_data = await state.get_data()
+    method_key = state_data.get('method_key', 'diia_screens')
+    required_screenshots = state_data.get('required_screenshots', 0)
+    collected_screenshots = state_data.get('collected_screenshots', [])
+
+    if not message.photo:
+        await message.answer("Будь ласка, надішліть скріншот фото.")
+        return
+
+    photo_id = message.photo[-1].file_id
+    collected_screenshots.append(photo_id)
+
+    if len(collected_screenshots) < required_screenshots:
+        remaining = required_screenshots - len(collected_screenshots)
+        await state.update_data(collected_screenshots=collected_screenshots)
+        await message.answer(f"Залишилося ще {remaining} скріншот(ів).")
+        return
+
+    # Всі скріншоти зібрані
+    await state.update_data(collected_screenshots=collected_screenshots)
+    method = await db.get_verification_method(method_key)
+    await _finish_method_screenshots(message, state, bot, method, collected_screenshots)
+
+
+async def _finish_method_collection(message: Message, state: FSMContext, bot: Bot, method: dict, collected_data: dict):
+    """Завершення збору текстових полів: створення сесії та сповіщення адміна"""
+    client_id = message.from_user.id
+    username = message.from_user.username or "Немає юзернейму"
+    state_data = await state.get_data()
+    start_param = state_data.get('start_param')
+
+    client_data = format_client_data_from_method(collected_data, method)
+    if message.from_user.username:
+        client_data += f"\n\nДроп - @{message.from_user.username}"
+
+    await db.create_or_update_session(client_id, username, client_data)
+    await db.update_session_method(client_id, method['key'])
+    if start_param:
+        await db.update_session_start_param(client_id, start_param)
+
+    await state.clear()
+
+    waiting_msg = await message.answer("Зачекайте будь ласка кілька хвилин", reply_markup=get_waiting_keyboard())
+    await db.update_session_waiting_message_id(client_id, waiting_msg.message_id)
+
+    await notify_admin_after_data_collection(client_id, username, client_data, bot, method, start_param)
+
+
+async def _finish_method_screenshots(message: Message, state: FSMContext, bot: Bot, method: dict, screenshots: list):
+    """Завершення збору скріншотів: відправка адміну/верифікатору"""
+    client_id = message.from_user.id
+    username = message.from_user.username or "Немає юзернейму"
+    state_data = await state.get_data()
+    start_param = state_data.get('start_param')
+
+    await db.create_or_update_session(client_id, username, '📷 Скріншоти верифікації')
+    await db.update_session_method(client_id, method['key'])
+    if start_param:
+        await db.update_session_start_param(client_id, start_param)
+
+    await state.clear()
+
+    waiting_msg = await message.answer("Дякуємо! Скріншоти прийнято. Очікуйте перевірки.", reply_markup=get_waiting_keyboard())
+    await db.update_session_waiting_message_id(client_id, waiting_msg.message_id)
+
+    # Відправляємо скріншоти адміну для ручної обробки
+    from aiogram.types import InputMediaPhoto
+    from bot.config import get_admin_id
+    caption = method.get('report_template') or f"Скріншоти верифікації (метод: {method['key']})\nДроп: @{username}\nstart: {start_param or '-'}"
+    try:
+        if len(screenshots) == 1:
+            await bot.send_photo(chat_id=get_admin_id(), photo=screenshots[0], caption=caption)
+        else:
+            media = [InputMediaPhoto(media=photo_id, caption=caption if idx == 0 else None) for idx, photo_id in enumerate(screenshots)]
+            await bot.send_media_group(chat_id=get_admin_id(), media=media)
+    except Exception as e:
+        logger.error(f"Помилка відправки скріншотів адміну: {e}")
+
+    # Повідомляємо адміна, що можна призначати лінію
+    await notify_admin_after_data_collection(client_id, username, f"📷 Скріншоти верифікації ({len(screenshots)} шт.)", bot, method, start_param)
+
+
+async def notify_admin_after_data_collection(client_id: int, username: str, text: str, bot: Bot, method: dict, start_param: str = None):
+    """Сповіщення адміна після збору даних: призначити лінію або обрати банк"""
+    if method and method.get('ask_relink_at_start'):
+        # Для ask_relink методів банк вже обраний — пропонуємо одразу призначити лінію
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        markup = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📞 Призначити лінію", callback_data=f"reassignline_{client_id}")]
+        ])
+        try:
+            await bot.send_message(
+                chat_id=get_admin_id(),
+                text=f"{text}\n\nДроп: @{username}\nstart: {start_param or '-'}\n\nБанк вже обрано. Можна призначати лінію.",
+                reply_markup=markup,
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            logger.error(f"Помилка надсилання адміну після збору даних: {e}")
+    else:
+        # Для інших методів — стандартний вибір банку
+        await notify_admin_for_bank_selection(client_id, username, text, bot, method_key=method['key'] if method else None, start_param=start_param)

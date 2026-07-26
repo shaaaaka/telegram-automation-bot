@@ -10,6 +10,7 @@ from bot.services.session_completion import send_completion_client_messages
 import bot.database as db
 
 from bot.handlers.admin_helpers import *
+from bot.handlers.client import continue_client_flow, ask_start_relink_choice
 router = Router()
 logger = logging.getLogger(__name__)
 @router.message(Command("lines"), is_admin)
@@ -527,7 +528,23 @@ async def handle_save_banks(callback: CallbackQuery, bot: Bot, state: FSMContext
     })
 
     # Перевіряємо чи користувач вже верифікований
-    if not session.get('is_verified'):
+    session = await db.get_session(client_id)
+    method_key = session.get('method_key') if session else None
+    method = await db.get_verification_method(method_key) if method_key else None
+
+    if session and session.get('status') == 'waiting_admin_bank_selection' and method:
+        from aiogram.fsm.storage.base import StorageKey
+        client_state = FSMContext(
+            storage=state.storage,
+            key=StorageKey(bot_id=bot.id, chat_id=client_id, user_id=client_id)
+        )
+        await db.set_session_status(client_id, 'registering')
+        if method.get('ask_relink_at_start'):
+            await ask_start_relink_choice(client_id, bot, client_state, method_key)
+        else:
+            await continue_client_flow(client_id, bot, client_state, method_key, session.get('is_relink', 0))
+        await callback.answer("Клієнту надіслано запит. Очікуйте.", show_alert=True)
+    elif not session.get('is_verified'):
         await db.set_session_status(client_id, 'waiting_verification')
         from bot.handlers.client import send_anketa_to_verifier
         await send_anketa_to_verifier(client_id, bot)
