@@ -6428,6 +6428,23 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
     box-sizing: border-box;
 }
 
+/* Hide scrollbar in settings panes while keeping scroll functionality */
+.settings-subtab-content.active,
+#settings-content-banks.active,
+#settings-content-ai.active,
+#settings-content-theme.active {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+.settings-subtab-content.active::-webkit-scrollbar,
+#settings-content-banks.active::-webkit-scrollbar,
+#settings-content-ai.active::-webkit-scrollbar,
+#settings-content-theme.active::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
 /* --- Appearance / Themes tab polished design --- */
 .settings-header-banner {
     display: flex;

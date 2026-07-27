@@ -86,7 +86,11 @@ async function loadSettings() {
         // Render bank accordion items
         const activeAccordionKey = localStorage.getItem('active_bank_accordion') || null;
         renderBankAccordion(data.templates, activeAccordionKey);
-        
+
+        if (typeof window.renderAllProfileBanks === 'function') {
+            window.renderAllProfileBanks();
+        }
+
         if (typeof renderChatPageTemplates === 'function') {
             renderChatPageTemplates();
         }

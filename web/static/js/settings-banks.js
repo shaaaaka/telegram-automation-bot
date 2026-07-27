@@ -337,6 +337,486 @@ function addDragAndDropListeners(item) {
         });
     });
 }
+function getBankAccordionItemHTML(itemKey, bankKey, template, activeSubTab, options = {}) {
+    const isPaused = template.is_active === 0;
+    const displayName = template.display_name || bankKey;
+    const avatarHTML = `<div style="width: 30px; height: 30px; border-radius: 50%; background: ${getBankIconGradient(bankKey, template.logo_path)}; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">${getBankIcon(bankKey, template.logo_path)}</div>`;
+    const formSubmit = options.noActions ? 'event.preventDefault();' : `saveAccordionBankSettings(event, '${bankKey}')`;
+    const toggleHandler = options.toggleHandler || `toggleBankAccordion('${itemKey}')`;
+    const actionButtons = options.noActions ? '<div class="bank-action-buttons-row" style="display: none;"></div>' : `<div class="bank-action-buttons-row">
+                        <div>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="deleteAccordionBank('${itemKey}')" style="padding: 8px 16px; font-size: 0.8rem;">Видалити банк</button>
+                        </div>
+                        <div class="bank-action-right-group">
+                            <button type="button" id="bank-acc-cancel-btn-${itemKey}" data-has-changes="false" class="btn btn-secondary btn-sm" onclick="cancelAccordionEdit('${itemKey}')" style="padding: 8px 16px; font-size: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7);">Скасувати</button>
+                            <button type="submit" id="bank-acc-save-btn-${itemKey}" disabled class="btn btn-primary" style="padding: 8px 20px; font-weight: 600; font-size: 0.85rem; opacity: 0.4; cursor: not-allowed; transition: all 0.2s ease;">Зберегти зміни</button>
+                        </div>
+                    </div>`;
+    return `
+            <div class="bank-accordion-header" onclick="${toggleHandler}">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <div class="bank-icon-badge" style="background: ${getBankIconGradient(bankKey, template.logo_path)};">${getBankIcon(bankKey, template.logo_path)}</div>
+                    <span class="bank-title" style="font-weight: 600; color: #fff; font-size: 1rem; letter-spacing: 0.3px;">${displayName}</span>
+                    ${isPaused ? `<span class="bank-status-badge-paused" style="font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: rgba(244,63,94,0.1); border: 1px solid rgba(244,63,94,0.25); color: #fb7185; text-transform: uppercase; letter-spacing: 0.5px; user-select: none;">Пауза</span>` : ''}
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <svg class="accordion-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--text-muted)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.25s ease; display: inline-block; transform-origin: center;">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </div>
+            </div>
+            <div class="bank-accordion-body">
+                <form onsubmit="${formSubmit}" style="display: flex; flex-direction: column; margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
+                    
+                    <!-- Sub-tabs bar -->
+                    <div class="bank-accordion-tabs-bar">
+                        <button type="button" class="tab-btn-sub ${activeSubTab === 'general' ? 'active' : ''}" onclick="switchBankAccordionTab('${itemKey}', 'general', event)">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="3"></circle>
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l-.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                            </svg>
+                            Загальні
+                        </button>
+                        <button type="button" class="tab-btn-sub ${activeSubTab === 'media' ? 'active' : ''}" onclick="switchBankAccordionTab('${itemKey}', 'media', event)">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                            Інструкції
+                        </button>
+                        <button type="button" class="tab-btn-sub ${activeSubTab === 'ai' ? 'active' : ''}" onclick="switchBankAccordionTab('${itemKey}', 'ai', event)">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                                <rect x="9" y="9" width="6" height="6"></rect>
+                                <line x1="9" y1="1" x2="9" y2="4"></line>
+                                <line x1="15" y1="1" x2="15" y2="4"></line>
+                                <line x1="9" y1="20" x2="9" y2="23"></line>
+                                <line x1="15" y1="20" x2="15" y2="23"></line>
+                                <line x1="20" y1="9" x2="23" y2="9"></line>
+                                <line x1="20" y1="15" x2="23" y2="15"></line>
+                                <line x1="1" y1="9" x2="4" y2="9"></line>
+                                <line x1="1" y1="15" x2="4" y2="15"></line>
+                            </svg>
+                            ШІ & Верифікатор
+                        </button>
+                    </div>
+
+                    <!-- TAB 1: General Parameters -->
+                    <div id="bank-tab-content-${itemKey}-general" class="bank-tab-content" style="${activeSubTab === 'general' ? '' : 'display: none;'}">
+                        <div class="bank-general-grid">
+                            <!-- Card 1: Logo + Назва банку -->
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; align-items: center; gap: 16px; justify-content: center;">
+                                <!-- Logo Upload Box -->
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0;">
+                                    <div id="logo-preview-${itemKey}" 
+                                         class="bank-media-preview-box" 
+                                         style="width: 64px; height: 64px; border-radius: 50%; border: ${template.logo_path ? '1.5px solid rgba(255,255,255,0.2)' : '2px dashed rgba(255,255,255,0.15)'}; background: ${template.logo_path ? `url('${template.logo_path}') no-repeat center/cover` : 'rgba(255,255,255,0.03)'}; display: flex; align-items: center; justify-content: center; transition: all 0.25s ease; cursor: pointer; position: relative; flex-shrink: 0;"
+                                         onclick="document.getElementById('bank-acc-logo-${itemKey}').click()">
+                                        ${!template.logo_path ? `
+                                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                            </svg>
+                                        ` : ''}
+                                        <div class="hover-zoom-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 50%;">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                        </div>
+                                    </div>
+                                    <input type="file" id="bank-acc-logo-${itemKey}" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'logo-preview-${itemKey}', 'logo-filename-${itemKey}', true)" data-original="${template.logo_path || ''}">
+                                    <span id="logo-filename-${itemKey}" class="file-upload-filename-pill" style="font-size: 0.6rem; max-width: 64px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">Логотип</span>
+                                    <button type="button" id="logo-reset-${itemKey}" class="btn-reset-file" style="display: none; padding: 2px 6px; font-size: 0.6rem;" onclick="resetFileSelection('${itemKey}', 'logo')">Відхилити</button>
+                                </div>
+                                
+                                <!-- Vertical Divider -->
+                                <div style="width: 1px; height: 44px; background: rgba(255,255,255,0.08); flex-shrink: 0;"></div>
+
+                                <!-- Bank Name Input -->
+                                <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
+                                    <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Назва банку</label>
+                                    <input type="text" id="bank-acc-display-name-${itemKey}" value="${displayName}" required class="form-control" style="width: 100%;">
+                                </div>
+                            </div>
+                            
+                            <!-- Card 2: Команда в Telegram -->
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 8px;">
+                                <label class="form-label" style="font-size: 0.8rem; margin: 0;">Команда в Telegram</label>
+                                <input type="text" id="bank-acc-cmd-${itemKey}" value="${template.command || ''}" required class="form-control" style="width: 100%; text-align: center;">
+                            </div>
+
+                            <!-- Card 3: Довжина коду -->
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 8px;">
+                                <label class="form-label" style="font-size: 0.8rem; margin: 0;">Довжина коду (цифр)</label>
+                                <input type="number" id="bank-acc-len-${itemKey}" value="${template.code_length || 4}" required min="1" max="10" class="form-control" style="width: 100%; max-width: 100px; text-align: center;">
+                            </div>
+
+                            <!-- Card 4: Необхідно скріншотів -->
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: visible; align-items: center; text-align: center; gap: 8px;">
+                                <label class="form-label" style="font-size: 0.8rem; margin: 0;">Необхідно скріншотів</label>
+                                <div class="custom-select-wrapper" id="custom-select-wrapper-${itemKey}" style="width: 100%; max-width: 140px;">
+                                    <div class="custom-select-trigger" onclick="toggleCustomSelectDropdown('${itemKey}', event); event.stopPropagation();">
+                                        <span id="custom-select-value-${itemKey}">${template.required_screenshots || 1} скріншот${(template.required_screenshots || 1) == 1 ? '' : (template.required_screenshots || 1) < 5 ? 'и' : 'ів'}</span>
+                                        <svg class="custom-select-arrow" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                    </div>
+                                    <div class="custom-select-options" id="custom-select-options-${itemKey}">
+                                        <div class="custom-select-option ${template.required_screenshots == 1 ? 'selected' : ''}" data-value="1" onclick="selectRequiredScreenshotsOption('${itemKey}', 1, event)">1 скріншот</div>
+                                        <div class="custom-select-option ${template.required_screenshots == 2 ? 'selected' : ''}" data-value="2" onclick="selectRequiredScreenshotsOption('${itemKey}', 2, event)">2 скріншоти</div>
+                                        <div class="custom-select-option ${template.required_screenshots == 3 ? 'selected' : ''}" data-value="3" onclick="selectRequiredScreenshotsOption('${itemKey}', 3, event)">3 скріншоти</div>
+                                        <div class="custom-select-option ${template.required_screenshots == 4 ? 'selected' : ''}" data-value="4" onclick="selectRequiredScreenshotsOption('${itemKey}', 4, event)">4 скріншоти</div>
+                                        <div class="custom-select-option ${template.required_screenshots == 5 ? 'selected' : ''}" data-value="5" onclick="selectRequiredScreenshotsOption('${itemKey}', 5, event)">5 скріншотів</div>
+                                    </div>
+                                    <input type="hidden" id="bank-acc-req-scr-${itemKey}" value="${template.required_screenshots || 1}">
+                                </div>
+                            </div>
+
+                            <!-- Card 5: Статус банку -->
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px;">
+                                <label class="form-label" style="font-size: 0.8rem; margin: 0;">Статус банку</label>
+                                <div style="display: flex; align-items: center; height: 38px; justify-content: center; width: 100%;">
+                                    <label class="bank-status-switch" style="margin: 0; flex-shrink: 0;">
+                                        <input type="checkbox" id="bank-acc-active-${itemKey}" ${template.is_active !== 0 ? 'checked' : ''} onchange="toggleBankActiveLabel('${itemKey}')">
+                                        <span class="bank-status-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Relinking Settings Block (General Tab) -->
+                        <div style="margin-top: 20px; padding: 18px 20px; background: linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005)); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; display: flex; flex-direction: column; gap: 16px; transition: all 0.3s ease;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+                                <div style="display: flex; align-items: center; gap: 14px; text-align: left;">
+                                    <div style="width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(99, 102, 241, 0.18)); border: 1px solid rgba(139, 92, 246, 0.3); display: flex; align-items: center; justify-content: center; color: #c084fc; flex-shrink: 0; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                        </svg>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; gap: 3px;">
+                                        <div style="font-size: 0.92rem; font-weight: 600; color: #ffffff; letter-spacing: -0.2px;">
+                                            Режим «Перев'яз» для цього банку
+                                        </div>
+                                        <div style="font-size: 0.76rem; color: rgba(255,255,255,0.6); line-height: 1.35;">
+                                            Дозволяє клієнтам перев'язати існуючий акаунт банку до нового номера телефону
+                                        </div>
+                                    </div>
+                                </div>
+                                <label class="switch" style="margin: 0; flex-shrink: 0;">
+                                    <input type="checkbox" id="bank-acc-allow-relink-${itemKey}" ${template.allow_relink ? 'checked' : ''} onchange="toggleRelinkInstructionVisibility('${itemKey}')">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            
+                            <div id="relink-instruction-wrapper-${itemKey}" style="display: ${template.allow_relink ? 'flex' : 'none'}; flex-direction: column; gap: 10px; text-align: left; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 4px;">
+                                <label class="form-label" style="font-size: 0.8rem; margin: 0; color: rgba(255,255,255,0.8); font-weight: 500;">
+                                    Інструкція перев'язу для клієнта (необов'язково)
+                                </label>
+                                <textarea id="bank-acc-relink-instr-${itemKey}" class="form-control auto-grow-textarea" rows="2" style="width: 100%; min-height: 65px; box-sizing: border-box; font-family: inherit; font-size: 0.82rem; line-height: 1.45; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; padding: 10px 12px;" placeholder="Наприклад: Зайдіть у Профіль -> Налаштування -> Змінити номер телефону...">${template.relink_instruction_text || ''}</textarea>
+                                <div style="font-size: 0.74rem; color: rgba(255,255,255,0.45); display: flex; align-items: center; gap: 6px;">
+                                    <span>💡</span>
+                                    <span>Цей текст буде надіслано клієнту після того, як ШІ підтвердить успішну перевірку скріншота.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: Media Instructions -->
+                    <div id="bank-tab-content-${itemKey}-media" class="bank-tab-content" style="${activeSubTab === 'media' ? '' : 'display: none;'}">
+                        <div class="bank-media-grid">
+                            <!-- Download Screenshot Card -->
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 330px;">
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
+                                    <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Який банк завантажити</span>
+                                    <span id="download-screenshot-filename-${itemKey}" class="file-upload-filename-pill ${template.download_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">${template.download_screenshot_path ? 'Файли завантажено' : 'Файл не обрано'}</span>
+                                </div>
+                                
+                                <div id="download-screenshot-preview-${itemKey}" 
+                                     style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
+                                     ${getMediaGroupHTML(template.download_screenshot_path, 'download')}
+                                </div>
+ 
+                                <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                                    <input type="hidden" id="bank-acc-download-screenshot-removed-${itemKey}" value="0">
+                                    <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
+                                        <label for="bank-acc-download-screenshot-${itemKey}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                            </svg>
+                                            Обрати скріншоти
+                                        </label>
+                                        <input type="file" id="bank-acc-download-screenshot-${itemKey}" accept="image/*" multiple style="display: none;" onchange="handleMultipleFilePreview(this, 'download-screenshot-preview-${itemKey}', 'download-screenshot-filename-${itemKey}')" data-original="${template.download_screenshot_path || ''}">
+                                    </div>
+                                    <button type="button" id="download-screenshot-reset-${itemKey}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${itemKey}', 'download-screenshot')">Відхилити</button>
+                                    <button type="button" id="download-screenshot-delete-${itemKey}" class="btn-delete-media" style="display: ${template.download_screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${itemKey}', 'download-screenshot')">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                        Вилучити фото
+                                    </button>
+                                </div>
+
+                                <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: center;">
+                                    <span style="font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Текст інструкції</span>
+                                    <textarea id="bank-acc-text-${itemKey}" class="form-control auto-grow-textarea" rows="2" style="font-size: 0.78rem; text-align: center; resize: none; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #fff; padding: 6px 10px; width: 100%; box-sizing: border-box; min-height: 50px;" placeholder="Введіть текст інструкції..." required>${template.text || ''}</textarea>
+                                </div>
+                            </div>
+ 
+                            <!-- Instruction Screenshot Card -->
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 330px;">
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
+                                    <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Скріншот-інструкція як проходити</span>
+                                    <span id="screenshot-filename-${itemKey}" class="file-upload-filename-pill ${template.screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">${template.screenshot_path ? 'Файли завантажено' : 'Файл не обрано'}</span>
+                                </div>
+                                
+                                <div id="screenshot-preview-${itemKey}" 
+                                     style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
+                                     ${getMediaGroupHTML(template.screenshot_path, 'screenshot')}
+                                </div>
+ 
+                                <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                                    <input type="hidden" id="bank-acc-screenshot-removed-${itemKey}" value="0">
+                                    <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
+                                        <label for="bank-acc-screenshot-${itemKey}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                            </svg>
+                                            Обрати скріншоти
+                                        </label>
+                                        <input type="file" id="bank-acc-screenshot-${itemKey}" accept="image/*" multiple style="display: none;" onchange="handleMultipleFilePreview(this, 'screenshot-preview-${itemKey}', 'screenshot-filename-${itemKey}')" data-original="${template.screenshot_path || ''}">
+                                    </div>
+                                    <button type="button" id="screenshot-reset-${itemKey}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${itemKey}', 'screenshot')">Відхилити</button>
+                                    <button type="button" id="screenshot-delete-${itemKey}" class="btn-delete-media" style="display: ${template.screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${itemKey}', 'screenshot')">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                        Вилучити фото
+                                    </button>
+                                </div>
+
+                                <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: center;">
+                                    <span style="font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Опис кроків</span>
+                                    <textarea id="bank-acc-instruction-text-${itemKey}" class="form-control auto-grow-textarea" rows="2" style="font-size: 0.78rem; text-align: center; resize: none; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #fff; padding: 6px 10px; width: 100%; box-sizing: border-box; min-height: 50px;" placeholder="Опис кроків проходження...">${template.instruction_text || ''}</textarea>
+                                </div>
+                            </div>
+ 
+                            <!-- Success Screenshot Card -->
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 330px;">
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
+                                    <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Зразок успішного екрану</span>
+                                    <span id="success-screenshot-filename-${itemKey}" class="file-upload-filename-pill ${template.success_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">${template.success_screenshot_path ? 'Файли завантажено' : 'Файл не обрано'}</span>
+                                </div>
+                                
+                                <div id="success-screenshot-preview-${itemKey}" 
+                                     style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
+                                     ${getMediaGroupHTML(template.success_screenshot_path, 'success')}
+                                </div>
+ 
+                                <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                                    <input type="hidden" id="bank-acc-success-screenshot-removed-${itemKey}" value="0">
+                                    <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
+                                        <label for="bank-acc-success-screenshot-${itemKey}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                            </svg>
+                                            Обрати скріншоти
+                                        </label>
+                                        <input type="file" id="bank-acc-success-screenshot-${itemKey}" accept="image/*" multiple style="display: none;" onchange="handleMultipleFilePreview(this, 'success-screenshot-preview-${itemKey}', 'success-screenshot-filename-${itemKey}')" data-original="${template.success_screenshot_path || ''}">
+                                    </div>
+                                    <button type="button" id="success-screenshot-reset-${itemKey}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${itemKey}', 'success-screenshot')">Відхилити</button>
+                                    <button type="button" id="success-screenshot-delete-${itemKey}" class="btn-delete-media" style="display: ${template.success_screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${itemKey}', 'success-screenshot')">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                        Вилучити фото
+                                    </button>
+                                </div>
+
+                                <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: center;">
+                                    <span style="font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Текст при успіху</span>
+                                    <textarea id="bank-acc-success-text-${itemKey}" class="form-control auto-grow-textarea" rows="2" style="font-size: 0.78rem; text-align: center; resize: none; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #fff; padding: 6px 10px; width: 100%; box-sizing: border-box; min-height: 50px;" placeholder="Текст запиту успішного екрану...">${template.success_text || ''}</textarea>
+                                </div>
+                            </div>
+
+                            <!-- Deletion Screenshot Card -->
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; justify-content: space-between; gap: 14px; position: relative; overflow: hidden; min-height: 330px; transition: all 0.3s ease;">
+                                <div id="deletion-disabled-overlay-${itemKey}" style="position: absolute; inset: 0; background: rgba(15,23,36,0.85); display: ${(template.deletion_requirement || 'none') === 'none' ? 'flex' : 'none'}; flex-direction: column; align-items: center; justify-content: center; gap: 8px; z-index: 10; backdrop-filter: blur(4px); transition: all 0.3s ease;">
+                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                    </svg>
+                                    <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5);">Вимогу відключено</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
+                                    <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Зразок видалення додатку</span>
+                                    <span id="deletion-screenshot-filename-${itemKey}" class="file-upload-filename-pill ${template.deletion_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">
+                                        ${template.deletion_screenshot_path ? 'Файли завантажено' : 'Файл не обрано'}
+                                    </span>
+                                </div>
+                                
+                                <div id="deletion-screenshot-preview-${itemKey}" 
+                                     style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
+                                     ${getMediaGroupHTML(template.deletion_screenshot_path, 'deletion')}
+                                </div>
+ 
+                                <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                                    <input type="hidden" id="bank-acc-deletion-screenshot-removed-${itemKey}" value="0">
+                                    <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
+                                        <label id="deletion-screenshot-label-${itemKey}" for="bank-acc-deletion-screenshot-${itemKey}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                            </svg>
+                                            ${template.deletion_requirement === 'screenshot' ? 'Обрати скріншот' : (template.deletion_requirement === 'video' ? 'Обрати відео' : 'Обрати скріншоти/відео')}
+                                        </label>
+                                        <input type="file" id="bank-acc-deletion-screenshot-${itemKey}" accept="${template.deletion_requirement === 'screenshot' ? 'image/*' : (template.deletion_requirement === 'video' ? 'video/*' : 'image/*,video/*')}" multiple style="display: none;" onchange="handleMultipleFilePreview(this, 'deletion-screenshot-preview-${itemKey}', 'deletion-screenshot-filename-${itemKey}')" data-original="${template.deletion_screenshot_path || ''}">
+                                    </div>
+                                    <button type="button" id="deletion-screenshot-reset-${itemKey}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${itemKey}', 'deletion-screenshot')">Відхилити</button>
+                                    <button type="button" id="deletion-screenshot-delete-${itemKey}" class="btn-delete-media" style="display: ${template.deletion_screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${itemKey}', 'deletion-screenshot')">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                        Вилучити фото
+                                    </button>
+                                </div>
+
+                                <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: center;">
+                                    <span style="font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Текст для видалення</span>
+                                    <textarea id="bank-acc-deletion-text-${itemKey}" class="form-control auto-grow-textarea" rows="2" style="font-size: 0.78rem; text-align: center; resize: none; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #fff; padding: 6px 10px; width: 100%; box-sizing: border-box; min-height: 50px;" placeholder="Текст запиту видалення додатку...">${template.deletion_text || ''}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI Deletion Requirement Global Setting Row -->
+                        <input type="hidden" id="bank-acc-deletion-req-${itemKey}" value="${template.deletion_requirement || 'none'}">
+                        <div class="bank-deletion-settings-row">
+                            <div class="bank-deletion-settings-info">
+                                <span style="font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.85); letter-spacing: 0.2px;">Вимога видалення додатку в боті (ШІ)</span>
+                                <span style="font-size: 0.7rem; color: rgba(255,255,255,0.45); line-height: 1.3;">Оберіть, який доказ видалення додатку бот повинен запросити у клієнта та автоматично перевірити через ШІ</span>
+                            </div>
+                            <div class="bank-deletion-settings-control">
+                                <div style="display: flex; background: rgba(0, 0, 0, 0.22); border: 1px solid rgba(255, 255, 255, 0.05); padding: 4px; border-radius: 10px; width: 100%; box-sizing: border-box; justify-content: space-between; align-items: center; gap: 4px;">
+                                    <div id="del-tab-${itemKey}-none" class="del-tab-btn ${(template.deletion_requirement || 'none') === 'none' ? 'active' : ''}" onclick="selectDeletionTab('${itemKey}', 'none')" style="flex: 1; text-align: center; font-size: 0.78rem; font-weight: 600; padding: 8px 6px; border-radius: 7px; cursor: pointer; color: ${(template.deletion_requirement || 'none') === 'none' ? '#fff' : 'rgba(255, 255, 255, 0.4)'}; background: ${(template.deletion_requirement || 'none') === 'none' ? 'rgba(255,255,255,0.08)' : 'transparent'}; border: 1px solid ${(template.deletion_requirement || 'none') === 'none' ? 'rgba(255,255,255,0.08)' : 'transparent'}; transition: all 0.2s ease; user-select: none;">
+                                        Нічого
+                                    </div>
+                                    <div id="del-tab-${itemKey}-screenshot" class="del-tab-btn ${(template.deletion_requirement || 'none') === 'screenshot' ? 'active' : ''}" onclick="selectDeletionTab('${itemKey}', 'screenshot')" style="flex: 1; text-align: center; font-size: 0.78rem; font-weight: 600; padding: 8px 6px; border-radius: 7px; cursor: pointer; color: ${(template.deletion_requirement || 'none') === 'screenshot' ? '#fff' : 'rgba(255, 255, 255, 0.4)'}; background: ${(template.deletion_requirement || 'none') === 'screenshot' ? 'rgba(255,255,255,0.08)' : 'transparent'}; border: 1px solid ${(template.deletion_requirement || 'none') === 'screenshot' ? 'rgba(255,255,255,0.08)' : 'transparent'}; transition: all 0.2s ease; user-select: none;">
+                                        Скріншот
+                                    </div>
+                                    <div id="del-tab-${itemKey}-video" class="del-tab-btn ${(template.deletion_requirement || 'none') === 'video' ? 'active' : ''}" onclick="selectDeletionTab('${itemKey}', 'video')" style="flex: 1; text-align: center; font-size: 0.78rem; font-weight: 600; padding: 8px 6px; border-radius: 7px; cursor: pointer; color: ${(template.deletion_requirement || 'none') === 'video' ? '#fff' : 'rgba(255, 255, 255, 0.4)'}; background: ${(template.deletion_requirement || 'none') === 'video' ? 'rgba(255,255,255,0.08)' : 'transparent'}; border: 1px solid ${(template.deletion_requirement || 'none') === 'video' ? 'rgba(255,255,255,0.08)' : 'transparent'}; transition: all 0.2s ease; user-select: none;">
+                                        Відео
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- TAB 3: AI & Verifier -->
+                    <div id="bank-tab-content-${itemKey}-ai" class="bank-tab-content" style="${activeSubTab === 'ai' ? '' : 'display: none;'}">
+                        <!-- Verifier Report Template and Mockup Side-by-Side -->
+                        <div class="bank-ai-split-grid">
+                            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; height: 100%;">
+                                <div class="bank-settings-section-title" style="margin: 0 0 10px 0; font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; height: 20px; box-sizing: border-box;">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-primary);">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                        <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                    </svg>
+                                    Шаблон повідомлення для верифікатора
+                                </div>
+                                <textarea id="bank-acc-report-tpl-${itemKey}" class="form-control auto-grow-textarea" rows="6" style="width: 100%; font-family: monospace; font-size: 0.78rem; line-height: 1.4; resize: none; height: 180px; overflow-y: auto;" oninput="updateTelegramMockupPreview('${itemKey}')" placeholder="Шаблон звіту...">${template.report_template || `{pib}\n{dob}\n{ipn}\n{phone}\n\nДроп - @{username}\n\nLine {line_id} Return: {line_phone} | {bank}\n\n{code}`}</textarea>
+                                <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px; text-align: left;">
+                                    <span style="font-size: 0.75rem; color: rgba(255,255,255,0.35); font-weight: 500;">💡 Доступні змінні (натисніть для вставки):</span>
+                                    <div class="tag-pills-container">
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{pib}')">{pib}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{dob}')">{dob}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{ipn}')">{ipn}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{phone}')">{phone}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{username}')">{username}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{line}')">{line}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{line_id}')">{line_id}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{line_phone}')">{line_phone}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{code}')">{code}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{card}')">{card}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{bank}')">{bank}</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- AI instructions inside left column -->
+                                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 12px; width: 100%;">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px; color: rgba(255,255,255,0.6);">Специфічні правила ШІ для банку</label>
+                                        <textarea id="bank-acc-airules-${itemKey}" class="form-control auto-grow-textarea" rows="2" style="width: 100%; font-family: inherit; font-size: 0.78rem;" placeholder="Наприклад: Перевіряти ліміти...">${template.ai_rules || ''}</textarea>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px; color: rgba(255,255,255,0.6);">Опис вигляду банку для ШІ (як виглядає додаток, кольори)</label>
+                                        <textarea id="bank-acc-desc-${itemKey}" class="form-control auto-grow-textarea" rows="2" style="width: 100%; font-family: inherit; font-size: 0.78rem;" placeholder="Наприклад: Додаток має...">${template.description || ''}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Telegram Mockup Phone Chat Container -->
+                            <div class="telegram-mockup-wrapper" style="width: 100%; display: flex; flex-direction: column; text-align: left; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; align-items: center; align-self: start; position: sticky; top: 20px;">
+                                <div style="margin: 0 0 10px 0; font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; height: 20px; box-sizing: border-box; width: 100%;">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-primary);"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                                    Прев'ю в Telegram
+                                </div>
+                                
+                                <!-- Chat Window Container -->
+                                <div id="telegram-mockup-container-${itemKey}" class="telegram-mockup-chat-container" style="background: #0e1621; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; width: 100%; max-width: 360px; height: ${localStorage.getItem('telegram_mockup_custom_height') || '535px'}; min-height: 360px; max-height: 900px; resize: vertical; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.4); position: relative;" onmouseup="saveTelegramMockupCustomHeight(this)" ontouchend="saveTelegramMockupCustomHeight(this)">
+                                    
+                                    <!-- Chat Header -->
+                                    <div style="background: #17212b; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 10px 14px; display: flex; align-items: center; gap: 10px; height: 50px; box-sizing: border-box; flex-shrink: 0; z-index: 5;">
+                                        ${avatarHTML}
+                                        <div style="display: flex; flex-direction: column; text-align: left; justify-content: center;">
+                                            <span style="font-size: 0.86rem; font-weight: 600; color: #fff; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;">${displayName}</span>
+                                            <span style="font-size: 0.70rem; color: #708190; line-height: 1.2;">bot</span>
+                                        </div>
+                                        <div style="margin-left: auto; color: #708190; display: flex; gap: 12px; align-items: center;">
+                                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Chat Body (with Telegram message bubbles pattern) -->
+                                    <div class="telegram-mockup-chat-body" style="padding: 14px; display: flex; flex-direction: column; gap: 12px; background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0); background-size: 16px 16px; overflow-y: auto; flex-grow: 1;">
+                                        
+                                        <!-- Message Bubble -->
+                                        <div class="telegram-message-bubble" style="background: #182533; border: 1px solid rgba(255,255,255,0.03); border-radius: 14px 14px 0 14px; width: 100%; max-width: 290px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); align-self: flex-end; display: flex; flex-direction: column; position: relative; flex-shrink: 0; overflow: hidden;">
+                                            <div id="telegram-mockup-image-${itemKey}" class="telegram-mockup-scrollable-image" style="display: ${template.success_screenshot_path ? 'block' : 'none'}; border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(255,255,255,0.02);">
+                                                <img src="${template.success_screenshot_path ? template.success_screenshot_path.split(',')[0].trim() : ''}" style="width: 100%; height: auto; display: block;" onload="const cb = this.closest('.telegram-mockup-chat-body'); if(cb) cb.scrollTop = cb.scrollHeight;">
+                                            </div>
+                                            <div id="telegram-mockup-text-${itemKey}" style="font-size: 0.82rem; color: #fff; line-height: 1.45; white-space: pre-line; word-break: break-word; padding: 12px 14px;">${window.getTelegramMockupHtml(template.report_template, bankKey)}</div>
+                                        </div>
+                                        
+                                    </div>
+                                    
+                                    <!-- Chat Footer -->
+                                    <div style="background: #17212b; border-top: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; display: flex; align-items: center; gap: 10px; height: 44px; box-sizing: border-box; flex-shrink: 0; z-index: 5;">
+                                        <div style="color: #708190; cursor: pointer; display: flex; align-items: center;">
+                                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+                                        </div>
+                                        <div style="flex-grow: 1; background: #242f3d; border-radius: 18px; padding: 6px 12px; font-size: 0.8rem; color: #708190; display: flex; justify-content: space-between; align-items: center; height: 28px; box-sizing: border-box;">
+                                            <span>Повідомлення...</span>
+                                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="transform: rotate(45deg); cursor: pointer;"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                                        </div>
+                                        <div style="color: #5288c1; cursor: pointer; display: flex; align-items: center;">
+                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        
+                    </div>
+
+                    ${actionButtons}
+                </form>
+            </div>`;
+}
+
 function renderBankAccordion(templates, activeKey) {
     const containerActive = document.getElementById('bank-settings-accordion-active');
     const containerPaused = document.getElementById('bank-settings-accordion-paused');
@@ -374,9 +854,6 @@ function renderBankAccordion(templates, activeKey) {
 
     keys.forEach(key => {
         const template = templates[key];
-        const keyAvatar = getBankIcon(key, template.logo_path);
-        const avatarHTML = `<div style="width: 30px; height: 30px; border-radius: 50%; background: ${getBankIconGradient(key, template.logo_path)}; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">${keyAvatar}</div>`;
-        const currentTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         const item = document.createElement('div');
         item.className = 'bank-accordion-item';
         item.id = `bank-accordion-item-${key}`;
@@ -408,478 +885,7 @@ function renderBankAccordion(templates, activeKey) {
 
         const activeSubTab = localStorage.getItem(`active_bank_subtab_${key}`) || 'general';
 
-        item.innerHTML = `
-            <div class="bank-accordion-header" onclick="toggleBankAccordion('${key}')">
-                <div style="display: flex; align-items: center; gap: 14px;">
-                    <div class="bank-icon-badge" style="background: ${getBankIconGradient(key, template.logo_path)};">${getBankIcon(key, template.logo_path)}</div>
-                    <span class="bank-title" style="font-weight: 600; color: #fff; font-size: 1rem; letter-spacing: 0.3px;">${template.display_name || key}</span>
-                    ${isPaused ? `<span class="bank-status-badge-paused" style="font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: rgba(244,63,94,0.1); border: 1px solid rgba(244,63,94,0.25); color: #fb7185; text-transform: uppercase; letter-spacing: 0.5px; user-select: none;">Пауза</span>` : ''}
-                </div>
-                <div style="display: flex; align-items: center;">
-                    <svg class="accordion-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--text-muted)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.25s ease; display: inline-block; transform-origin: center;">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                </div>
-            </div>
-            <div class="bank-accordion-body">
-                <form onsubmit="saveAccordionBankSettings(event, '${key}')" style="display: flex; flex-direction: column; margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
-                    
-                    <!-- Sub-tabs bar -->
-                    <div class="bank-accordion-tabs-bar">
-                        <button type="button" class="tab-btn-sub ${activeSubTab === 'general' ? 'active' : ''}" onclick="switchBankAccordionTab('${key}', 'general', event)">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="3"></circle>
-                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l-.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                            </svg>
-                            Загальні
-                        </button>
-                        <button type="button" class="tab-btn-sub ${activeSubTab === 'media' ? 'active' : ''}" onclick="switchBankAccordionTab('${key}', 'media', event)">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                                <polyline points="21 15 16 10 5 21"></polyline>
-                            </svg>
-                            Інструкції
-                        </button>
-                        <button type="button" class="tab-btn-sub ${activeSubTab === 'ai' ? 'active' : ''}" onclick="switchBankAccordionTab('${key}', 'ai', event)">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="4" y="4" width="16" height="16" rx="2"></rect>
-                                <rect x="9" y="9" width="6" height="6"></rect>
-                                <line x1="9" y1="1" x2="9" y2="4"></line>
-                                <line x1="15" y1="1" x2="15" y2="4"></line>
-                                <line x1="9" y1="20" x2="9" y2="23"></line>
-                                <line x1="15" y1="20" x2="15" y2="23"></line>
-                                <line x1="20" y1="9" x2="23" y2="9"></line>
-                                <line x1="20" y1="15" x2="23" y2="15"></line>
-                                <line x1="1" y1="9" x2="4" y2="9"></line>
-                                <line x1="1" y1="15" x2="4" y2="15"></line>
-                            </svg>
-                            ШІ & Верифікатор
-                        </button>
-                    </div>
-
-                    <!-- TAB 1: General Parameters -->
-                    <div id="bank-tab-content-${key}-general" class="bank-tab-content" style="${activeSubTab === 'general' ? '' : 'display: none;'}">
-                        <div class="bank-general-grid">
-                            <!-- Card 1: Logo + Назва банку -->
-                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; align-items: center; gap: 16px; justify-content: center;">
-                                <!-- Logo Upload Box -->
-                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0;">
-                                    <div id="logo-preview-${key}" 
-                                         class="bank-media-preview-box" 
-                                         style="width: 64px; height: 64px; border-radius: 50%; border: ${template.logo_path ? '1.5px solid rgba(255,255,255,0.2)' : '2px dashed rgba(255,255,255,0.15)'}; background: ${template.logo_path ? `url('${template.logo_path}') no-repeat center/cover` : 'rgba(255,255,255,0.03)'}; display: flex; align-items: center; justify-content: center; transition: all 0.25s ease; cursor: pointer; position: relative; flex-shrink: 0;"
-                                         onclick="document.getElementById('bank-acc-logo-${key}').click()">
-                                        ${!template.logo_path ? `
-                                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-                                            </svg>
-                                        ` : ''}
-                                        <div class="hover-zoom-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 50%;">
-                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                                        </div>
-                                    </div>
-                                    <input type="file" id="bank-acc-logo-${key}" accept="image/*" style="display: none;" onchange="handleFilePreview(this, 'logo-preview-${key}', 'logo-filename-${key}', true)" data-original="${template.logo_path || ''}">
-                                    <span id="logo-filename-${key}" class="file-upload-filename-pill" style="font-size: 0.6rem; max-width: 64px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">Логотип</span>
-                                    <button type="button" id="logo-reset-${key}" class="btn-reset-file" style="display: none; padding: 2px 6px; font-size: 0.6rem;" onclick="resetFileSelection('${key}', 'logo')">Відхилити</button>
-                                </div>
-                                
-                                <!-- Vertical Divider -->
-                                <div style="width: 1px; height: 44px; background: rgba(255,255,255,0.08); flex-shrink: 0;"></div>
-
-                                <!-- Bank Name Input -->
-                                <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
-                                    <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px;">Назва банку</label>
-                                    <input type="text" id="bank-acc-display-name-${key}" value="${template.display_name || key}" required class="form-control" style="width: 100%;">
-                                </div>
-                            </div>
-                            
-                            <!-- Card 2: Команда в Telegram -->
-                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 8px;">
-                                <label class="form-label" style="font-size: 0.8rem; margin: 0;">Команда в Telegram</label>
-                                <input type="text" id="bank-acc-cmd-${key}" value="${template.command || ''}" required class="form-control" style="width: 100%; text-align: center;">
-                            </div>
-
-                            <!-- Card 3: Довжина коду -->
-                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 8px;">
-                                <label class="form-label" style="font-size: 0.8rem; margin: 0;">Довжина коду (цифр)</label>
-                                <input type="number" id="bank-acc-len-${key}" value="${template.code_length || 4}" required min="1" max="10" class="form-control" style="width: 100%; max-width: 100px; text-align: center;">
-                            </div>
-
-                            <!-- Card 4: Необхідно скріншотів -->
-                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: visible; align-items: center; text-align: center; gap: 8px;">
-                                <label class="form-label" style="font-size: 0.8rem; margin: 0;">Необхідно скріншотів</label>
-                                <div class="custom-select-wrapper" id="custom-select-wrapper-${key}" style="width: 100%; max-width: 140px;">
-                                    <div class="custom-select-trigger" onclick="toggleCustomSelectDropdown('${key}', event); event.stopPropagation();">
-                                        <span id="custom-select-value-${key}">${template.required_screenshots || 1} скріншот${(template.required_screenshots || 1) == 1 ? '' : (template.required_screenshots || 1) < 5 ? 'и' : 'ів'}</span>
-                                        <svg class="custom-select-arrow" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
-                                            <polyline points="6 9 12 15 18 9"></polyline>
-                                        </svg>
-                                    </div>
-                                    <div class="custom-select-options" id="custom-select-options-${key}">
-                                        <div class="custom-select-option ${template.required_screenshots == 1 ? 'selected' : ''}" data-value="1" onclick="selectRequiredScreenshotsOption('${key}', 1, event)">1 скріншот</div>
-                                        <div class="custom-select-option ${template.required_screenshots == 2 ? 'selected' : ''}" data-value="2" onclick="selectRequiredScreenshotsOption('${key}', 2, event)">2 скріншоти</div>
-                                        <div class="custom-select-option ${template.required_screenshots == 3 ? 'selected' : ''}" data-value="3" onclick="selectRequiredScreenshotsOption('${key}', 3, event)">3 скріншоти</div>
-                                        <div class="custom-select-option ${template.required_screenshots == 4 ? 'selected' : ''}" data-value="4" onclick="selectRequiredScreenshotsOption('${key}', 4, event)">4 скріншоти</div>
-                                        <div class="custom-select-option ${template.required_screenshots == 5 ? 'selected' : ''}" data-value="5" onclick="selectRequiredScreenshotsOption('${key}', 5, event)">5 скріншотів</div>
-                                    </div>
-                                    <input type="hidden" id="bank-acc-req-scr-${key}" value="${template.required_screenshots || 1}">
-                                </div>
-                            </div>
-
-                            <!-- Card 5: Статус банку -->
-                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px;">
-                                <label class="form-label" style="font-size: 0.8rem; margin: 0;">Статус банку</label>
-                                <div style="display: flex; align-items: center; height: 38px; justify-content: center; width: 100%;">
-                                    <label class="bank-status-switch" style="margin: 0; flex-shrink: 0;">
-                                        <input type="checkbox" id="bank-acc-active-${key}" ${template.is_active !== 0 ? 'checked' : ''} onchange="toggleBankActiveLabel('${key}')">
-                                        <span class="bank-status-slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Relinking Settings Block (General Tab) -->
-                        <div style="margin-top: 20px; padding: 18px 20px; background: linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005)); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; display: flex; flex-direction: column; gap: 16px; transition: all 0.3s ease;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
-                                <div style="display: flex; align-items: center; gap: 14px; text-align: left;">
-                                    <div style="width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(99, 102, 241, 0.18)); border: 1px solid rgba(139, 92, 246, 0.3); display: flex; align-items: center; justify-content: center; color: #c084fc; flex-shrink: 0; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                                        </svg>
-                                    </div>
-                                    <div style="display: flex; flex-direction: column; gap: 3px;">
-                                        <div style="font-size: 0.92rem; font-weight: 600; color: #ffffff; letter-spacing: -0.2px;">
-                                            Режим «Перев'яз» для цього банку
-                                        </div>
-                                        <div style="font-size: 0.76rem; color: rgba(255,255,255,0.6); line-height: 1.35;">
-                                            Дозволяє клієнтам перев'язати існуючий акаунт банку до нового номера телефону
-                                        </div>
-                                    </div>
-                                </div>
-                                <label class="switch" style="margin: 0; flex-shrink: 0;">
-                                    <input type="checkbox" id="bank-acc-allow-relink-${key}" ${template.allow_relink ? 'checked' : ''} onchange="toggleRelinkInstructionVisibility('${key}')">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
-                            
-                            <div id="relink-instruction-wrapper-${key}" style="display: ${template.allow_relink ? 'flex' : 'none'}; flex-direction: column; gap: 10px; text-align: left; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 4px;">
-                                <label class="form-label" style="font-size: 0.8rem; margin: 0; color: rgba(255,255,255,0.8); font-weight: 500;">
-                                    Інструкція перев'язу для клієнта (необов'язково)
-                                </label>
-                                <textarea id="bank-acc-relink-instr-${key}" class="form-control auto-grow-textarea" rows="2" style="width: 100%; min-height: 65px; box-sizing: border-box; font-family: inherit; font-size: 0.82rem; line-height: 1.45; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; padding: 10px 12px;" placeholder="Наприклад: Зайдіть у Профіль -> Налаштування -> Змінити номер телефону...">${template.relink_instruction_text || ''}</textarea>
-                                <div style="font-size: 0.74rem; color: rgba(255,255,255,0.45); display: flex; align-items: center; gap: 6px;">
-                                    <span>💡</span>
-                                    <span>Цей текст буде надіслано клієнту після того, як ШІ підтвердить успішну перевірку скріншота.</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- TAB 2: Media Instructions -->
-                    <div id="bank-tab-content-${key}-media" class="bank-tab-content" style="${activeSubTab === 'media' ? '' : 'display: none;'}">
-                        <div class="bank-media-grid">
-                            <!-- Download Screenshot Card -->
-                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 330px;">
-                                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
-                                    <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Який банк завантажити</span>
-                                    <span id="download-screenshot-filename-${key}" class="file-upload-filename-pill ${template.download_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">${template.download_screenshot_path ? 'Файли завантажено' : 'Файл не обрано'}</span>
-                                </div>
-                                
-                                <div id="download-screenshot-preview-${key}" 
-                                     style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
-                                     ${getMediaGroupHTML(template.download_screenshot_path, 'download')}
-                                </div>
- 
-                                <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
-                                    <input type="hidden" id="bank-acc-download-screenshot-removed-${key}" value="0">
-                                    <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
-                                        <label for="bank-acc-download-screenshot-${key}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
-                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-                                            </svg>
-                                            Обрати скріншоти
-                                        </label>
-                                        <input type="file" id="bank-acc-download-screenshot-${key}" accept="image/*" multiple style="display: none;" onchange="handleMultipleFilePreview(this, 'download-screenshot-preview-${key}', 'download-screenshot-filename-${key}')" data-original="${template.download_screenshot_path || ''}">
-                                    </div>
-                                    <button type="button" id="download-screenshot-reset-${key}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${key}', 'download-screenshot')">Відхилити</button>
-                                    <button type="button" id="download-screenshot-delete-${key}" class="btn-delete-media" style="display: ${template.download_screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${key}', 'download-screenshot')">
-                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <polyline points="3 6 5 6 21 6"></polyline>
-                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                        </svg>
-                                        Вилучити фото
-                                    </button>
-                                </div>
-
-                                <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: center;">
-                                    <span style="font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Текст інструкції</span>
-                                    <textarea id="bank-acc-text-${key}" class="form-control auto-grow-textarea" rows="2" style="font-size: 0.78rem; text-align: center; resize: none; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #fff; padding: 6px 10px; width: 100%; box-sizing: border-box; min-height: 50px;" placeholder="Введіть текст інструкції..." required>${template.text || ''}</textarea>
-                                </div>
-                            </div>
- 
-                            <!-- Instruction Screenshot Card -->
-                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 330px;">
-                                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
-                                    <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Скріншот-інструкція як проходити</span>
-                                    <span id="screenshot-filename-${key}" class="file-upload-filename-pill ${template.screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">${template.screenshot_path ? 'Файли завантажено' : 'Файл не обрано'}</span>
-                                </div>
-                                
-                                <div id="screenshot-preview-${key}" 
-                                     style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
-                                     ${getMediaGroupHTML(template.screenshot_path, 'screenshot')}
-                                </div>
- 
-                                <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
-                                    <input type="hidden" id="bank-acc-screenshot-removed-${key}" value="0">
-                                    <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
-                                        <label for="bank-acc-screenshot-${key}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
-                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-                                            </svg>
-                                            Обрати скріншоти
-                                        </label>
-                                        <input type="file" id="bank-acc-screenshot-${key}" accept="image/*" multiple style="display: none;" onchange="handleMultipleFilePreview(this, 'screenshot-preview-${key}', 'screenshot-filename-${key}')" data-original="${template.screenshot_path || ''}">
-                                    </div>
-                                    <button type="button" id="screenshot-reset-${key}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${key}', 'screenshot')">Відхилити</button>
-                                    <button type="button" id="screenshot-delete-${key}" class="btn-delete-media" style="display: ${template.screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${key}', 'screenshot')">
-                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <polyline points="3 6 5 6 21 6"></polyline>
-                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                        </svg>
-                                        Вилучити фото
-                                    </button>
-                                </div>
-
-                                <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: center;">
-                                    <span style="font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Опис кроків</span>
-                                    <textarea id="bank-acc-instruction-text-${key}" class="form-control auto-grow-textarea" rows="2" style="font-size: 0.78rem; text-align: center; resize: none; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #fff; padding: 6px 10px; width: 100%; box-sizing: border-box; min-height: 50px;" placeholder="Опис кроків проходження...">${template.instruction_text || ''}</textarea>
-                                </div>
-                            </div>
- 
-                            <!-- Success Screenshot Card -->
-                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 330px;">
-                                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
-                                    <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Зразок успішного екрану</span>
-                                    <span id="success-screenshot-filename-${key}" class="file-upload-filename-pill ${template.success_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">${template.success_screenshot_path ? 'Файли завантажено' : 'Файл не обрано'}</span>
-                                </div>
-                                
-                                <div id="success-screenshot-preview-${key}" 
-                                     style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
-                                     ${getMediaGroupHTML(template.success_screenshot_path, 'success')}
-                                </div>
- 
-                                <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
-                                    <input type="hidden" id="bank-acc-success-screenshot-removed-${key}" value="0">
-                                    <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
-                                        <label for="bank-acc-success-screenshot-${key}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
-                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-                                            </svg>
-                                            Обрати скріншоти
-                                        </label>
-                                        <input type="file" id="bank-acc-success-screenshot-${key}" accept="image/*" multiple style="display: none;" onchange="handleMultipleFilePreview(this, 'success-screenshot-preview-${key}', 'success-screenshot-filename-${key}')" data-original="${template.success_screenshot_path || ''}">
-                                    </div>
-                                    <button type="button" id="success-screenshot-reset-${key}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${key}', 'success-screenshot')">Відхилити</button>
-                                    <button type="button" id="success-screenshot-delete-${key}" class="btn-delete-media" style="display: ${template.success_screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${key}', 'success-screenshot')">
-                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <polyline points="3 6 5 6 21 6"></polyline>
-                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                        </svg>
-                                        Вилучити фото
-                                    </button>
-                                </div>
-
-                                <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: center;">
-                                    <span style="font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Текст при успіху</span>
-                                    <textarea id="bank-acc-success-text-${key}" class="form-control auto-grow-textarea" rows="2" style="font-size: 0.78rem; text-align: center; resize: none; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #fff; padding: 6px 10px; width: 100%; box-sizing: border-box; min-height: 50px;" placeholder="Текст запиту успішного екрану...">${template.success_text || ''}</textarea>
-                                </div>
-                            </div>
-
-                            <!-- Deletion Screenshot Card -->
-                            <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; justify-content: space-between; gap: 14px; position: relative; overflow: hidden; min-height: 330px; transition: all 0.3s ease;">
-                                <div id="deletion-disabled-overlay-${key}" style="position: absolute; inset: 0; background: rgba(15,23,36,0.85); display: ${(template.deletion_requirement || 'none') === 'none' ? 'flex' : 'none'}; flex-direction: column; align-items: center; justify-content: center; gap: 8px; z-index: 10; backdrop-filter: blur(4px); transition: all 0.3s ease;">
-                                    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                                    </svg>
-                                    <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5);">Вимогу відключено</span>
-                                </div>
-                                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;">
-                                    <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; text-transform: uppercase;">Зразок видалення додатку</span>
-                                    <span id="deletion-screenshot-filename-${key}" class="file-upload-filename-pill ${template.deletion_screenshot_path ? 'selected' : ''}" style="max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-size: 0.75rem;">
-                                        ${template.deletion_screenshot_path ? 'Файли завантажено' : 'Файл не обрано'}
-                                    </span>
-                                </div>
-                                
-                                <div id="deletion-screenshot-preview-${key}" 
-                                     style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; min-height: 120px; flex-shrink: 0;">
-                                     ${getMediaGroupHTML(template.deletion_screenshot_path, 'deletion')}
-                                </div>
- 
-                                <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;">
-                                    <input type="hidden" id="bank-acc-deletion-screenshot-removed-${key}" value="0">
-                                    <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 200px;">
-                                        <label id="deletion-screenshot-label-${key}" for="bank-acc-deletion-screenshot-${key}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 8px 14px;">
-                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-                                            </svg>
-                                            ${template.deletion_requirement === 'screenshot' ? 'Обрати скріншот' : (template.deletion_requirement === 'video' ? 'Обрати відео' : 'Обрати скріншоти/відео')}
-                                        </label>
-                                        <input type="file" id="bank-acc-deletion-screenshot-${key}" accept="${template.deletion_requirement === 'screenshot' ? 'image/*' : (template.deletion_requirement === 'video' ? 'video/*' : 'image/*,video/*')}" multiple style="display: none;" onchange="handleMultipleFilePreview(this, 'deletion-screenshot-preview-${key}', 'deletion-screenshot-filename-${key}')" data-original="${template.deletion_screenshot_path || ''}">
-                                    </div>
-                                    <button type="button" id="deletion-screenshot-reset-${key}" class="btn-reset-file" style="display: none;" onclick="resetFileSelection('${key}', 'deletion-screenshot')">Відхилити</button>
-                                    <button type="button" id="deletion-screenshot-delete-${key}" class="btn-delete-media" style="display: ${template.deletion_screenshot_path ? 'inline-flex' : 'none'};" onclick="removeSavedImage('${key}', 'deletion-screenshot')">
-                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <polyline points="3 6 5 6 21 6"></polyline>
-                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                        </svg>
-                                        Вилучити фото
-                                    </button>
-                                </div>
-
-                                <div style="width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: center;">
-                                    <span style="font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Текст для видалення</span>
-                                    <textarea id="bank-acc-deletion-text-${key}" class="form-control auto-grow-textarea" rows="2" style="font-size: 0.78rem; text-align: center; resize: none; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; color: #fff; padding: 6px 10px; width: 100%; box-sizing: border-box; min-height: 50px;" placeholder="Текст запиту видалення додатку...">${template.deletion_text || ''}</textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- AI Deletion Requirement Global Setting Row -->
-                        <input type="hidden" id="bank-acc-deletion-req-${key}" value="${template.deletion_requirement || 'none'}">
-                        <div class="bank-deletion-settings-row">
-                            <div class="bank-deletion-settings-info">
-                                <span style="font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.85); letter-spacing: 0.2px;">Вимога видалення додатку в боті (ШІ)</span>
-                                <span style="font-size: 0.7rem; color: rgba(255,255,255,0.45); line-height: 1.3;">Оберіть, який доказ видалення додатку бот повинен запросити у клієнта та автоматично перевірити через ШІ</span>
-                            </div>
-                            <div class="bank-deletion-settings-control">
-                                <div style="display: flex; background: rgba(0, 0, 0, 0.22); border: 1px solid rgba(255, 255, 255, 0.05); padding: 4px; border-radius: 10px; width: 100%; box-sizing: border-box; justify-content: space-between; align-items: center; gap: 4px;">
-                                    <div id="del-tab-${key}-none" class="del-tab-btn ${(template.deletion_requirement || 'none') === 'none' ? 'active' : ''}" onclick="selectDeletionTab('${key}', 'none')" style="flex: 1; text-align: center; font-size: 0.78rem; font-weight: 600; padding: 8px 6px; border-radius: 7px; cursor: pointer; color: ${(template.deletion_requirement || 'none') === 'none' ? '#fff' : 'rgba(255, 255, 255, 0.4)'}; background: ${(template.deletion_requirement || 'none') === 'none' ? 'rgba(255,255,255,0.08)' : 'transparent'}; border: 1px solid ${(template.deletion_requirement || 'none') === 'none' ? 'rgba(255,255,255,0.08)' : 'transparent'}; transition: all 0.2s ease; user-select: none;">
-                                        Нічого
-                                    </div>
-                                    <div id="del-tab-${key}-screenshot" class="del-tab-btn ${(template.deletion_requirement || 'none') === 'screenshot' ? 'active' : ''}" onclick="selectDeletionTab('${key}', 'screenshot')" style="flex: 1; text-align: center; font-size: 0.78rem; font-weight: 600; padding: 8px 6px; border-radius: 7px; cursor: pointer; color: ${(template.deletion_requirement || 'none') === 'screenshot' ? '#fff' : 'rgba(255, 255, 255, 0.4)'}; background: ${(template.deletion_requirement || 'none') === 'screenshot' ? 'rgba(255,255,255,0.08)' : 'transparent'}; border: 1px solid ${(template.deletion_requirement || 'none') === 'screenshot' ? 'rgba(255,255,255,0.08)' : 'transparent'}; transition: all 0.2s ease; user-select: none;">
-                                        Скріншот
-                                    </div>
-                                    <div id="del-tab-${key}-video" class="del-tab-btn ${(template.deletion_requirement || 'none') === 'video' ? 'active' : ''}" onclick="selectDeletionTab('${key}', 'video')" style="flex: 1; text-align: center; font-size: 0.78rem; font-weight: 600; padding: 8px 6px; border-radius: 7px; cursor: pointer; color: ${(template.deletion_requirement || 'none') === 'video' ? '#fff' : 'rgba(255, 255, 255, 0.4)'}; background: ${(template.deletion_requirement || 'none') === 'video' ? 'rgba(255,255,255,0.08)' : 'transparent'}; border: 1px solid ${(template.deletion_requirement || 'none') === 'video' ? 'rgba(255,255,255,0.08)' : 'transparent'}; transition: all 0.2s ease; user-select: none;">
-                                        Відео
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <!-- TAB 3: AI & Verifier -->
-                    <div id="bank-tab-content-${key}-ai" class="bank-tab-content" style="${activeSubTab === 'ai' ? '' : 'display: none;'}">
-                        <!-- Verifier Report Template and Mockup Side-by-Side -->
-                        <div class="bank-ai-split-grid">
-                            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; height: 100%;">
-                                <div class="bank-settings-section-title" style="margin: 0 0 10px 0; font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; height: 20px; box-sizing: border-box;">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-primary);">
-                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                        <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                    </svg>
-                                    Шаблон повідомлення для верифікатора
-                                </div>
-                                <textarea id="bank-acc-report-tpl-${key}" class="form-control auto-grow-textarea" rows="6" style="width: 100%; font-family: monospace; font-size: 0.78rem; line-height: 1.4; resize: none; height: 180px; overflow-y: auto;" oninput="updateTelegramMockupPreview('${key}')" placeholder="Шаблон звіту...">${template.report_template || `{pib}\n{dob}\n{ipn}\n{phone}\n\nДроп - @{username}\n\nLine {line_id} Return: {line_phone} | {bank}\n\n{code}`}</textarea>
-                                <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px; text-align: left;">
-                                    <span style="font-size: 0.75rem; color: rgba(255,255,255,0.35); font-weight: 500;">💡 Доступні змінні (натисніть для вставки):</span>
-                                    <div class="tag-pills-container">
-                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{pib}')">{pib}</div>
-                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{dob}')">{dob}</div>
-                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{ipn}')">{ipn}</div>
-                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{phone}')">{phone}</div>
-                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{username}')">{username}</div>
-                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{line}')">{line}</div>
-                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{line_id}')">{line_id}</div>
-                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{line_phone}')">{line_phone}</div>
-                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{code}')">{code}</div>
-                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{card}')">{card}</div>
-                                        <div class="tag-pill" onclick="insertPlaceholderTag('${key}', '{bank}')">{bank}</div>
-                                    </div>
-                                </div>
-                                
-                                <!-- AI instructions inside left column -->
-                                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 12px; width: 100%;">
-                                    <div class="form-group" style="margin: 0;">
-                                        <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px; color: rgba(255,255,255,0.6);">Специфічні правила ШІ для банку</label>
-                                        <textarea id="bank-acc-airules-${key}" class="form-control auto-grow-textarea" rows="2" style="width: 100%; font-family: inherit; font-size: 0.78rem;" placeholder="Наприклад: Перевіряти ліміти...">${template.ai_rules || ''}</textarea>
-                                    </div>
-                                    <div class="form-group" style="margin: 0;">
-                                        <label class="form-label" style="font-size: 0.8rem; margin-bottom: 6px; color: rgba(255,255,255,0.6);">Опис вигляду банку для ШІ (як виглядає додаток, кольори)</label>
-                                        <textarea id="bank-acc-desc-${key}" class="form-control auto-grow-textarea" rows="2" style="width: 100%; font-family: inherit; font-size: 0.78rem;" placeholder="Наприклад: Додаток має...">${template.description || ''}</textarea>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Telegram Mockup Phone Chat Container -->
-                            <div class="telegram-mockup-wrapper" style="width: 100%; display: flex; flex-direction: column; text-align: left; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; align-items: center; align-self: start; position: sticky; top: 20px;">
-                                <div style="margin: 0 0 10px 0; font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; height: 20px; box-sizing: border-box; width: 100%;">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-primary);"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                                    Прев'ю в Telegram
-                                </div>
-                                
-                                <!-- Chat Window Container -->
-                                <div id="telegram-mockup-container-${key}" class="telegram-mockup-chat-container" style="background: #0e1621; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; width: 100%; max-width: 360px; height: ${localStorage.getItem('telegram_mockup_custom_height') || '535px'}; min-height: 360px; max-height: 900px; resize: vertical; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.4); position: relative;" onmouseup="saveTelegramMockupCustomHeight(this)" ontouchend="saveTelegramMockupCustomHeight(this)">
-                                    
-                                    <!-- Chat Header -->
-                                    <div style="background: #17212b; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 10px 14px; display: flex; align-items: center; gap: 10px; height: 50px; box-sizing: border-box; flex-shrink: 0; z-index: 5;">
-                                        ${avatarHTML}
-                                        <div style="display: flex; flex-direction: column; text-align: left; justify-content: center;">
-                                            <span style="font-size: 0.86rem; font-weight: 600; color: #fff; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;">${template.display_name || key}</span>
-                                            <span style="font-size: 0.70rem; color: #708190; line-height: 1.2;">bot</span>
-                                        </div>
-                                        <div style="margin-left: auto; color: #708190; display: flex; gap: 12px; align-items: center;">
-                                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Chat Body (with Telegram message bubbles pattern) -->
-                                    <div class="telegram-mockup-chat-body" style="padding: 14px; display: flex; flex-direction: column; gap: 12px; background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0); background-size: 16px 16px; overflow-y: auto; flex-grow: 1;">
-                                        
-                                        <!-- Message Bubble -->
-                                        <div class="telegram-message-bubble" style="background: #182533; border: 1px solid rgba(255,255,255,0.03); border-radius: 14px 14px 0 14px; width: 100%; max-width: 290px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); align-self: flex-end; display: flex; flex-direction: column; position: relative; flex-shrink: 0; overflow: hidden;">
-                                            <div id="telegram-mockup-image-${key}" class="telegram-mockup-scrollable-image" style="display: ${template.success_screenshot_path ? 'block' : 'none'}; border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(255,255,255,0.02);">
-                                                <img src="${template.success_screenshot_path ? template.success_screenshot_path.split(',')[0].trim() : ''}" style="width: 100%; height: auto; display: block;" onload="const cb = this.closest('.telegram-mockup-chat-body'); if(cb) cb.scrollTop = cb.scrollHeight;">
-                                            </div>
-                                            <div id="telegram-mockup-text-${key}" style="font-size: 0.82rem; color: #fff; line-height: 1.45; white-space: pre-line; word-break: break-word; padding: 12px 14px;">${window.getTelegramMockupHtml(template.report_template, key)}</div>
-                                        </div>
-                                        
-                                    </div>
-                                    
-                                    <!-- Chat Footer -->
-                                    <div style="background: #17212b; border-top: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; display: flex; align-items: center; gap: 10px; height: 44px; box-sizing: border-box; flex-shrink: 0; z-index: 5;">
-                                        <div style="color: #708190; cursor: pointer; display: flex; align-items: center;">
-                                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
-                                        </div>
-                                        <div style="flex-grow: 1; background: #242f3d; border-radius: 18px; padding: 6px 12px; font-size: 0.8rem; color: #708190; display: flex; justify-content: space-between; align-items: center; height: 28px; box-sizing: border-box;">
-                                            <span>Повідомлення...</span>
-                                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="transform: rotate(45deg); cursor: pointer;"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                                        </div>
-                                        <div style="color: #5288c1; cursor: pointer; display: flex; align-items: center;">
-                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        
-                    </div>
-
-                    <div class="bank-action-buttons-row">
-                        <div>
-                            <button type="button" class="btn btn-danger btn-sm" onclick="deleteAccordionBank('${key}')" style="padding: 8px 16px; font-size: 0.8rem;">Видалити банк</button>
-                        </div>
-                        <div class="bank-action-right-group">
-                            <button type="button" id="bank-acc-cancel-btn-${key}" data-has-changes="false" class="btn btn-secondary btn-sm" onclick="cancelAccordionEdit('${key}')" style="padding: 8px 16px; font-size: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7);">Скасувати</button>
-                            <button type="submit" id="bank-acc-save-btn-${key}" disabled class="btn btn-primary" style="padding: 8px 20px; font-weight: 600; font-size: 0.85rem; opacity: 0.4; cursor: not-allowed; transition: all 0.2s ease;">Зберегти зміни</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        `;
+        item.innerHTML = getBankAccordionItemHTML(key, key, template, activeSubTab, {});
         if (isPaused) {
             containerPaused.appendChild(item);
         } else {
@@ -1728,4 +1734,406 @@ window.selectDeletionTab = function(key, val) {
         window.checkAccordionFormChanges(key);
     }
 };
+
+// --- Bank profile visual helpers ---
+window.bankProfileDemoTemplates = {
+    izibank: { display_name: 'IziBank', command: '/ЗАВАНТАЖі', code_length: 4, required_screenshots: 1, is_active: 1 },
+    amobank: { display_name: 'AmoBank', command: '/AMO', code_length: 4, required_screenshots: 2, is_active: 1 },
+    banklviv: { display_name: 'BankLviv', command: '/LVIV', code_length: 4, required_screenshots: 1, is_active: 1 },
+    bankkd: { display_name: 'bank.kd', command: '/KD', code_length: 4, required_screenshots: 1, is_active: 1 },
+    alliance: { display_name: 'Alliance', command: '/ALLIANCE', code_length: 4, required_screenshots: 1, is_active: 1 },
+    novapay: { display_name: 'NovaPay', command: '/NOVAPAY', code_length: 4, required_screenshots: 1, is_active: 1 }
+};
+window.profileBankSelections = { main_profile: ['izibank', 'amobank'] };
+
+try {
+    const savedSelections = localStorage.getItem('bank_profile_selections');
+    if (savedSelections) {
+        window.profileBankSelections = JSON.parse(savedSelections);
+    }
+} catch (e) {
+    console.error('Failed to load profile bank selections', e);
+}
+
+try {
+    window.profileBankMeta = JSON.parse(localStorage.getItem('bank_profile_meta') || '{}');
+} catch (e) {
+    window.profileBankMeta = {};
+}
+
+window.applyProfileMeta = function(profileItem, profileId) {
+    const meta = window.profileBankMeta[profileId] || {};
+    const nameInput = profileItem.querySelector('.bank-profile-name-input');
+    const keyInput = profileItem.querySelector('.bank-profile-key-input');
+    const nameEl = profileItem.querySelector('.bank-profile-name');
+    const keyEl = profileItem.querySelector('.bank-profile-key');
+    if (nameInput && meta.name !== undefined) nameInput.value = meta.name;
+    if (keyInput && meta.key !== undefined) keyInput.value = meta.key;
+    if (nameEl && meta.name !== undefined) nameEl.textContent = meta.name;
+    if (keyEl && meta.key !== undefined) keyEl.textContent = meta.key;
+    const isActive = meta.isActive !== undefined ? meta.isActive : true;
+    profileItem.dataset.profileActive = isActive ? 'true' : 'false';
+    if (meta.avatar) {
+        profileItem.querySelectorAll('.bank-profile-avatar').forEach(avatar => {
+            avatar.innerHTML = '';
+            avatar.style.backgroundImage = "url('" + meta.avatar + "')";
+            avatar.style.backgroundSize = 'cover';
+            avatar.style.backgroundPosition = 'center';
+            avatar.style.backgroundRepeat = 'no-repeat';
+            avatar.style.border = '1.5px solid rgba(255,255,255,0.2)';
+        });
+    }
+};
+
+window.toggleProfileStatus = function(input) {
+    const item = input && input.closest ? input.closest('.bank-profile-item') : null;
+    if (!item) return;
+    const profileId = item.dataset.profileId;
+    const checked = input.checked;
+    item.dataset.profileActive = checked ? 'true' : 'false';
+    if (profileId) {
+        if (!window.profileBankMeta[profileId]) window.profileBankMeta[profileId] = {};
+        window.profileBankMeta[profileId].isActive = checked;
+        saveBankProfileMeta();
+    }
+};
+
+function saveBankProfilesOrder() {
+    try {
+        const order = [];
+        document.querySelectorAll('#bank-profiles-list .bank-profile-item').forEach(item => {
+            if (item.dataset.profileId) order.push(item.dataset.profileId);
+        });
+        localStorage.setItem('bank_profiles_order', JSON.stringify(order));
+    } catch (e) {}
+}
+
+function saveBankProfilesOpen() {
+    try {
+        const openIds = [];
+        document.querySelectorAll('#bank-profiles-list .bank-profile-item.active').forEach(item => {
+            if (item.dataset.profileId) openIds.push(item.dataset.profileId);
+        });
+        localStorage.setItem('bank_profiles_open', JSON.stringify(openIds));
+    } catch (e) {}
+}
+
+function saveBankProfileMeta() {
+    try {
+        localStorage.setItem('bank_profile_meta', JSON.stringify(window.profileBankMeta));
+    } catch (e) {}
+}
+
+window.createBankProfile = function(profileId, name, key, isActive, isNew) {
+    const list = document.getElementById('bank-profiles-list');
+    const template = document.getElementById('bank-profile-template');
+    if (!list || !template) return null;
+    const clone = template.content.cloneNode(true);
+    const item = clone.querySelector('.bank-profile-item');
+    const nameInput = clone.querySelector('.bank-profile-name-input');
+    const keyInput = clone.querySelector('.bank-profile-key-input');
+    const nameLabel = clone.querySelector('.bank-profile-name');
+    const keyLabel = clone.querySelector('.bank-profile-key');
+    if (item) {
+        item.dataset.profileId = profileId;
+        if (isActive) item.classList.add('active');
+        if (isNew) item.dataset.isNew = 'true';
+    }
+    if (nameInput) nameInput.value = name || '';
+    if (keyInput) keyInput.value = key || '';
+    if (nameLabel) nameLabel.textContent = name || '';
+    if (keyLabel) keyLabel.textContent = key || '';
+    list.appendChild(clone);
+    if (!window.profileBankSelections[profileId]) window.profileBankSelections[profileId] = [];
+    renderProfileBankSelector(item, profileId);
+    renderProfileBankAccordions(item, profileId);
+    applyProfileMeta(item, profileId);
+    return item;
+};
+
+window.addBankProfileVisual = function() {
+    const list = document.getElementById('bank-profiles-list');
+    if (!list) return;
+    const count = list.querySelectorAll('.bank-profile-item').length + 1;
+    const newName = 'Новий профіль ' + count;
+    const newKey = 'new_profile_' + count;
+    const item = window.createBankProfile(newKey, newName, newKey, true, true);
+    if (item) {
+        if (typeof saveProfileBankSelections === 'function') saveProfileBankSelections();
+        window.profileBankMeta[newKey] = { name: newName, key: newKey };
+        saveBankProfileMeta();
+        saveBankProfilesOrder();
+        saveBankProfilesOpen();
+    }
+};
+
+window.toggleBankProfile = function(header) {
+    const item = header && header.closest ? header.closest('.bank-profile-item') : null;
+    if (!item) return;
+    item.classList.toggle('active');
+    saveBankProfilesOpen();
+};
+
+window.switchBankSettingsPane = function(pane) {
+    const banksPane = document.getElementById('bank-banks-pane');
+    const profilesPane = document.getElementById('bank-profiles-pane');
+    const banksTab = document.getElementById('bank-tab-banks');
+    const profilesTab = document.getElementById('bank-tab-profiles');
+    if (banksPane) banksPane.style.display = pane === 'banks' ? 'block' : 'none';
+    if (profilesPane) profilesPane.style.display = pane === 'profiles' ? 'block' : 'none';
+    if (banksTab) banksTab.classList.toggle('active', pane === 'banks');
+    if (profilesTab) profilesTab.classList.toggle('active', pane === 'profiles');
+};
+
+window.loadBankProfiles = function() {
+    const list = document.getElementById('bank-profiles-list');
+    if (!list) return;
+    const orderRaw = localStorage.getItem('bank_profiles_order');
+    if (!orderRaw) {
+        // first load: initialize from existing DOM
+        document.querySelectorAll('#bank-profiles-list .bank-profile-item').forEach(item => {
+            const profileId = item.dataset.profileId;
+            if (profileId) {
+                renderProfileBankSelector(item, profileId);
+                renderProfileBankAccordions(item, profileId);
+                applyProfileMeta(item, profileId);
+            }
+        });
+        saveBankProfilesOrder();
+        saveBankProfilesOpen();
+        return;
+    }
+
+    let order = [];
+    try {
+        order = JSON.parse(orderRaw);
+    } catch (e) {}
+    let openIds = [];
+    try {
+        openIds = JSON.parse(localStorage.getItem('bank_profiles_open') || '[]');
+    } catch (e) {}
+
+    // remove DOM profiles not in saved order
+    list.querySelectorAll('.bank-profile-item').forEach(item => {
+        if (!order.includes(item.dataset.profileId)) item.remove();
+    });
+
+    // ensure all saved profiles exist in DOM
+    order.forEach((profileId, index) => {
+        let item = list.querySelector(`.bank-profile-item[data-profile-id="${profileId}"]`);
+        if (!item) {
+            const meta = window.profileBankMeta[profileId] || {};
+            item = window.createBankProfile(profileId, meta.name || profileId, meta.key || profileId, openIds.includes(profileId), false);
+        } else {
+            if (openIds.includes(profileId)) item.classList.add('active');
+            else item.classList.remove('active');
+        }
+        if (item) applyProfileMeta(item, profileId);
+    });
+};
+
+function normalizeBankKey(str) {
+    return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+window.getProfileBankTemplates = function() {
+    const demo = window.bankProfileDemoTemplates || {};
+    const backend = window.bankTemplates || {};
+    const result = {};
+
+    Object.keys(demo).forEach(k => {
+        result[k] = demo[k];
+    });
+
+    if (Array.isArray(backend)) {
+        backend.forEach((item, i) => {
+            if (!item || typeof item !== 'object') return;
+            const rawKey = item.key || item.display_name || item.name || String(i);
+            const key = normalizeBankKey(rawKey);
+            if (key) result[key] = item;
+        });
+    } else {
+        Object.keys(backend).forEach(k => {
+            const key = normalizeBankKey(k);
+            if (key) result[key] = backend[k];
+        });
+    }
+
+    return result;
+};
+
+function saveProfileBankSelections() {
+    try {
+        localStorage.setItem('bank_profile_selections', JSON.stringify(window.profileBankSelections));
+    } catch (e) {
+        console.error('Failed to save profile bank selections', e);
+    }
+}
+
+window.addBankToProfile = function(profileId, bankKey) {
+    if (!profileId || !bankKey) return;
+    if (!window.profileBankSelections[profileId]) window.profileBankSelections[profileId] = [];
+    if (!window.profileBankSelections[profileId].includes(bankKey)) {
+        window.profileBankSelections[profileId].push(bankKey);
+        saveProfileBankSelections();
+    }
+    const profileItem = document.querySelector(`.bank-profile-item[data-profile-id="${profileId}"]`);
+    if (profileItem) {
+        renderProfileBankSelector(profileItem, profileId);
+        renderProfileBankAccordions(profileItem, profileId);
+    }
+};
+
+window.removeBankFromProfile = function(profileId, bankKey) {
+    if (!profileId || !bankKey || !window.profileBankSelections[profileId]) return;
+    window.profileBankSelections[profileId] = window.profileBankSelections[profileId].filter(k => k !== bankKey);
+    saveProfileBankSelections();
+    const profileItem = document.querySelector(`.bank-profile-item[data-profile-id="${profileId}"]`);
+    if (profileItem) {
+        renderProfileBankSelector(profileItem, profileId);
+        renderProfileBankAccordions(profileItem, profileId);
+    }
+};
+
+window.renderAllProfileBanks = function() {
+    document.querySelectorAll('.bank-profile-item[data-profile-id]').forEach(item => {
+        const profileId = item.dataset.profileId;
+        if (profileId) {
+            renderProfileBankSelector(item, profileId);
+            renderProfileBankAccordions(item, profileId);
+            applyProfileMeta(item, profileId);
+        }
+    });
+};
+
+window.toggleBankInProfile = function(profileId, bankKey) {
+    if (!profileId || !bankKey) return;
+    const selected = window.profileBankSelections[profileId] || [];
+    if (selected.includes(bankKey)) {
+        window.removeBankFromProfile(profileId, bankKey);
+    } else {
+        window.addBankToProfile(profileId, bankKey);
+    }
+};
+
+window.deleteBankProfile = function(btn) {
+    const item = btn && btn.closest ? btn.closest('.bank-profile-item') : null;
+    if (!item) return;
+    const profileId = item.dataset.profileId;
+    if (profileId) {
+        delete window.profileBankSelections[profileId];
+        delete window.profileBankMeta[profileId];
+        if (typeof saveProfileBankSelections === 'function') {
+            saveProfileBankSelections();
+        }
+        saveBankProfileMeta();
+    }
+    item.remove();
+    saveBankProfilesOrder();
+    saveBankProfilesOpen();
+};
+
+window.confirmDeleteBankProfile = async function(btn) {
+    const item = btn && btn.closest ? btn.closest('.bank-profile-item') : null;
+    if (!item) return;
+    const nameEl = item.querySelector('.bank-profile-name');
+    const name = nameEl ? nameEl.textContent : 'цей профіль';
+    if (typeof showConfirm !== 'function') {
+        if (confirm(`Видалити профіль "${name}"?`)) {
+            deleteBankProfile(btn);
+        }
+        return;
+    }
+    const confirmed = await showConfirm(`Ви впевнені, що хочете видалити профіль "${name}"?`, 'danger');
+    if (confirmed) deleteBankProfile(btn);
+};
+
+window.saveBankProfile = function(btn) {
+    const item = btn && btn.closest ? btn.closest('.bank-profile-item') : null;
+    if (!item) return;
+    const profileId = item.dataset.profileId;
+    const nameInput = item.querySelector('.bank-profile-name-input');
+    const keyInput = item.querySelector('.bank-profile-key-input');
+    const nameEl = item.querySelector('.bank-profile-name');
+    const keyEl = item.querySelector('.bank-profile-key');
+    if (nameInput && nameEl) nameEl.textContent = nameInput.value;
+    if (keyInput && keyEl) keyEl.textContent = keyInput.value;
+    if (profileId) {
+        window.profileBankMeta[profileId] = window.profileBankMeta[profileId] || {};
+        window.profileBankMeta[profileId].name = nameInput ? nameInput.value : '';
+        window.profileBankMeta[profileId].key = keyInput ? keyInput.value : '';
+        saveBankProfileMeta();
+    }
+    item.dataset.isNew = 'false';
+    if (typeof showToast === 'function') showToast('Профіль збережено', 'success');
+};
+
+window.renderProfileBankSelector = function(profileItem, profileId) {
+    const strip = profileItem.querySelector('.bank-profile-bank-strip');
+    if (!strip) return;
+    const selected = window.profileBankSelections[profileId] || [];
+    const templates = window.getProfileBankTemplates();
+    const allKeys = Object.keys(templates);
+    if (allKeys.length === 0) {
+        strip.innerHTML = '<div style="padding: 10px 12px; color: var(--text-muted); font-size: 0.8rem;">Немає доступних банків</div>';
+        return;
+    }
+    strip.innerHTML = allKeys.map(key => {
+        const t = templates[key] || {};
+        const name = t.display_name || key;
+        const icon = getBankIcon(key, t.logo_path);
+        const gradient = getBankIconGradient(key, t.logo_path);
+        const isSelected = selected.includes(key) ? 'selected' : '';
+        return `<div class="bank-profile-bank-option ${isSelected}" onclick="toggleBankInProfile('${profileId}', '${key}')">
+            <div style="width: 24px; height: 24px; border-radius: 50%; background: ${gradient}; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">${icon}</div>
+            <span>${name}</span>
+        </div>`;
+    }).join('');
+};
+
+window.renderProfileBankAccordions = function(profileItem, profileId) {
+    const container = profileItem.querySelector('.bank-profile-accordion-list');
+    if (!container) return;
+    const selected = window.profileBankSelections[profileId] || [];
+    const templates = window.getProfileBankTemplates();
+    container.innerHTML = '';
+    if (selected.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 24px;">Немає банків у профілі. Додайте банки зі списку вище.</div>';
+        return;
+    }
+    selected.forEach(bankKey => {
+        const template = templates[bankKey];
+        if (!template) return;
+        const itemKey = profileId + '_' + bankKey;
+        const item = document.createElement('div');
+        item.className = 'bank-accordion-item';
+        item.id = 'bank-accordion-item-' + itemKey;
+        item.innerHTML = getBankAccordionItemHTML(itemKey, bankKey, template, 'general', { noActions: true, toggleHandler: 'toggleProfileBankAccordion(this)' });
+        container.appendChild(item);
+        item.querySelectorAll('textarea').forEach(ta => {
+            ta.addEventListener('input', function() { autoGrowTextarea(this); });
+            autoGrowTextarea(ta);
+        });
+    });
+};
+
+window.toggleProfileBankAccordion = function(header) {
+    const item = header && header.closest ? header.closest('.bank-accordion-item') : null;
+    if (!item) return;
+    const list = item.closest('.bank-profile-accordion-list');
+    const wasActive = item.classList.contains('active');
+    if (list) list.querySelectorAll('.bank-accordion-item').forEach(el => el.classList.remove('active'));
+    if (!wasActive) {
+        item.classList.add('active');
+        const key = item.id.replace('bank-accordion-item-', '');
+        const savedTab = localStorage.getItem('active_bank_subtab_' + key) || 'general';
+        if (window.switchBankAccordionTab) window.switchBankAccordionTab(key, savedTab);
+        setTimeout(() => { item.querySelectorAll('textarea').forEach(ta => autoGrowTextarea(ta)); }, 10);
+        setTimeout(() => {
+            item.querySelectorAll('textarea').forEach(ta => autoGrowTextarea(ta));
+            if (window.updateTelegramMockupPreview) window.updateTelegramMockupPreview(key);
+        }, 350);
+    }
+};
+
 
