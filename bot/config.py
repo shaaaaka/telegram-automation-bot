@@ -14,7 +14,6 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 LOG_BOT_TOKEN = os.getenv("LOG_BOT_TOKEN")
 DB_FILE = os.getenv("DB_FILE", "bot.db")
-DEFAULT_METHOD_KEY = os.getenv("DEFAULT_METHOD_KEY", "volk")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-flash-1.5")
 
@@ -78,24 +77,11 @@ BANK_TEMPLATES = {
         "text": "Завантажуйте будь ласка додаток \"Alliance\"",
         "code_length": 4,
         "description": "Альянс Банк"
-    },
-    "pumb": {
-        "command": "/ЗАВАНТАЖпумб",
-        "text": "Завантажуйте будь ласка додаток \"ПУМБ\"",
-        "code_length": 4,
-        "description": "ПУМБ",
-        "allow_relink": 1,
-        "relink_instruction_text": "Зайдіть у налаштування профілю додатку ПУМБ, натисніть «Змінити номер» та введіть цей номер:"
     }
 }
 
-# Інструкції та приклади фото для ПУМБ
-PUMB_NEW_REG_INSTRUCTION = "Надішліть, будь ласка, отакі фото з додатку Дія:"
-PUMB_RELINK_INSTRUCTION = "Надішліть, будь ласка, скріншот головного екрану або вкладки Картки у додатку ПУМБ."
-PUMB_NEW_REG_EXAMPLES_DIR = os.path.join(os.path.dirname(__file__), "resources", "images", "pumb")
-
 # Порядок відображення банків за замовчуванням
-DEFAULT_BANK_ORDER = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank", "PUMB"]
+DEFAULT_BANK_ORDER = ["bank.kd", "IziBank", "Alliance", "LvivBank", "AmoBank"]
 
 def normalize_bank_name(name: str) -> str:
     if not name:

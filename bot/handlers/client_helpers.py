@@ -2,11 +2,10 @@ from aiogram import Bot
 from aiogram.types import Message, ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton, PhotoSize
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
-from bot.config import get_admin_id, normalize_bank_name
+from bot.config import get_admin_id
 import bot.database as db
 import re
 import asyncio
-import json
 
 class RegistrationStates(StatesGroup):
     waiting_pib_dob = State()
@@ -21,10 +20,6 @@ class RegistrationStates(StatesGroup):
     waiting_deletion_proof = State()
     waiting_relink_choice = State()
     waiting_relink_initial_screenshot = State()
-    collecting_method_field = State()
-    waiting_method_screenshots = State()
-    waiting_start_relink_choice = State()
-    waiting_admin_bank_selection = State()
 async def register_reg_msg(state: FSMContext, msg_id: int):
     data = await state.get_data()
     msg_ids = data.get("registration_msg_ids", [])
@@ -831,167 +826,6 @@ async def trigger_sms_code_request(client_id: int, bot: Bot, state: FSMContext, 
             text=f"Помилка надсилання запиту гіверу (Line {line_num}): {str(e)}"
         )
     return True
-def get_field_prompt(field_key: str, method: dict | None = None) -> str:
-    """Повертає текст запитання для конкретного поля методу"""
-    prompts = {
-        "pib": "Напишіть мені будь ласка Ваші ПІБ (Прізвище, Ім'я, По батькові):",
-        "dob": "Напишіть мені будь ласка Вашу Дату Народження (ДД.ММ.РРРР):",
-        "ipn": "Напишіть мені будь ласка Ваш ІПН (10 цифр):",
-        "phone": "Напишіть мені будь ласка Ваш номер телефону:",
-        "password": "Напишіть мені будь ласка код/пароль, який ви використали в додатку:"
-    }
-    return prompts.get(field_key, "Введіть, будь ласка, потрібну інформацію:")
-
-
-def validate_method_field(field_key: str, text: str) -> tuple[bool, str]:
-    """Валідація текстового поля методу. Повертає (is_valid, normalized_value_or_error)."""
-    text = text.strip()
-    if not text:
-        return False, "Поле не може бути порожнім."
-    
-    if field_key == "pib":
-        cleaned = clean_pib(text)
-        if is_valid_pib(cleaned):
-            return True, cleaned
-        return False, "Будь ласка, введіть коректні ПІБ (Прізвище Ім'я По батькові)."
-    
-    if field_key == "dob":
-        # Очищаємо роздільники
-        import re
-        date_match = re.search(r'\b(\d{1,2}[\.\-\/,]\d{1,2}[\.\-\/,]\d{2,4})\b', text)
-        if date_match:
-            parsed = parse_and_validate_date(date_match.group(1))
-            if parsed:
-                return True, parsed
-        return False, "Будь ласка, введіть коректну дату народження у форматі ДД.ММ.РРРР."
-    
-    if field_key == "ipn":
-        digits = re.sub(r'\D', '', text)
-        if len(digits) == 10 and digits[0] != '0':
-            return True, digits
-        return False, "ІПН має складатися рівно з 10 цифр і не починатися з 0."
-    
-    if field_key == "phone":
-        digits = re.sub(r'\D', '', text)
-        if len(digits) == 10 and digits.startswith('0'):
-            return True, "+38" + digits
-        if len(digits) == 12 and digits.startswith('380'):
-            return True, "+" + digits
-        if len(digits) == 9 and not digits.startswith('0'):
-            return True, "+380" + digits
-        return False, "Будь ласка, введіть коректний український номер телефону."
-    
-    if field_key == "password":
-        return True, text
-    
-    return True, text
-
-
-def format_client_data_from_method(collected_data: dict, method: dict | None = None) -> str:
-    """Формує client_data зі зібраних полів методу"""
-    lines = []
-    field_labels = {
-        "pib": "ПІБ",
-        "dob": "Дата",
-        "ipn": "ІПН",
-        "phone": "Телефон",
-        "password": "Пароль"
-    }
-    for key, label in field_labels.items():
-        if key in collected_data:
-            lines.append(f"{label}: {collected_data[key]}")
-    return "\n".join(lines)
-
-
-def format_method_report(collected_data: dict, method: dict | None, session: dict, line_str: str = "", phone: str = "") -> str:
-    """Формує текст анкети за шаблоном методу"""
-    if method and method.get('report_template'):
-        tpl = method['report_template']
-    else:
-        tpl = (
-            "ІПН: {ipn}\n"
-            "ПІБ: {pib}\n"
-            "Дата: {dob}\n"
-            "Телефон: {phone}\n\n"
-            "{line}\n\n"
-        )
-    
-    replacements = {
-        "{pib}": collected_data.get('pib', ''),
-        "{dob}": collected_data.get('dob', ''),
-        "{ipn}": collected_data.get('ipn', ''),
-        "{phone}": phone,
-        "{line}": line_str,
-        "{password}": collected_data.get('password', ''),
-        "{username}": session.get('username', '')
-    }
-    result = tpl
-    for placeholder, val in replacements.items():
-        result = result.replace(placeholder, str(val))
-    return result.strip()
-
-
-async def notify_admin_for_bank_selection(client_id: int, username: str, client_data: str, bot: Bot, method_key: str = None, start_param: str = None):
-    """Сповіщення адміну з пропозицією обрати банки для клієнта"""
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    from bot.services.line_assignment import get_all_banks_for_selection, build_bank_selection_rows
-    from bot.config import get_admin_id
-    import html
-    import bot.database as db
-
-    all_banks = await get_all_banks_for_selection()
-
-    # Фільтруємо банки за методом верифікації, якщо в методі задані allowed_banks
-    if method_key:
-        method = await db.get_verification_method(method_key)
-        if method:
-            allowed_banks = method.get('allowed_banks') or []
-            if isinstance(allowed_banks, str):
-                try:
-                    allowed_banks = json.loads(allowed_banks)
-                except json.JSONDecodeError:
-                    allowed_banks = []
-            if allowed_banks:
-                normalized_allowed = {normalize_bank_name(b) for b in allowed_banks}
-                all_banks = [b for b in all_banks if normalize_bank_name(b) in normalized_allowed]
-
-    warning_text = ""
-    if not all_banks:
-        warning_text = "\n\n⚠️ *Попередження:* немає доступних банків для цього методу! Додайте номери через сайт або в чат."
-
-    history = await db.get_client_verification_history(client_id)
-    passed_banks = {h['bank'] for h in history if h['status'] == 'success'}
-    banned_banks = {h['bank'] for h in history if h['status'] in ('banned', 'failure')}
-
-    keyboard_buttons = build_bank_selection_rows(all_banks, client_id, passed_banks=passed_banks, banned_banks=banned_banks)
-    keyboard_buttons.append([InlineKeyboardButton(text="Зберегти та продовжити", callback_data=f"savebanks_{client_id}")])
-    keyboard_buttons.append([InlineKeyboardButton(text="Відхилити запит", callback_data=f"reject_{client_id}")])
-
-    markup = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-
-    escaped_username = html.escape(username) if username else "Невідомий"
-    escaped_client_data = html.escape(client_data)
-    escaped_warning = html.escape(warning_text) if warning_text else ""
-
-    method_info = ""
-    if method_key:
-        method_info = f"\n• Метод: <b>{method_key}</b>"
-    if start_param:
-        method_info += f" (start: {html.escape(start_param)})"
-
-    admin_msg = (
-        f"Новий клієнт на верифікацію!\n"
-        f"• Telegram: @{escaped_username} (ID: {client_id}){method_info}\n"
-        f"• Дані:\n<pre>{escaped_client_data}</pre>\n"
-        f"Оберіть банки, які має пройти клієнт:{escaped_warning}"
-    )
-
-    try:
-        await bot.send_message(chat_id=get_admin_id(), text=admin_msg, reply_markup=markup, parse_mode="HTML")
-    except Exception as e:
-        logging.error(f"Помилка сповіщення адміна про вибір банків: {e}")
-
-
 async def send_anketa_to_verifier(client_id: int, bot: Bot) -> int | None:
     """Надсилання анкети у чат верифікаторів"""
     import re

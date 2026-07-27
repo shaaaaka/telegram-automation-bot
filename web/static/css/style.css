@@ -5405,7 +5405,7 @@ div.empty-state span:first-child {
 /* --- Mobile Responsive Classes for Bank & Settings Grid Layouts --- */
 .bank-general-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 16px;
     margin-top: 8px;
     align-items: stretch;
@@ -5420,7 +5420,7 @@ div.empty-state span:first-child {
 
 .bank-ai-split-grid {
     display: grid;
-    grid-template-columns: 1fr 380px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
     gap: 20px;
     margin-top: 8px;
     align-items: start;
@@ -5455,10 +5455,16 @@ div.empty-state span:first-child {
 
 .add-bank-inputs-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 16px;
     flex-grow: 1;
     align-items: end;
+}
+
+.bank-general-grid > *,
+.bank-ai-split-grid > *,
+.add-bank-inputs-grid > * {
+    min-width: 0;
 }
 
 .bank-action-buttons-row {
@@ -6408,17 +6414,18 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
     overflow-y: auto !important;
 }
 
-/* Non-form subtabs (banks, ai, theme) are absolutely positioned within the pane to avoid flex collapse */
+/* Non-form subtabs (banks, ai, theme) fill the pane without absolute positioning so content is not clipped */
 #settings-content-banks.active,
 #settings-content-ai.active,
 #settings-content-theme.active {
-    position: absolute !important;
-    top: 24px !important;
-    left: 24px !important;
-    right: 24px !important;
-    bottom: 24px !important;
-    height: auto !important;
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
     overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column;
+    box-sizing: border-box;
 }
 
 /* --- Appearance / Themes tab polished design --- */
