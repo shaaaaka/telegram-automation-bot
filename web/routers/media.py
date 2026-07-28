@@ -1,10 +1,12 @@
 import os
 import io
 import logging
+import time
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
+from aiogram.exceptions import TelegramBadRequest
 from web.core import PHOTOS_CACHE_DIR, AVATARS_CACHE_DIR
 import web.core
 
@@ -21,10 +23,16 @@ async def get_telegram_photo(file_id: str):
     
     import re
     if not file_id or not re.match(r'^[\w-]+=?$', file_id):
-        logger.warning(f"Invalid file_id requested: {file_id!r}")
+        logger.debug(f"Invalid file_id requested: {file_id!r}")
         raise HTTPException(status_code=400, detail="Invalid file_id format")
 
     cache_path = os.path.join(PHOTOS_CACHE_DIR, file_id)
+    no_photo_path = cache_path + ".no_photo"
+
+    # Negative cache: don't hammer Telegram API for known-bad file_ids
+    if os.path.exists(no_photo_path) and (time.time() - os.path.getmtime(no_photo_path) < 86400):
+        raise HTTPException(status_code=404, detail="Photo not found or unavailable")
+
     if os.path.exists(cache_path):
         return FileResponse(
             cache_path,
@@ -47,6 +55,14 @@ async def get_telegram_photo(file_id: str):
             media_type="image/jpeg",
             headers={"Cache-Control": "public, max-age=31536000, immutable"}
         )
+    except TelegramBadRequest as e:
+        logger.debug(f"Photo {file_id!r} not available on Telegram: {e}")
+        try:
+            with open(no_photo_path, "w") as f:
+                f.write("")
+        except Exception:
+            pass
+        raise HTTPException(status_code=404, detail="Photo not found or unavailable")
     except Exception as e:
         logger.exception(f"Failed to fetch photo {file_id!r} from Telegram: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch photo from Telegram: {e}")

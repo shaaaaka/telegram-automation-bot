@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import socket
 import sys
 import uvicorn
 
@@ -218,7 +219,22 @@ async def main():
 
     # Налаштування конфігурації Uvicorn
     import os
-    web_port = int(os.getenv("PORT", 8000))
+
+    def find_free_port(start_port, end_port=8010):
+        for port in range(start_port, end_port + 1):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                try:
+                    sock.bind(("0.0.0.0", port))
+                    return port
+                except OSError:
+                    pass
+        return start_port
+
+    base_port = int(os.getenv("PORT", 8000))
+    web_port = find_free_port(base_port)
+    if web_port != base_port:
+        logging.warning(f"Порт {base_port} зайнятий, використовую {web_port}")
     config = uvicorn.Config(web_app, host="0.0.0.0", port=web_port, loop="asyncio")
     server = uvicorn.Server(config)
 
