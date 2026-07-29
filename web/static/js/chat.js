@@ -356,6 +356,20 @@ function clearContainerHeights(gallery) {
     });
 }
 
+function sortGalleryImages(gallery) {
+    const imgs = Array.from(gallery.querySelectorAll('img.chat-msg-gallery-img')).filter(img => {
+        return !img.classList.contains('chat-msg-gallery-img-hidden') && !img.closest('.chat-msg-gallery-more-cell');
+    });
+    imgs.sort((a, b) => {
+        const am = parseInt(a.dataset.msgId, 10) || 0;
+        const bm = parseInt(b.dataset.msgId, 10) || 0;
+        if (am !== bm) return am - bm;
+        // Preserve original DOM order when msgId is equal/missing.
+        return Array.from(gallery.children).indexOf(a) - Array.from(gallery.children).indexOf(b);
+    });
+    imgs.forEach(img => gallery.appendChild(img));
+}
+
 function applyAlbumGridLayout(gallery) {
     gallery.classList.add('loaded');
     clearContainerHeights(gallery);
@@ -1551,7 +1565,7 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
             <div class="chat-msg-media-wrapper">
                 <div class="chat-msg-photo-wrapper">
                     <div class="chat-msg-photo-blur-bg" style="background-image: url('/api/photos/${singlePhotoId}?client_id=${selectedChatClientId || ''}');"></div>
-                    <img class="chat-msg-img" src="/api/photos/${singlePhotoId}?client_id=${selectedChatClientId || ''}" onerror="handlePhotoError(this)" ${scrollOnLoad}>
+                    <img class="chat-msg-img" data-msg-id="${log.message_id || ''}" src="/api/photos/${singlePhotoId}?client_id=${selectedChatClientId || ''}" onerror="handlePhotoError(this)" ${scrollOnLoad}>
                 </div>
                 <span class="chat-msg-time-inline photo-time">${timeStr}</span>
             </div>
@@ -1562,7 +1576,7 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
             contentHtml += `
                 <div class="chat-msg-photo-wrapper">
                     <div class="chat-msg-photo-blur-bg" style="background-image: url('/api/photos/${singlePhotoId}?client_id=${selectedChatClientId || ''}');"></div>
-                    <img class="chat-msg-img" src="/api/photos/${singlePhotoId}?client_id=${selectedChatClientId || ''}" onerror="handlePhotoError(this)" ${scrollOnLoad}>
+                    <img class="chat-msg-img" data-msg-id="${log.message_id || ''}" src="/api/photos/${singlePhotoId}?client_id=${selectedChatClientId || ''}" onerror="handlePhotoError(this)" ${scrollOnLoad}>
                 </div>
             `;
         }
@@ -1975,6 +1989,28 @@ function handleIncomingWebSocketMessage(data) {
         if (bodyContainer) {
             const isNearBottom = bodyContainer.scrollHeight - bodyContainer.scrollTop - bodyContainer.clientHeight < 100;
             const isChatActiveAndVisible = (typeof currentTab !== 'undefined' && currentTab === 'chat');
+            // Maintain chat cache in Telegram order.
+            const logObj = {
+                sender: data.sender,
+                message_text: data.message_text,
+                photo_id: data.photo_id,
+                message_id: data.message_id,
+                reply_to_message_id: data.reply_to_message_id,
+                created_at: data.created_at
+            };
+            if (!chatLogsCache[data.client_id]) {
+                chatLogsCache[data.client_id] = [];
+            }
+            chatLogsCache[data.client_id].push(logObj);
+            chatLogsCache[data.client_id].sort((a, b) => {
+                const at = a.created_at || '';
+                const bt = b.created_at || '';
+                if (at !== bt) return at.localeCompare(bt);
+                const am = a.message_id != null ? Number(a.message_id) : (a.id != null ? Number(a.id) : 0);
+                const bm = b.message_id != null ? Number(b.message_id) : (b.id != null ? Number(b.id) : 0);
+                return am - bm;
+            });
+
             if (data.sender === 'client') {
                 playSound('new_message');
                 if (!isChatActiveAndVisible) {
@@ -2019,21 +2055,24 @@ function handleIncomingWebSocketMessage(data) {
                             img1.removeAttribute('height');
                             img1.removeAttribute('style');
                             img1.className = 'chat-msg-gallery-img';
+                            img1.dataset.msgId = singleImg.dataset.msgId || lastMsgContainer.getAttribute('data-msg-id') || '';
                             img1.onload = function() { checkGalleryImgLayout(img1); };
-                            
+
                             const img2 = document.createElement('img');
                             img2.removeAttribute('width');
                             img2.removeAttribute('height');
                             img2.removeAttribute('style');
                             img2.className = 'chat-msg-gallery-img';
+                            img2.dataset.msgId = data.message_id || '';
                             img2.onerror = function() { handlePhotoError(img2); };
                             const photoParam2 = selectedChatClientId ? `?client_id=${selectedChatClientId}` : '';
                             img2.src = `/api/photos/${data.photo_id}${photoParam2}`;
                             img2.onload = function() { checkGalleryImgLayout(img2); checkGalleryImgLayout(img1); scrollToBottom('chat-window-body-container'); };
-                            
+
                             gallery.appendChild(img1);
                             gallery.appendChild(img2);
-                            
+                            sortGalleryImages(gallery);
+
                             singleImg.replaceWith(gallery);
                             applyAlbumGridLayout(gallery);
                             
@@ -2067,12 +2106,14 @@ function handleIncomingWebSocketMessage(data) {
                             img.removeAttribute('height');
                             img.removeAttribute('style');
                             img.className = 'chat-msg-gallery-img';
+                            img.dataset.msgId = data.message_id || '';
                             img.onerror = function() { handlePhotoError(img); };
                             const photoParam = selectedChatClientId ? `?client_id=${selectedChatClientId}` : '';
                             img.src = `/api/photos/${data.photo_id}${photoParam}`;
                             img.onload = function() { checkGalleryImgLayout(img); scrollToBottom('chat-window-body-container'); };
-                            
+
                             existingGallery.appendChild(img);
+                            sortGalleryImages(existingGallery);
 
                             // Update grid layout class based on new photo count
                             const newCount = existingGallery.querySelectorAll('.chat-msg-gallery-img:not(.chat-msg-gallery-img-hidden)').length;
@@ -2111,18 +2152,6 @@ function handleIncomingWebSocketMessage(data) {
                 lastMsgContainer.classList.add('same-sender-next');
             }
 
-            const logObj = {
-                sender: data.sender,
-                message_text: data.message_text,
-                photo_id: data.photo_id,
-                message_id: data.message_id,
-                reply_to_message_id: data.reply_to_message_id,
-                created_at: data.created_at
-            };
-            if (!chatLogsCache[data.client_id]) {
-                chatLogsCache[data.client_id] = [];
-            }
-            chatLogsCache[data.client_id].push(logObj);
             renderSingleChatMessage(bodyContainer, logObj);
             scrollToBottom('chat-window-body-container');
         }

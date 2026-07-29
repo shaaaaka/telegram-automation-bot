@@ -140,7 +140,7 @@ async def get_chat_logs(client_id: int):
     async with aiosqlite.connect(db_mod.DB_FILE) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
-            SELECT * FROM chat_logs WHERE client_id = ? ORDER BY created_at ASC
+            SELECT * FROM chat_logs WHERE client_id = ? ORDER BY created_at ASC, COALESCE(message_id, id) ASC
         """, (client_id,)) as cursor:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
