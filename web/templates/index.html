@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=200.23">
+    <link rel="stylesheet" href="/static/css/style.css?v=200.30">
 </head>
 <body>
     <div class="container">
@@ -2356,6 +2356,13 @@ Line {line_id} Return: {line_phone} | {bank}
         <button class="lightbox-close" onclick="closeLightbox()" title="Закрити (Esc)">✕</button>
         <img id="lightbox-img" class="lightbox-image" src="" alt="Full Screen Preview" onclick="event.stopPropagation()">
         <video id="lightbox-video" class="lightbox-video" src="" controls style="max-width: 90%; max-height: 90vh; border-radius: 8px; display: none; outline: none; box-shadow: 0 10px 40px rgba(0,0,0,0.5);" onclick="event.stopPropagation()"></video>
+        <button class="lightbox-nav lightbox-prev" id="lightbox-prev" onclick="event.stopPropagation(); lightboxNav(-1)" title="Попереднє (←)" style="display: none;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <button class="lightbox-nav lightbox-next" id="lightbox-next" onclick="event.stopPropagation(); lightboxNav(1)" title="Наступне (→)" style="display: none;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+        <div class="lightbox-counter" id="lightbox-counter" style="display: none;" onclick="event.stopPropagation()">1 / 1</div>
     </div>
 
     <!-- Модалка відправки фото -->
@@ -2379,7 +2386,7 @@ Line {line_id} Return: {line_phone} | {bank}
 
     <script src="/static/js/main.js?v=15.0"></script>
     <script src="/static/js/control.js?v=13.0"></script>
-    <script src="/static/js/chat.js?v=19.0"></script>
+    <script src="/static/js/chat.js?v=20.10"></script>
     <script src="/static/js/stats.js?v=11.0"></script>
     <script src="/static/js/settings.js?v=18.0"></script>
     <script src="/static/js/settings-banks.js?v=26.0"></script>

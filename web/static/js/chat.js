@@ -39,7 +39,23 @@ window.addEventListener('load', function(e) {
     }
 }, true);
 
-window.openLightbox = function(src) {
+let lightboxPhotos = [];
+let lightboxIndex = 0;
+
+function updateLightboxNavUI() {
+    const prevBtn = document.getElementById('lightbox-prev');
+    const nextBtn = document.getElementById('lightbox-next');
+    const counter = document.getElementById('lightbox-counter');
+    const hasMany = lightboxPhotos.length > 1;
+    if (prevBtn) prevBtn.style.display = hasMany ? 'flex' : 'none';
+    if (nextBtn) nextBtn.style.display = hasMany ? 'flex' : 'none';
+    if (counter) {
+        counter.style.display = hasMany ? 'block' : 'none';
+        counter.textContent = `${lightboxIndex + 1} / ${lightboxPhotos.length}`;
+    }
+}
+
+window.openLightbox = function(src, photos, index) {
     console.log('[Lightbox] openLightbox called with src:', src);
     if (!src) return;
     const overlay = document.getElementById('image-lightbox');
@@ -49,6 +65,9 @@ window.openLightbox = function(src) {
         console.error('[Lightbox] overlay element not found');
         return;
     }
+
+    lightboxPhotos = (Array.isArray(photos) && photos.length > 0) ? photos.slice() : [src];
+    lightboxIndex = Math.min(Math.max(index || 0, 0), lightboxPhotos.length - 1);
 
     const isVideo = String(src).toLowerCase().endsWith('.mp4') ||
                     String(src).toLowerCase().endsWith('.mov') ||
@@ -70,19 +89,29 @@ window.openLightbox = function(src) {
         if (img) {
             img.src = src;
             img.style.display = 'block';
-            img.onload = function() { console.log('[Lightbox] image loaded, naturalWidth:', img.naturalWidth, 'naturalHeight:', img.naturalHeight); };
             img.onerror = function(e) { console.error('[Lightbox] image failed to load', e); };
         }
     }
 
     overlay.classList.add('active');
-    console.log('[Lightbox] overlay className after active:', overlay.className);
-    const computed = window.getComputedStyle(overlay);
-    console.log('[Lightbox] overlay computed opacity:', computed.opacity, 'visibility:', computed.visibility, 'display:', computed.display, 'zIndex:', computed.zIndex);
-    if (img) {
-        const rect = img.getBoundingClientRect();
-        console.log('[Lightbox] img rect:', rect.width, rect.height, rect.top, rect.left, rect.right, rect.bottom, 'src:', img.src, 'style.display:', img.style.display);
+    updateLightboxNavUI();
+};
+
+window.lightboxNav = function(dir) {
+    if (!lightboxPhotos || lightboxPhotos.length < 2) return;
+    lightboxIndex = (lightboxIndex + dir + lightboxPhotos.length) % lightboxPhotos.length;
+    const src = lightboxPhotos[lightboxIndex];
+    const img = document.getElementById('lightbox-img');
+    const video = document.getElementById('lightbox-video');
+    if (video) {
+        try { video.pause(); } catch(e) {}
+        video.style.display = 'none';
     }
+    if (img) {
+        img.style.display = 'block';
+        img.src = src;
+    }
+    updateLightboxNavUI();
 };
 
 window.closeLightbox = function(source) {
@@ -95,20 +124,55 @@ window.closeLightbox = function(source) {
     if (overlay) {
         overlay.classList.remove('active');
     }
+    lightboxPhotos = [];
+    lightboxIndex = 0;
+    updateLightboxNavUI();
 };
+
+// Keyboard navigation for the lightbox gallery: arrows switch photos, Esc closes.
+document.addEventListener('keydown', function(e) {
+    const overlay = document.getElementById('image-lightbox');
+    if (!overlay || !overlay.classList.contains('active')) return;
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        window.closeLightbox('keyboard');
+    } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        window.lightboxNav(-1);
+    } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        window.lightboxNav(1);
+    }
+});
 
 // Global Capture-Phase Failsafe Click Handler for Lightbox Previews
 document.addEventListener('click', function(e) {
     const target = e.target;
-    if (!target) return;
-    const img = target.closest ? target.closest('.chat-msg-img, .chat-msg-gallery-img, .chat-reply-thumb, .chat-msg-quote-thumb') : null;
+    if (!target || !target.closest) return;
+    let img = null;
+    const moreCell = target.closest('.chat-msg-gallery-more-cell');
+    if (moreCell) {
+        img = moreCell.querySelector('img.chat-msg-gallery-img');
+    } else {
+        img = target.closest('.chat-msg-img, .chat-msg-gallery-img, .chat-reply-thumb, .chat-msg-quote-thumb');
+    }
     const src = img ? img.src : (target.tagName === 'IMG' && target.src && target.src.includes('/api/photos/') ? target.src : null);
     if (src) {
         console.log('[Lightbox] Click detected on photo, src:', src);
         e.preventDefault();
         e.stopPropagation();
         if (typeof window.openLightbox === 'function') {
-            window.openLightbox(src);
+            let photos = null;
+            let index = 0;
+            const gallery = img && img.closest ? img.closest('.chat-msg-gallery') : null;
+            if (gallery) {
+                const allImgs = Array.from(gallery.querySelectorAll('.chat-msg-gallery-img'));
+                if (allImgs.length > 1) {
+                    photos = allImgs.map(i => i.src);
+                    index = Math.max(0, allImgs.indexOf(img));
+                }
+            }
+            window.openLightbox(src, photos, index);
         } else {
             console.error('[Lightbox] window.openLightbox is not a function');
         }
@@ -137,6 +201,164 @@ window.handlePhotoError = function(img) {
     }, delay);
 };
 
+// --- Telegram-style adaptive album mosaic engine ---
+// Computes a pixel-perfect mosaic (absolutely positioned tiles) from the real
+// aspect ratios of the photos, mirroring Telegram's album layouts for 2..N photos.
+
+const ALBUM_GAP = 2;
+
+function clampAlbumRatio(r) {
+    if (!r || !isFinite(r) || r <= 0) r = 1;
+    return Math.min(Math.max(r, 0.4), 3.2);
+}
+
+// Simple row of photos: widths proportional to aspect ratios, preserving each photo's aspect.
+function buildAlbumRow(rowRatios, widthPx, yOffset) {
+    const availW = widthPx - (rowRatios.length - 1) * ALBUM_GAP;
+    const sumR = rowRatios.reduce((a, b) => a + b, 0) || 1;
+    const h = availW / sumR;
+    const widths = rowRatios.map(r => h * r);
+    const tiles = [];
+    let x = 0;
+    rowRatios.forEach((r, i) => {
+        tiles.push({ x: Math.round(x), y: Math.round(yOffset), w: Math.round(widths[i]), h: Math.round(h) });
+        x += widths[i] + ALBUM_GAP;
+    });
+    return { tiles: tiles, height: h };
+}
+
+// Big left photo spanning full block height + stacked right column (Telegram 3/4-photo style).
+function buildAlbumBigLeft(leftRatio, rightRatios, widthPx, yOffset) {
+    const n = rightRatios.length;
+    const invSum = rightRatios.reduce((a, r) => a + 1 / r, 0) || 1;
+    let wR = (widthPx - ALBUM_GAP * ((n - 1) * leftRatio + 1)) / (invSum * leftRatio + 1);
+    if (!isFinite(wR) || wR <= 0) wR = widthPx / 2;
+    let H = wR * invSum + (n - 1) * ALBUM_GAP;
+    let wL = H * leftRatio;
+    if (wL + ALBUM_GAP + wR > widthPx) {
+        wL = Math.max(widthPx * 0.35, widthPx - ALBUM_GAP - wR);
+        H = wL / leftRatio;
+    }
+    wR = widthPx - ALBUM_GAP - wL;
+    const tiles = [{ x: 0, y: Math.round(yOffset), w: Math.round(wL), h: Math.round(H) }];
+    const heights = rightRatios.map(r => wR / r);
+    const sumH = heights.reduce((a, b) => a + b, 0) || 1;
+    const scale = (H - (n - 1) * ALBUM_GAP) / sumH;
+    const scaledHeights = heights.map(h => h * scale);
+    let y = yOffset;
+    rightRatios.forEach((r, i) => {
+        tiles.push({ x: Math.round(wL + ALBUM_GAP), y: Math.round(y), w: Math.round(wR), h: Math.round(scaledHeights[i]) });
+        y += scaledHeights[i] + ALBUM_GAP;
+    });
+    return { tiles: tiles, height: H };
+}
+
+// Main entry: returns { width, height, tiles: [{x,y,w,h}] } for a Telegram-style mosaic.
+window.computeAlbumLayout = function(rawRatios, widthPx) {
+    const ratios = rawRatios.map(clampAlbumRatio);
+    const n = ratios.length;
+    const avgR = ratios.reduce((a, b) => a + b, 0) / n;
+    let tiles = [];
+    let totalH = 0;
+
+    if (n === 2) {
+        const row = buildAlbumRow(ratios, widthPx, 0);
+        tiles = row.tiles;
+        totalH = row.height;
+    } else if (n === 3) {
+        const block = buildAlbumBigLeft(ratios[0], ratios.slice(1), widthPx, 0);
+        tiles = block.tiles;
+        totalH = block.height;
+    } else if (n === 4) {
+        if (avgR < 0.85) {
+            // Portrait set: one tall left photo + three stacked right (as in Telegram mobile).
+            const block = buildAlbumBigLeft(ratios[0], ratios.slice(1), widthPx, 0);
+            tiles = block.tiles;
+            totalH = block.height;
+        } else {
+            const r1 = buildAlbumRow(ratios.slice(0, 2), widthPx, 0);
+            const r2 = buildAlbumRow(ratios.slice(2), widthPx, r1.height + ALBUM_GAP);
+            tiles = r1.tiles.concat(r2.tiles);
+            totalH = r1.height + ALBUM_GAP + r2.height;
+        }
+    } else {
+        let rowSizes;
+        if (n === 5) rowSizes = [2, 3];
+        else if (n === 6) rowSizes = null;
+        else if (n === 7) rowSizes = [2, 2, 3];
+        else if (n === 8) rowSizes = [2, 3, 3];
+        else if (n === 9) rowSizes = [3, 3, 3];
+        else if (n === 10) rowSizes = [2, 2, 3, 3];
+        else {
+            rowSizes = [];
+            let rem = n;
+            while (rem > 0) {
+                const s = Math.min(3, rem);
+                rowSizes.push(s);
+                rem -= s;
+            }
+            if (rowSizes.length > 1 && rowSizes[rowSizes.length - 1] === 1) {
+                rowSizes[rowSizes.length - 2] = 2;
+                rowSizes[rowSizes.length - 1] = 2;
+            }
+        }
+
+        if (n === 6) {
+            if (avgR < 0.85) {
+                // Portrait set: big-left block on top + row of three below (Telegram mobile).
+                const block = buildAlbumBigLeft(ratios[0], ratios.slice(1, 3), widthPx, 0);
+                const row = buildAlbumRow(ratios.slice(3), widthPx, block.height + ALBUM_GAP);
+                tiles = block.tiles.concat(row.tiles);
+                totalH = block.height + ALBUM_GAP + row.height;
+            } else {
+                rowSizes = [3, 3];
+            }
+        }
+
+        if (rowSizes) {
+            let y = 0;
+            let idx = 0;
+            rowSizes.forEach(size => {
+                const row = buildAlbumRow(ratios.slice(idx, idx + size), widthPx, y);
+                tiles = tiles.concat(row.tiles);
+                y += row.height + ALBUM_GAP;
+                idx += size;
+            });
+            totalH = y - ALBUM_GAP;
+        }
+    }
+
+    // Cap total mosaic height; all tiles scale proportionally so no cropping.
+    const maxTotal = n <= 2 ? 420 : (n <= 4 ? 520 : 480);
+    let finalWidth = widthPx;
+    if (totalH > maxTotal) {
+        const f = maxTotal / totalH;
+        tiles = tiles.map(t => ({ x: Math.round(t.x * f), y: Math.round(t.y * f), w: Math.max(1, Math.round(t.w * f)), h: Math.max(60, Math.round(t.h * f)) }));
+        totalH = maxTotal;
+        finalWidth = widthPx * f;
+    }
+
+    return { width: Math.round(finalWidth), height: Math.round(totalH), tiles: tiles };
+};
+
+// Mark the gallery as loaded and make sure all contained images use contain.
+// The actual grid layout is handled by CSS; the JS mosaic engine is no longer used.
+function applyAlbumGridLayout(gallery) {
+    gallery.classList.add('loaded');
+
+    const images = gallery.querySelectorAll('.chat-msg-gallery-img');
+    images.forEach(img => {
+        if (img.parentElement && img.parentElement.classList.contains('chat-msg-gallery-more-cell')) return;
+        img.style.setProperty('width', '100%', 'important');
+        img.style.setProperty('height', '100%', 'important');
+        img.style.setProperty('object-fit', 'contain', 'important');
+        img.style.setProperty('object-position', 'center center', 'important');
+        img.style.removeProperty('position');
+        img.style.removeProperty('left');
+        img.style.removeProperty('top');
+    });
+}
+
 window.checkGalleryImgLayout = function(img) {
     if (!img) return;
     const gallery = img.closest('.chat-msg-gallery');
@@ -144,141 +366,14 @@ window.checkGalleryImgLayout = function(img) {
 
     const images = Array.from(gallery.querySelectorAll('.chat-msg-gallery-img'));
     images.forEach(i => {
-        if (!i.complete && !i._hasLoadListener) {
+        if (!i._hasLoadListener) {
             i._hasLoadListener = true;
             i.addEventListener('load', function() { checkGalleryImgLayout(i); });
+            i.addEventListener('error', function() { checkGalleryImgLayout(i); });
         }
     });
 
-    if (!images.every(i => i.complete && i.naturalWidth && i.naturalHeight)) return;
-    gallery.classList.add('loaded');
-
-    const ratios = images.map(i => i.naturalWidth / i.naturalHeight);
-    const count = images.length;
-    const chatContainer = document.getElementById('chat-window-body-container') || gallery.closest('.chat-window') || document.body;
-    const chatWidth = chatContainer.clientWidth || 680;
-    const maxGalleryWidth = Math.min(480, Math.max(chatWidth * 0.70, 280));
-    const maxGalleryHeight = 520;
-    const gap = 2;
-
-    let widthPx = maxGalleryWidth;
-    let heightPx = 0;
-    let columns = '';
-    let rows = '';
-
-    if (count === 2) {
-        // Two photos side-by-side in equal-width grid cells using cover so the
-        // album is fully filled with no gaps, Telegram-style.
-        const r1 = ratios[0] || 1;
-        const r2 = ratios[1] || 1;
-        const sumR = r1 + r2;
-        heightPx = Math.min(Math.max((maxGalleryWidth - gap) / sumR, 140), maxGalleryHeight);
-        widthPx = maxGalleryWidth;
-
-        const widthStr = Math.round(widthPx) + 'px';
-        const heightStr = Math.round(heightPx) + 'px';
-
-        gallery.style.setProperty('display', 'grid', 'important');
-        gallery.style.setProperty('grid-template-columns', '1fr 1fr', 'important');
-        gallery.style.setProperty('grid-template-rows', heightStr, 'important');
-        gallery.style.setProperty('width', widthStr, 'important');
-        gallery.style.setProperty('height', heightStr, 'important');
-        gallery.style.setProperty('max-width', '100%', 'important');
-        gallery.style.setProperty('gap', gap + 'px', 'important');
-        gallery.style.setProperty('border-radius', '14px', 'important');
-        gallery.style.setProperty('overflow', 'hidden', 'important');
-        gallery.style.setProperty('background', '#090d16', 'important');
-        gallery.style.setProperty('align-items', 'stretch', 'important');
-        gallery.style.setProperty('justify-items', 'stretch', 'important');
-
-        images.forEach(image => {
-            image.style.setProperty('width', '100%', 'important');
-            image.style.setProperty('height', '100%', 'important');
-            image.style.setProperty('object-fit', 'cover', 'important');
-            image.style.setProperty('object-position', 'center center', 'important');
-            image.style.setProperty('background', '#090d16', 'important');
-        });
-
-        const wrapper = gallery.closest('.chat-msg-media-wrapper');
-        if (wrapper) {
-            wrapper.style.setProperty('width', widthStr, 'important');
-            wrapper.style.setProperty('height', heightStr, 'important');
-            wrapper.style.setProperty('max-width', '100%', 'important');
-            wrapper.style.setProperty('overflow', 'hidden', 'important');
-            wrapper.style.setProperty('border-radius', '14px', 'important');
-        }
-
-        const bubble = gallery.closest('.chat-msg-bubble');
-        if (bubble) {
-            bubble.style.setProperty('width', widthStr, 'important');
-            bubble.style.setProperty('max-width', '100%', 'important');
-            bubble.style.setProperty('height', 'auto', 'important');
-        }
-        return;
-    } else if (count === 3) {
-        // Left image spans two rows; two images stacked on the right.
-        const leftR = ratios[0] || 1;
-        const rightMaxR = Math.max(ratios[1] || 1, ratios[2] || 1);
-        const totalR = leftR + rightMaxR / 2 || 1;
-        heightPx = Math.min(Math.max((maxGalleryWidth - gap) / totalR, 160), maxGalleryHeight);
-        const wLeft = Math.round(leftR * heightPx);
-        const wRight = Math.max(0, maxGalleryWidth - gap - wLeft);
-        const hRightTop = Math.round(heightPx / 2);
-        const hRightBottom = Math.max(0, Math.round(heightPx) - hRightTop);
-        widthPx = wLeft + wRight + gap;
-        columns = `${wLeft}px ${wRight}px`;
-        rows = `${hRightTop}px ${hRightBottom}px`;
-    } else if (count === 4) {
-        // 2x2 grid; row heights match the widest image in each row.
-        const halfW = (maxGalleryWidth - gap) / 2;
-        const hTop = ratios[0] && ratios[1] ? halfW / Math.max(ratios[0], ratios[1]) : halfW;
-        const hBottom = ratios[2] && ratios[3] ? halfW / Math.max(ratios[2], ratios[3]) : halfW;
-        const rTop = Math.round(hTop);
-        const rBottom = Math.round(hBottom);
-        heightPx = rTop + rBottom + gap;
-        const wLeft = Math.round(maxGalleryWidth / 2);
-        const wRight = Math.max(0, maxGalleryWidth - gap - wLeft);
-        widthPx = maxGalleryWidth;
-        columns = `${wLeft}px ${wRight}px`;
-        rows = `${rTop}px ${rBottom}px`;
-    } else {
-        return;
-    }
-
-    widthPx = Math.max(120, Math.min(widthPx, maxGalleryWidth));
-    heightPx = Math.max(120, Math.min(heightPx, maxGalleryHeight));
-
-    const widthStr = Math.round(widthPx) + 'px';
-    const heightStr = Math.round(heightPx) + 'px';
-
-    gallery.style.setProperty('display', 'grid', 'important');
-    gallery.style.setProperty('width', widthStr, 'important');
-    gallery.style.setProperty('height', heightStr, 'important');
-    gallery.style.setProperty('max-width', '100%', 'important');
-    gallery.style.setProperty('grid-template-columns', columns, 'important');
-    gallery.style.setProperty('grid-template-rows', rows, 'important');
-    gallery.style.setProperty('gap', gap + 'px', 'important');
-    gallery.style.setProperty('border-radius', '14px', 'important');
-    gallery.style.setProperty('overflow', 'hidden', 'important');
-    gallery.style.setProperty('background', '#090d16', 'important');
-    gallery.style.setProperty('align-items', 'stretch', 'important');
-    gallery.style.setProperty('justify-items', 'stretch', 'important');
-
-    const wrapper = gallery.closest('.chat-msg-media-wrapper');
-    if (wrapper) {
-        wrapper.style.setProperty('width', widthStr, 'important');
-        wrapper.style.setProperty('height', heightStr, 'important');
-        wrapper.style.setProperty('max-width', '100%', 'important');
-        wrapper.style.setProperty('overflow', 'hidden', 'important');
-        wrapper.style.setProperty('border-radius', '14px', 'important');
-    }
-
-    const bubble = gallery.closest('.chat-msg-bubble');
-    if (bubble) {
-        bubble.style.setProperty('width', widthStr, 'important');
-        bubble.style.setProperty('max-width', '100%', 'important');
-        bubble.style.setProperty('height', 'auto', 'important');
-    }
+    applyAlbumGridLayout(gallery);
 };
 
 function showScrollBottomButton(increment = 0) {
@@ -1261,13 +1356,23 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
     const singlePhotoId = log.photo_id || (log.photo_ids && log.photo_ids.length > 0 ? log.photo_ids[0] : null);
 
     if (log.photo_ids && log.photo_ids.length > 1) {
-        const albumClass = log.photo_ids.length > 9 ? 'album-count-many' : `album-count-${log.photo_ids.length}`;
+        const allPhotoIds = log.photo_ids;
+        const overflowCount = allPhotoIds.length > 10 ? allPhotoIds.length - 9 : 0;
+        const visiblePhotoIds = overflowCount > 0 ? allPhotoIds.slice(0, 9) : allPhotoIds;
+        const albumClass = overflowCount > 0 ? 'album-count-many' : `album-count-${allPhotoIds.length}`;
+        const pidClientParam = selectedChatClientId ? `?client_id=${selectedChatClientId}` : '';
         const galleryHtml = `<div class="chat-msg-gallery ${albumClass}">` +
-            log.photo_ids.map(pid => {
+            visiblePhotoIds.map((pid, vIdx) => {
                 const scrollOnLoad = isHistoryRender ? '' : ' scrollToBottom(\'chat-window-body-container\')';
-                const pidClientParam = selectedChatClientId ? `?client_id=${selectedChatClientId}` : '';
-                return `<img class="chat-msg-gallery-img" src="/api/photos/${pid}${pidClientParam}" onerror="handlePhotoError(this)" onload="checkGalleryImgLayout(this);${scrollOnLoad}">`;
+                const imgTag = `<img class="chat-msg-gallery-img" src="/api/photos/${pid}${pidClientParam}" onerror="handlePhotoError(this)" onload="checkGalleryImgLayout(this);${scrollOnLoad}">`;
+                if (overflowCount > 0 && vIdx === visiblePhotoIds.length - 1) {
+                    return `<div class="chat-msg-gallery-more-cell">${imgTag}<span class="chat-msg-gallery-more">+${overflowCount}</span></div>`;
+                }
+                return imgTag;
             }).join('') +
+            (overflowCount > 0 ? allPhotoIds.slice(9).map(pid => {
+                return `<img class="chat-msg-gallery-img chat-msg-gallery-img-hidden" src="/api/photos/${pid}${pidClientParam}" style="display:none;" onerror="handlePhotoError(this)">`;
+            }).join('') : '') +
             `</div>`;
         if (hasText) {
             contentHtml += galleryHtml;
@@ -1369,6 +1474,14 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
     };
     containerDiv._receivedAt = Date.now();
     container.appendChild(containerDiv);
+
+    if (log.photo_ids && log.photo_ids.length > 1) {
+        requestAnimationFrame(() => {
+            const gallery = containerDiv.querySelector('.chat-msg-gallery');
+            const firstImg = gallery && gallery.querySelector('.chat-msg-gallery-img');
+            if (firstImg) checkGalleryImgLayout(firstImg);
+        });
+    }
 }
 
 // Global Custom Telegram Context Menu Handler
@@ -1735,8 +1848,8 @@ function handleIncomingWebSocketMessage(data) {
                 return 'support';
             };
 
-            // Attempt to merge photos in real-time if received within 5 seconds
-            if (data.photo_id && lastMsgContainer && lastMsgContainer._receivedAt && (Date.now() - lastMsgContainer._receivedAt < 5000)) {
+            // Attempt to merge photos in real-time if received within 180 seconds (3 minutes)
+            if (data.photo_id && lastMsgContainer && lastMsgContainer._receivedAt && (Date.now() - lastMsgContainer._receivedAt < 180000)) {
                 if (getLastMsgSenderGroup(lastMsgContainer) === getSenderGroup(data.sender)) {
                     const lastBubble = lastMsgContainer.querySelector('.chat-msg-bubble');
                     if (lastBubble) {
@@ -2124,7 +2237,7 @@ function groupPhotoLogs(logs) {
             const nextTime = parseUtcToLocal(next.created_at);
             if (currentGroupTime && nextTime) {
                 const diffMs = Math.abs(nextTime.getTime() - currentGroupTime.getTime());
-                if (diffMs > 5000) { // 5 seconds threshold
+                if (diffMs > 180000) { // 3 minutes threshold for grouping photos into album
                     break;
                 }
             } else {
