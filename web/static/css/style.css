@@ -8433,7 +8433,11 @@ html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-time
 /* --- Telegram-style album mosaic extras --- */
 
 /* Fallback grid for 5..8 and 10 photo albums; JS overrides with exact Telegram layouts */
-html body .chat-msg-gallery.album-count-5,
+html body .chat-msg-gallery.album-count-5 {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    grid-template-rows: 460px 240px !important;
+}
+
 html body .chat-msg-gallery.album-count-6,
 html body .chat-msg-gallery.album-count-7,
 html body .chat-msg-gallery.album-count-8,
