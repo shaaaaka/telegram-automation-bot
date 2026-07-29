@@ -6117,34 +6117,38 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
 }
 
 .chat-msg-gallery {
-    display: flex;
-    align-items: stretch;
+    display: grid;
     gap: 2px;
-    width: 440px;
-    max-width: 100%;
+    width: min(560px, 95vw);
+    max-width: min(560px, 95vw);
+    max-height: 1300px;
     padding: 0;
     box-sizing: border-box;
     border: none !important;
     box-shadow: none !important;
-    background: transparent !important;
-    border-radius: 12px;
+    background: #090d16 !important;
+    border-radius: 14px;
     overflow: hidden;
+    align-items: stretch;
+    justify-items: stretch;
 }
 
 .chat-msg-gallery-img {
-    flex: 1 1 0%;
-    min-width: 0;
     width: 100%;
-    height: 100% !important;
-    max-height: none !important;
-    object-fit: cover !important;
-    object-position: top center !important;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    max-width: none;
+    max-height: none;
+    object-fit: cover;
+    object-position: top center;
     background: #090d16 !important;
-    border-radius: 2px;
+    border-radius: 0;
     border: none !important;
     box-shadow: none;
     outline: none;
     cursor: pointer;
+    display: block;
     transition: filter 0.2s ease, opacity 0.2s ease;
     image-rendering: -webkit-optimize-contrast;
     image-rendering: high-quality;
@@ -6156,7 +6160,8 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
 }
 
 .chat-msg-bubble.has-gallery {
-    max-width: min(520px, 85%) !important;
+    max-width: min(560px, 95vw) !important;
+    max-height: 1300px !important;
 }
 
 /* Inline Timestamps in JetBrains Mono */
@@ -8305,7 +8310,7 @@ html body .chat-msg-gallery {
     min-width: 160px !important;
     height: auto !important;
     max-width: min(560px, 95vw) !important;
-    max-height: 1000px !important;
+    max-height: 1300px !important;
     border-radius: 14px !important;
     overflow: hidden !important;
     background: #090d16 !important;
@@ -8315,14 +8320,14 @@ html body .chat-msg-gallery {
 
 html body .chat-msg-gallery.album-count-2,
 html body .chat-msg-gallery.album-count-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    grid-template-rows: minmax(240px, 380px) !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-rows: minmax(380px, 520px) !important;
 }
 
 html body .chat-msg-gallery.album-count-3,
 html body .chat-msg-gallery.album-count-3 {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    grid-template-rows: repeat(2, minmax(200px, 280px)) !important;
+    grid-template-columns: 2fr 1fr !important;
+    grid-template-rows: repeat(2, minmax(300px, 320px)) !important;
 }
 
 html body .chat-msg-gallery.album-count-3 .chat-msg-gallery-img:first-child,
@@ -8333,24 +8338,24 @@ html body .chat-msg-gallery.album-count-3 .chat-msg-gallery-img:first-child {
 
 html body .chat-msg-gallery.album-count-4,
 html body .chat-msg-gallery.album-count-4 {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    grid-template-rows: repeat(2, minmax(200px, 280px)) !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-rows: repeat(2, minmax(230px, 300px)) !important;
 }
 
 html body .chat-msg-gallery.album-count-many,
 html body .chat-msg-gallery.album-count-many {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    grid-auto-rows: minmax(180px, 240px) !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-rows: repeat(3, minmax(240px, 320px)) !important;
 }
 
 html body .chat-msg-gallery-img,
 html body .chat-msg-gallery-img {
     width: 100% !important;
     height: 100% !important;
-    max-width: none !important;
-    max-height: none !important;
     min-width: 0 !important;
     min-height: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
     object-fit: cover !important;
     object-position: top center !important;
     background: #090d16 !important;
@@ -8425,15 +8430,15 @@ html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-time
 
 /* --- Telegram-style album mosaic extras --- */
 
-/* Fallback grid for 5..10 photo albums while the JS mosaic engine waits for image loads */
+/* Fallback grid for 5..10 photo albums; JS overrides with exact Telegram layouts */
 html body .chat-msg-gallery.album-count-5,
 html body .chat-msg-gallery.album-count-6,
 html body .chat-msg-gallery.album-count-7,
 html body .chat-msg-gallery.album-count-8,
 html body .chat-msg-gallery.album-count-9,
 html body .chat-msg-gallery.album-count-10 {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    grid-auto-rows: minmax(180px, 240px) !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    grid-auto-rows: minmax(240px, 320px) !important;
 }
 
 /* Cell that hosts the "+N" overflow overlay (albums with more than 10 photos) */
@@ -8489,12 +8494,13 @@ html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-bubb
 html body div.chat-page-layout div.chat-msg-container .chat-msg-bubble.has-gallery:not(.photo-only),
 html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-bubble.has-gallery:not(.photo-only) {
     max-width: min(560px, 95vw) !important;
+    max-height: 1300px !important;
 }
 
 html body div.chat-page-layout div.chat-msg-container .chat-msg-bubble.has-gallery .chat-msg-media-wrapper,
 html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-bubble.has-gallery .chat-msg-media-wrapper {
     max-width: min(560px, 95vw) !important;
-    max-height: 1000px !important;
+    max-height: 1300px !important;
 }
 
 /* --- Lightbox gallery navigation --- */

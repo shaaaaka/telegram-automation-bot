@@ -341,21 +341,160 @@ window.computeAlbumLayout = function(rawRatios, widthPx) {
     return { width: Math.round(finalWidth), height: Math.round(totalH), tiles: tiles };
 };
 
-// Mark the gallery as loaded and make sure all contained images use contain.
-// The actual grid layout is handled by CSS; the JS mosaic engine is no longer used.
+// Apply Telegram-style CSS grid layouts to an album gallery.
+// Each visible tile (including the more-cell overlay) gets explicit grid-column/row,
+// and every photo is set to fill its cell with cover + top-center positioning.
 function applyAlbumGridLayout(gallery) {
     gallery.classList.add('loaded');
 
-    const images = gallery.querySelectorAll('.chat-msg-gallery-img');
-    images.forEach(img => {
-        if (img.parentElement && img.parentElement.classList.contains('chat-msg-gallery-more-cell')) return;
-        img.style.setProperty('width', '100%', 'important');
-        img.style.setProperty('height', '100%', 'important');
-        img.style.setProperty('object-fit', 'cover', 'important');
-        img.style.setProperty('object-position', 'top center', 'important');
+    const cells = Array.from(gallery.children).filter(el => {
+        return !el.classList.contains('chat-msg-gallery-img-hidden') && window.getComputedStyle(el).display !== 'none';
+    });
+
+    const totalCount = cells.length;
+    if (totalCount === 0) return;
+
+    // Overflow albums render at most 9 visible tiles (the 9th is the more-cell).
+    const visibleCells = totalCount > 9 ? cells.slice(0, 9) : cells;
+    const n = visibleCells.length;
+
+    const setImportant = (el, prop, value) => el.style.setProperty(prop, value, 'important');
+
+    const getImg = (cell) => {
+        if (cell.classList.contains('chat-msg-gallery-more-cell')) {
+            return cell.querySelector('img.chat-msg-gallery-img');
+        }
+        if (cell.classList.contains('chat-msg-gallery-img')) {
+            return cell;
+        }
+        return null;
+    };
+
+    // Reset previous grid definitions on the gallery.
+    gallery.style.removeProperty('grid-template-columns');
+    gallery.style.removeProperty('grid-template-rows');
+
+    // Ensure every photo fills its cell and is aligned to the top.
+    visibleCells.forEach(cell => {
+        const img = getImg(cell);
+        if (!img) return;
+        setImportant(img, 'width', '100%');
+        setImportant(img, 'height', '100%');
+        setImportant(img, 'min-width', '0');
+        setImportant(img, 'min-height', '0');
+        setImportant(img, 'max-width', 'none');
+        setImportant(img, 'max-height', 'none');
+        setImportant(img, 'object-fit', 'cover');
+        setImportant(img, 'object-position', 'top center');
+        setImportant(img, 'display', 'block');
+        setImportant(img, 'border-radius', '0');
         img.style.removeProperty('position');
         img.style.removeProperty('left');
         img.style.removeProperty('top');
+    });
+
+    // Compute average aspect ratio of loaded photos to decide 4-photo layout.
+    const ratios = visibleCells.map(cell => {
+        const img = getImg(cell);
+        if (img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+            return img.naturalWidth / img.naturalHeight;
+        }
+        return 1;
+    });
+    const avgRatio = ratios.reduce((a, b) => a + b, 0) / ratios.length;
+
+    let cols = '';
+    let rows = '';
+    const cellStyles = [];
+
+    if (n === 1) {
+        cols = '1fr';
+        rows = 'minmax(420px, 520px)';
+        cellStyles.push({ col: '1', row: '1' });
+    } else if (n === 2) {
+        cols = 'repeat(2, 1fr)';
+        rows = 'minmax(380px, 520px)';
+        cellStyles.push({ col: '1', row: '1' });
+        cellStyles.push({ col: '2', row: '1' });
+    } else if (n === 3) {
+        cols = '2fr 1fr';
+        rows = 'repeat(2, minmax(300px, 320px))';
+        cellStyles.push({ col: '1', row: '1 / span 2' });
+        cellStyles.push({ col: '2', row: '1' });
+        cellStyles.push({ col: '2', row: '2' });
+    } else if (n === 4) {
+        if (avgRatio < 0.85) {
+            cols = '2fr 1fr';
+            rows = 'repeat(3, minmax(230px, 300px))';
+            cellStyles.push({ col: '1', row: '1 / span 3' });
+            cellStyles.push({ col: '2', row: '1' });
+            cellStyles.push({ col: '2', row: '2' });
+            cellStyles.push({ col: '2', row: '3' });
+        } else {
+            cols = 'repeat(2, 1fr)';
+            rows = 'repeat(2, minmax(230px, 300px))';
+            cellStyles.push({ col: '1', row: '1' });
+            cellStyles.push({ col: '2', row: '1' });
+            cellStyles.push({ col: '1', row: '2' });
+            cellStyles.push({ col: '2', row: '2' });
+        }
+    } else if (n === 5) {
+        cols = 'repeat(6, 1fr)';
+        rows = 'repeat(2, minmax(240px, 320px))';
+        cellStyles.push({ col: '1 / span 3', row: '1' });
+        cellStyles.push({ col: '4 / span 3', row: '1' });
+        cellStyles.push({ col: '1 / span 2', row: '2' });
+        cellStyles.push({ col: '3 / span 2', row: '2' });
+        cellStyles.push({ col: '5 / span 2', row: '2' });
+    } else if (n === 6) {
+        cols = 'repeat(3, 1fr)';
+        rows = 'repeat(3, minmax(240px, 320px))';
+        cellStyles.push({ col: '1', row: '1 / span 2' });
+        cellStyles.push({ col: '2', row: '1' });
+        cellStyles.push({ col: '3', row: '1' });
+        cellStyles.push({ col: '1', row: '3' });
+        cellStyles.push({ col: '2', row: '3' });
+        cellStyles.push({ col: '3', row: '3' });
+    } else if (n === 7) {
+        cols = 'repeat(6, 1fr)';
+        rows = 'repeat(3, minmax(240px, 320px))';
+        cellStyles.push({ col: '1 / span 3', row: '1' });
+        cellStyles.push({ col: '4 / span 3', row: '1' });
+        cellStyles.push({ col: '1 / span 3', row: '2' });
+        cellStyles.push({ col: '4 / span 3', row: '2' });
+        cellStyles.push({ col: '1 / span 2', row: '3' });
+        cellStyles.push({ col: '3 / span 2', row: '3' });
+        cellStyles.push({ col: '5 / span 2', row: '3' });
+    } else if (n === 8) {
+        cols = 'repeat(6, 1fr)';
+        rows = 'repeat(3, minmax(240px, 320px))';
+        cellStyles.push({ col: '1 / span 3', row: '1' });
+        cellStyles.push({ col: '4 / span 3', row: '1' });
+        cellStyles.push({ col: '1 / span 2', row: '2' });
+        cellStyles.push({ col: '3 / span 2', row: '2' });
+        cellStyles.push({ col: '5 / span 2', row: '2' });
+        cellStyles.push({ col: '1 / span 2', row: '3' });
+        cellStyles.push({ col: '3 / span 2', row: '3' });
+        cellStyles.push({ col: '5 / span 2', row: '3' });
+    } else {
+        // 9 (or fallback for many): 3x3
+        cols = 'repeat(3, 1fr)';
+        rows = 'repeat(3, minmax(240px, 320px))';
+        for (let i = 0; i < n; i++) {
+            const col = (i % 3) + 1;
+            const row = Math.floor(i / 3) + 1;
+            cellStyles.push({ col: String(col), row: String(row) });
+        }
+    }
+
+    setImportant(gallery, 'grid-template-columns', cols);
+    setImportant(gallery, 'grid-template-rows', rows);
+
+    visibleCells.forEach((cell, i) => {
+        const style = cellStyles[i];
+        if (!style) return;
+        setImportant(cell, 'grid-column', style.col);
+        setImportant(cell, 'grid-row', style.row);
     });
 }
 
