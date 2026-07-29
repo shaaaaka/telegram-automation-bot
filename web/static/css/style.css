@@ -6129,6 +6129,7 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
     background: #090d16 !important;
     border-radius: 14px;
     overflow: hidden;
+    align-content: start;
     align-items: stretch;
     justify-items: stretch;
 }
@@ -8314,20 +8315,21 @@ html body .chat-msg-gallery {
     border-radius: 14px !important;
     overflow: hidden !important;
     background: #090d16 !important;
+    align-content: start !important;
     align-items: stretch !important;
     justify-items: stretch !important;
 }
 
 html body .chat-msg-gallery.album-count-2,
 html body .chat-msg-gallery.album-count-2 {
-    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     grid-template-rows: minmax(380px, 520px) !important;
 }
 
 html body .chat-msg-gallery.album-count-3,
 html body .chat-msg-gallery.album-count-3 {
-    grid-template-columns: 2fr 1fr !important;
-    grid-template-rows: repeat(2, minmax(300px, 320px)) !important;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) !important;
+    grid-template-rows: repeat(2, 300px) !important;
 }
 
 html body .chat-msg-gallery.album-count-3 .chat-msg-gallery-img:first-child,
@@ -8338,14 +8340,14 @@ html body .chat-msg-gallery.album-count-3 .chat-msg-gallery-img:first-child {
 
 html body .chat-msg-gallery.album-count-4,
 html body .chat-msg-gallery.album-count-4 {
-    grid-template-columns: repeat(2, 1fr) !important;
-    grid-template-rows: repeat(2, minmax(230px, 300px)) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(2, 260px) !important;
 }
 
 html body .chat-msg-gallery.album-count-many,
 html body .chat-msg-gallery.album-count-many {
-    grid-template-columns: repeat(3, 1fr) !important;
-    grid-template-rows: repeat(3, minmax(240px, 320px)) !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(3, 260px) !important;
 }
 
 html body .chat-msg-gallery-img,
@@ -8430,15 +8432,20 @@ html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-time
 
 /* --- Telegram-style album mosaic extras --- */
 
-/* Fallback grid for 5..10 photo albums; JS overrides with exact Telegram layouts */
+/* Fallback grid for 5..8 and 10 photo albums; JS overrides with exact Telegram layouts */
 html body .chat-msg-gallery.album-count-5,
 html body .chat-msg-gallery.album-count-6,
 html body .chat-msg-gallery.album-count-7,
 html body .chat-msg-gallery.album-count-8,
-html body .chat-msg-gallery.album-count-9,
 html body .chat-msg-gallery.album-count-10 {
-    grid-template-columns: repeat(3, 1fr) !important;
-    grid-auto-rows: minmax(240px, 320px) !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-auto-rows: 260px !important;
+}
+
+html body .chat-msg-gallery.album-count-9,
+html body .chat-msg-gallery.album-count-9 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(3, 260px) !important;
 }
 
 /* Cell that hosts the "+N" overflow overlay (albums with more than 10 photos) */

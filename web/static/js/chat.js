@@ -344,8 +344,21 @@ window.computeAlbumLayout = function(rawRatios, widthPx) {
 // Apply Telegram-style CSS grid layouts to an album gallery.
 // Each visible tile (including the more-cell overlay) gets explicit grid-column/row,
 // and every photo is set to fill its cell with cover + top-center positioning.
+function clearContainerHeights(gallery) {
+    const bubble = gallery.closest('.chat-msg-bubble');
+    const mediaWrapper = gallery.closest('.chat-msg-media-wrapper');
+    const photoWrapper = gallery.closest('.chat-msg-photo-wrapper');
+    [bubble, mediaWrapper, photoWrapper].forEach(el => {
+        if (!el) return;
+        el.style.removeProperty('height');
+        el.style.removeProperty('min-height');
+        el.style.removeProperty('max-height');
+    });
+}
+
 function applyAlbumGridLayout(gallery) {
     gallery.classList.add('loaded');
+    clearContainerHeights(gallery);
 
     const cells = Array.from(gallery.children).filter(el => {
         return !el.classList.contains('chat-msg-gallery-img-hidden') && window.getComputedStyle(el).display !== 'none';
@@ -384,6 +397,8 @@ function applyAlbumGridLayout(gallery) {
         setImportant(img, 'min-height', '0');
         setImportant(img, 'max-width', 'none');
         setImportant(img, 'max-height', 'none');
+        img.removeAttribute('width');
+        img.removeAttribute('height');
         setImportant(img, 'object-fit', 'cover');
         setImportant(img, 'object-position', 'top center');
         setImportant(img, 'display', 'block');
@@ -408,47 +423,47 @@ function applyAlbumGridLayout(gallery) {
     const cellStyles = [];
 
     if (n === 1) {
-        cols = '1fr';
+        cols = 'minmax(0, 1fr)';
         rows = 'minmax(420px, 520px)';
         cellStyles.push({ col: '1', row: '1' });
     } else if (n === 2) {
-        cols = 'repeat(2, 1fr)';
+        cols = 'repeat(2, minmax(0, 1fr))';
         rows = 'minmax(380px, 520px)';
         cellStyles.push({ col: '1', row: '1' });
         cellStyles.push({ col: '2', row: '1' });
     } else if (n === 3) {
-        cols = '2fr 1fr';
-        rows = 'repeat(2, minmax(300px, 320px))';
+        cols = 'minmax(0, 2fr) minmax(0, 1fr)';
+        rows = 'repeat(2, 300px)';
         cellStyles.push({ col: '1', row: '1 / span 2' });
         cellStyles.push({ col: '2', row: '1' });
         cellStyles.push({ col: '2', row: '2' });
     } else if (n === 4) {
         if (avgRatio < 0.85) {
-            cols = '2fr 1fr';
-            rows = 'repeat(3, minmax(230px, 300px))';
+            cols = 'minmax(0, 2fr) minmax(0, 1fr)';
+            rows = 'repeat(3, 260px)';
             cellStyles.push({ col: '1', row: '1 / span 3' });
             cellStyles.push({ col: '2', row: '1' });
             cellStyles.push({ col: '2', row: '2' });
             cellStyles.push({ col: '2', row: '3' });
         } else {
-            cols = 'repeat(2, 1fr)';
-            rows = 'repeat(2, minmax(230px, 300px))';
+            cols = 'repeat(2, minmax(0, 1fr))';
+            rows = 'repeat(2, 260px)';
             cellStyles.push({ col: '1', row: '1' });
             cellStyles.push({ col: '2', row: '1' });
             cellStyles.push({ col: '1', row: '2' });
             cellStyles.push({ col: '2', row: '2' });
         }
     } else if (n === 5) {
-        cols = 'repeat(6, 1fr)';
-        rows = 'repeat(2, minmax(240px, 320px))';
+        cols = 'repeat(6, minmax(0, 1fr))';
+        rows = 'repeat(2, 260px)';
         cellStyles.push({ col: '1 / span 3', row: '1' });
         cellStyles.push({ col: '4 / span 3', row: '1' });
         cellStyles.push({ col: '1 / span 2', row: '2' });
         cellStyles.push({ col: '3 / span 2', row: '2' });
         cellStyles.push({ col: '5 / span 2', row: '2' });
     } else if (n === 6) {
-        cols = 'repeat(3, 1fr)';
-        rows = 'repeat(3, minmax(240px, 320px))';
+        cols = 'repeat(3, minmax(0, 1fr))';
+        rows = 'repeat(3, 260px)';
         cellStyles.push({ col: '1', row: '1 / span 2' });
         cellStyles.push({ col: '2', row: '1' });
         cellStyles.push({ col: '3', row: '1' });
@@ -456,8 +471,8 @@ function applyAlbumGridLayout(gallery) {
         cellStyles.push({ col: '2', row: '3' });
         cellStyles.push({ col: '3', row: '3' });
     } else if (n === 7) {
-        cols = 'repeat(6, 1fr)';
-        rows = 'repeat(3, minmax(240px, 320px))';
+        cols = 'repeat(6, minmax(0, 1fr))';
+        rows = 'repeat(3, 260px)';
         cellStyles.push({ col: '1 / span 3', row: '1' });
         cellStyles.push({ col: '4 / span 3', row: '1' });
         cellStyles.push({ col: '1 / span 3', row: '2' });
@@ -466,8 +481,8 @@ function applyAlbumGridLayout(gallery) {
         cellStyles.push({ col: '3 / span 2', row: '3' });
         cellStyles.push({ col: '5 / span 2', row: '3' });
     } else if (n === 8) {
-        cols = 'repeat(6, 1fr)';
-        rows = 'repeat(3, minmax(240px, 320px))';
+        cols = 'repeat(6, minmax(0, 1fr))';
+        rows = 'repeat(3, 260px)';
         cellStyles.push({ col: '1 / span 3', row: '1' });
         cellStyles.push({ col: '4 / span 3', row: '1' });
         cellStyles.push({ col: '1 / span 2', row: '2' });
@@ -478,8 +493,8 @@ function applyAlbumGridLayout(gallery) {
         cellStyles.push({ col: '5 / span 2', row: '3' });
     } else {
         // 9 (or fallback for many): 3x3
-        cols = 'repeat(3, 1fr)';
-        rows = 'repeat(3, minmax(240px, 320px))';
+        cols = 'repeat(3, minmax(0, 1fr))';
+        rows = 'repeat(3, 260px)';
         for (let i = 0; i < n; i++) {
             const col = (i % 3) + 1;
             const row = Math.floor(i / 3) + 1;
@@ -1617,6 +1632,7 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
     if (log.photo_ids && log.photo_ids.length > 1) {
         requestAnimationFrame(() => {
             const gallery = containerDiv.querySelector('.chat-msg-gallery');
+            if (gallery) applyAlbumGridLayout(gallery);
             const firstImg = gallery && gallery.querySelector('.chat-msg-gallery-img');
             if (firstImg) checkGalleryImgLayout(firstImg);
         });
@@ -1999,10 +2015,16 @@ function handleIncomingWebSocketMessage(data) {
                             gallery.className = 'chat-msg-gallery album-count-2';
                             
                             const img1 = singleImg.cloneNode();
+                            img1.removeAttribute('width');
+                            img1.removeAttribute('height');
+                            img1.removeAttribute('style');
                             img1.className = 'chat-msg-gallery-img';
                             img1.onload = function() { checkGalleryImgLayout(img1); };
                             
                             const img2 = document.createElement('img');
+                            img2.removeAttribute('width');
+                            img2.removeAttribute('height');
+                            img2.removeAttribute('style');
                             img2.className = 'chat-msg-gallery-img';
                             img2.onerror = function() { handlePhotoError(img2); };
                             const photoParam2 = selectedChatClientId ? `?client_id=${selectedChatClientId}` : '';
@@ -2013,6 +2035,7 @@ function handleIncomingWebSocketMessage(data) {
                             gallery.appendChild(img2);
                             
                             singleImg.replaceWith(gallery);
+                            applyAlbumGridLayout(gallery);
                             
                             lastBubble.classList.add('has-photo');
                             if (!lastBubble.querySelector('.chat-msg-text')) {
@@ -2040,6 +2063,9 @@ function handleIncomingWebSocketMessage(data) {
                         if (existingGallery) {
                             // Add to existing gallery
                             const img = document.createElement('img');
+                            img.removeAttribute('width');
+                            img.removeAttribute('height');
+                            img.removeAttribute('style');
                             img.className = 'chat-msg-gallery-img';
                             img.onerror = function() { handlePhotoError(img); };
                             const photoParam = selectedChatClientId ? `?client_id=${selectedChatClientId}` : '';
@@ -2049,9 +2075,11 @@ function handleIncomingWebSocketMessage(data) {
                             existingGallery.appendChild(img);
 
                             // Update grid layout class based on new photo count
-                            const newCount = existingGallery.children.length;
+                            const newCount = existingGallery.querySelectorAll('.chat-msg-gallery-img:not(.chat-msg-gallery-img-hidden)').length;
                             const newAlbumClass = newCount > 9 ? 'album-count-many' : `album-count-${newCount}`;
                             existingGallery.className = `chat-msg-gallery ${newAlbumClass}`;
+
+                            applyAlbumGridLayout(existingGallery);
 
                             // If the incoming message has text and the bubble doesn't, add it
                             if (data.message_text && !lastBubble.querySelector('.chat-msg-text')) {
