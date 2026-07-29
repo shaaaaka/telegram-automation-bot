@@ -7,7 +7,17 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.context import FSMContext
 from bot.services.line_assignment import send_line_assignment_messages, get_all_banks_for_selection, build_bank_selection_rows
 from bot.services.session_completion import send_completion_client_messages
+from bot.bot_registry import get_bot, get_bot_for_session
 import bot.database as db
+
+
+def _get_client_bot(session: dict, fallback_bot: Bot) -> Bot:
+    """Повертає бота, яким спілкується клієнт, або fallback."""
+    if session:
+        bot = get_bot(session.get("bot_username"))
+        if bot:
+            return bot
+    return fallback_bot
 
 from bot.handlers.admin_helpers import *
 router = Router()
@@ -567,17 +577,19 @@ async def handle_assign_line(callback: CallbackQuery, bot: Bot, state: FSMContex
             line_info['phone_number']
         )
 
+    client_bot = _get_client_bot(session, bot)
+
     # Відправляємо клієнту інструкцію та номер
     from aiogram.fsm.storage.base import StorageKey
     client_state = FSMContext(
         storage=state.storage,
         key=StorageKey(
-            bot_id=bot.id,
+            bot_id=client_bot.id,
             chat_id=client_id,
             user_id=client_id
         )
     )
-    result = await send_line_assignment_messages(client_id, line_id, bot, state=client_state)
+    result = await send_line_assignment_messages(client_id, line_id, client_bot, state=client_state)
     if not result:
         await callback.answer("Помилка при відправці повідомлень клієнту.", show_alert=True)
         return
@@ -617,6 +629,9 @@ async def handle_reject_client(callback: CallbackQuery, bot: Bot, state: FSMCont
 
     client_id = int(callback.data.split("_")[1])
 
+    session = await db.get_session(client_id)
+    client_bot = _get_client_bot(session, bot)
+
     # Закриваємо сесію
     await db.close_session(client_id)
 
@@ -625,7 +640,7 @@ async def handle_reject_client(callback: CallbackQuery, bot: Bot, state: FSMCont
     await callback.answer("Запит відхилено.")
 
     # Повідомляємо клієнта
-    await bot.send_message(
+    await client_bot.send_message(
         chat_id=client_id,
         text="На жаль, ваш запит на верифікацію було відхилено адміністратором.",
         reply_markup=ReplyKeyboardRemove()
@@ -654,9 +669,11 @@ async def handle_route_code(callback: CallbackQuery, bot: Bot, state: FSMContext
     bank_name_raw = line_info['bank'] if line_info else "Банк"
     bank_name = await db.get_bank_display_name(bank_name_raw)
 
+    client_bot = _get_client_bot(session, bot)
+
     # 1. Відправляємо код клієнту
     await db.increment_session_sent_codes_count(client_id)
-    await bot.send_message(
+    await client_bot.send_message(
         chat_id=client_id,
         text=f"`{code}`",
         reply_markup=ReplyKeyboardRemove(),
@@ -671,7 +688,7 @@ async def handle_route_code(callback: CallbackQuery, bot: Bot, state: FSMContext
     if updated_session and updated_session.get('sent_codes_count') == 1:
         from bot.handlers.giver import send_first_code_helper_delayed
         import asyncio
-        asyncio.create_task(send_first_code_helper_delayed(bot, client_id, line_id, bank_name_raw))
+        asyncio.create_task(send_first_code_helper_delayed(client_bot, client_id, line_id, bank_name_raw))
 
     # Видаляємо з веб-списку нерозподілених кодів
     try:
@@ -713,6 +730,8 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot, state: FSMC
         await callback.message.edit_reply_markup(reply_markup=None)
         return
 
+    client_bot = _get_client_bot(session, bot)
+
     line_id = session['line_id']
     line_info = await db.get_line(line_id)
     bank_name_raw = line_info['bank'] if line_info else "Банк"
@@ -739,7 +758,7 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot, state: FSMC
             bank_name=bank_name,
             result=result,
             remaining=bool(remaining),
-            bot=bot,
+            bot=client_bot,
             session=session,
             is_admin_mode=True,
         )
@@ -770,7 +789,7 @@ async def handle_complete_session(callback: CallbackQuery, bot: Bot, state: FSMC
             bank_name=bank_name,
             result="failure",
             remaining=bool(remaining),
-            bot=bot,
+            bot=client_bot,
             session=session,
             is_admin_mode=True,
         )
@@ -800,6 +819,8 @@ async def handle_terminate_session(callback: CallbackQuery, bot: Bot, state: FSM
         await callback.message.edit_reply_markup(reply_markup=None)
         return
 
+    client_bot = _get_client_bot(session, bot)
+
     # 1. Повідомляємо клієнта про остаточне завершення роботи
     try:
         kbd = ReplyKeyboardMarkup(
@@ -810,7 +831,7 @@ async def handle_terminate_session(callback: CallbackQuery, bot: Bot, state: FSM
             one_time_keyboard=False,
             is_persistent=True
         )
-        await bot.send_message(
+        await client_bot.send_message(
             chat_id=client_id,
             text="Роботу завершили, дякуємо за співпрацю.",
             parse_mode="Markdown",
@@ -894,6 +915,8 @@ async def handle_unassign_line(callback: CallbackQuery, bot: Bot, state: FSMCont
         await callback.answer("Сесію не знайдено.", show_alert=True)
         return
         
+    client_bot = _get_client_bot(session, bot)
+
     line_id = session['line_id']
     if not line_id:
         await callback.answer("Лінія не призначена.", show_alert=True)
@@ -907,7 +930,7 @@ async def handle_unassign_line(callback: CallbackQuery, bot: Bot, state: FSMCont
     # Вилучаємо reply markup у клієнта
     if session['client_message_id']:
         try:
-            await bot.edit_message_reply_markup(
+            await client_bot.edit_message_reply_markup(
                 chat_id=client_id,
                 message_id=session['client_message_id'],
                 reply_markup=None
@@ -922,7 +945,7 @@ async def handle_unassign_line(callback: CallbackQuery, bot: Bot, state: FSMCont
             one_time_keyboard=False,
             is_persistent=True
         )
-        await bot.send_message(
+        await client_bot.send_message(
             chat_id=client_id,
             text="Номер відкріплено. Будь ласка, очікуйте нового призначення.",
             reply_markup=kbd
@@ -973,6 +996,8 @@ async def handle_complete_session_manually(callback: CallbackQuery, bot: Bot, st
     if not session:
         await callback.answer("Сесію не знайдено.", show_alert=True)
         return
+
+    client_bot = _get_client_bot(session, bot)
         
     try:
         kbd = ReplyKeyboardMarkup(
@@ -983,7 +1008,7 @@ async def handle_complete_session_manually(callback: CallbackQuery, bot: Bot, st
             one_time_keyboard=False,
             is_persistent=True
         )
-        await bot.send_message(
+        await client_bot.send_message(
             chat_id=client_id,
             text="Роботу завершили, дякуємо за співпрацю.",
             reply_markup=kbd

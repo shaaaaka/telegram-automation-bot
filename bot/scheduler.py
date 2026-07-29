@@ -6,6 +6,7 @@ from aiogram import Bot
 from bot.config import DB_FILE
 from bot.sleep_mode import is_in_sleep_mode
 import bot.database as db
+from bot.bot_registry import get_bot
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ async def auto_reminder_loop(bot: Bot):
                 # 2. Не отримували нагадування (last_reminder_sent_at IS NULL)
                 # 3. Призначені більше ніж `reminder_delay_minutes` хвилин тому
                 query = """
-                    SELECT s.client_id, s.username, l.bank
+                    SELECT s.client_id, s.username, l.bank, s.bot_username
                     FROM sessions s
                     LEFT JOIN lines l ON s.line_id = l.id
                     WHERE s.status IN ('number_assigned', 'waiting_code')
@@ -63,14 +64,17 @@ async def auto_reminder_loop(bot: Bot):
                 client_id = row['client_id']
                 username = row['username']
                 bank = row['bank'] or 'банку'
-                
+                bot_username = row['bot_username']
+
+                client_bot = get_bot(bot_username) or bot
+
                 # Формуємо текст нагадування
                 msg = f"🔔 *Нагадування щодо верифікації {bank}*\n\n{reminder_text}"
                 
                 try:
                     logger.info(f"Надсилаємо нагадування клієнту @{username} (ID: {client_id})")
                     from aiogram.types import ReplyKeyboardRemove
-                    await bot.send_message(
+                    await client_bot.send_message(
                         chat_id=client_id,
                         text=msg,
                         reply_markup=ReplyKeyboardRemove(),

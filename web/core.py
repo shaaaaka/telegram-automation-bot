@@ -78,19 +78,24 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Помилка ініціалізації бази даних на веб-сервері: {e}")
 
-    # Initialize bot/dp from BOT_TOKEN if running uvicorn directly
+    # Initialize bots from registry if running uvicorn directly
     logger.info(f"Bot before init: {bot is not None}")
     if bot is None:
         from bot.config import BOT_TOKEN
+        from bot.bot_registry import init_bots, get_bot
+        from bot.handlers import client, admin, giver, verifier
         logger.info(f"BOT_TOKEN from config: {'SET' if BOT_TOKEN else 'NOT SET'}")
-        if BOT_TOKEN:
-            set_bot(Bot(token=BOT_TOKEN))
-            logger.info(f"After set_bot, bot is {bot is not None}")
-            if dp is None:
-                set_dp(Dispatcher())
-                logger.info(f"After set_dp, dp is {dp is not None}")
-        else:
-            logger.warning("BOT_TOKEN not set, bot remains None")
+        await init_bots(BOT_TOKEN)
+        set_bot(get_bot())
+        logger.info(f"After set_bot, bot is {bot is not None}")
+        if dp is None:
+            dp_instance = Dispatcher()
+            dp_instance.include_router(admin.router)
+            dp_instance.include_router(giver.router)
+            dp_instance.include_router(verifier.router)
+            dp_instance.include_router(client.router)
+            set_dp(dp_instance)
+            logger.info(f"After set_dp, dp is {dp is not None}")
 
     logger.info(f"Bot after init: {bot is not None}")
     yield

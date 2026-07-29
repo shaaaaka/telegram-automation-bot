@@ -11,10 +11,13 @@ __all__ = [
     "ClientMessage",
     "AppSettingsUpdate",
     "BankTemplateUpdate",
+    "BankProfileUpdate",
     "AIRuleCreate",
     "AIExampleCreate",
     "AISettingsUpdate",
     "AILearnRequest",
+    "VerificationMethodCreate",
+    "VerificationMethodUpdate",
 ]
 
 
@@ -56,6 +59,16 @@ class BankTemplateUpdate(BaseModel):
     command: str
     text: str
     code_length: Optional[int] = 4
+
+class BankProfileUpdate(BaseModel):
+    profile_key: str
+    name: Optional[str] = None
+    selected_banks: List[str] = []
+    bot_username: Optional[str] = None
+    bot_token: Optional[str] = None
+    avatar_data_url: Optional[str] = None
+    is_active: Optional[int] = 1
+    sort_order: Optional[int] = 0
 class AIRuleCreate(BaseModel):
     rule_text: str
     category: str = "general"
@@ -71,3 +84,25 @@ class AISettingsUpdate(BaseModel):
     ai_password_other: str
 class AILearnRequest(BaseModel):
     client_ids: list[int] = None
+
+
+class VerificationMethodCreate(BaseModel):
+    key: Optional[str] = None
+    display_name: Optional[str] = None
+    allowed_banks: Optional[List[str]] = None
+    linked_bots: Optional[List[str]] = None
+    required_client_fields: Optional[List[str]] = None
+    initial_message: Optional[str] = None
+    is_active: Optional[int] = 1
+    sort_order: Optional[int] = 0
+
+
+class VerificationMethodUpdate(BaseModel):
+    key: Optional[str] = None
+    display_name: Optional[str] = None
+    allowed_banks: Optional[List[str]] = None
+    linked_bots: Optional[List[str]] = None
+    required_client_fields: Optional[List[str]] = None
+    initial_message: Optional[str] = None
+    is_active: Optional[int] = None
+    sort_order: Optional[int] = None

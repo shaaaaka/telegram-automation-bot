@@ -46,10 +46,19 @@ def build_bank_selection_rows(
 async def get_all_banks_for_selection() -> list:
     """Повертає об'єднаний та відсортований список активних банків."""
     unique_banks_db = await db.get_unique_banks()
-    combined_banks = list(dict.fromkeys(DEFAULT_BANK_ORDER + unique_banks_db))
+    templates = await db.get_all_bank_templates()
+
+    # Об'єднуємо банки, зберігаючи унікальність за нормалізованою назвою.
+    # Перший зустрічний варіант назви (DEFAULT_BANK_ORDER) зберігає регістр.
+    combined_banks = []
+    seen_norm = set()
+    for bank in DEFAULT_BANK_ORDER + unique_banks_db:
+        name_norm = normalize_bank_name(bank)
+        if name_norm and name_norm not in seen_norm:
+            seen_norm.add(name_norm)
+            combined_banks.append(bank)
 
     # Фільтруємо неактивні банки
-    templates = await db.get_all_bank_templates()
     active_banks = []
     for bank in combined_banks:
         is_active = True
@@ -97,6 +106,18 @@ async def send_line_assignment_messages(client_id: int, line_id: int, bot: Bot, 
     try:
         key, template = await db.get_bank_template_with_key_db(bank_name)
         allow_relink = template.get('allow_relink') if template else 0
+        session_is_relink = session.get('is_relink')
+
+        # Якщо в сесії вже задано is_relink — одразу надсилаємо номер з відповідним режимом
+        if session_is_relink is not None:
+            client_msg_id = await send_assigned_phone_to_client(
+                client_id, line_id, bot, delay_before_phone=delay_before_phone, is_relink=bool(session_is_relink)
+            )
+            return {
+                "session": session,
+                "line_info": line_info,
+                "client_msg_id": client_msg_id,
+            }
 
         # Якщо дозволено перев'яз і банк ще не сповіщений, пропонуємо вибір
         if allow_relink == 1 and not is_already_notified:
@@ -107,19 +128,19 @@ async def send_line_assignment_messages(client_id: int, line_id: int, bot: Bot, 
                     InlineKeyboardButton(text="🔄 Перев'яз акаунту", callback_data=f"relink_choice_relink_{line_id}_{key}")
                 ]
             ])
-            
+
             display_name = template.get('display_name') or bank_name
             choice_msg = await bot.send_message(
                 chat_id=client_id,
                 text=f"Ви будете проходити нову реєстрацію чи перев'яз існуючого акаунту для банку {display_name}?",
                 reply_markup=markup
             )
-            
+
             if state:
                 from bot.handlers.client_helpers import RegistrationStates
                 await state.update_data(relink_choice_msg_id=choice_msg.message_id, bank_name=key, assign_line_id=line_id)
                 await state.set_state(RegistrationStates.waiting_relink_choice)
-                
+
             return {
                 "session": session,
                 "line_info": line_info,
@@ -161,8 +182,9 @@ async def send_assigned_phone_to_client(client_id: int, line_id: int, bot: Bot, 
     if is_relink:
         key, template = await db.get_bank_template_with_key_db(bank_name)
         display_name = template.get('display_name') or bank_name
-        relink_text = (template.get('relink_instruction_text') if template else None) or f"Зайдіть у налаштування профілю додатка {display_name}, натисніть «Змінити номер» та введіть цей номер:"
-        await bot.send_message(chat_id=client_id, text=relink_text)
+        relink_text = (template.get('relink_instruction_text') if template else None) or f"Зайдіть у налаштування профілю додатка {display_name}, натисніть «Змінити номер» та введіть цей номер: +{phone_number}"
+        client_msg = await bot.send_message(chat_id=client_id, text=relink_text)
+        return client_msg.message_id
     else:
         # Перевіряємо чи банк вже був сповіщений
         notified_banks_str = session.get('notified_banks') or ''

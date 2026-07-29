@@ -1,20 +1,41 @@
 from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart, StateFilter
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove, FSInputFile
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove, FSInputFile, InputMediaPhoto
 from aiogram.fsm.context import FSMContext
 from bot.config import BANK_TEMPLATES, get_template_photo, get_admin_id
 from bot.services.line_assignment import get_all_banks_for_selection, build_bank_selection_rows
+from bot.services.bank_profiles_service import get_bank_profile_by_bot_username
+from bot.bot_registry import get_bot, get_bot_for_session
 import bot.database as db
 import re
 import asyncio
+import aiosqlite
 import logging
 import time
+import html
+import os
 
 from bot.handlers.client_helpers import *
 logger = logging.getLogger(__name__)
 router = Router()
 
 _client_reply_cooldowns = {}
+
+PUMB_EXAMPLE_PHOTOS_DIR = r"C:\Users\oliks\Documents\PUMB"
+
+def _get_pumb_example_photos() -> list[str]:
+    """Повертає список прикладів фото для ПУМБ (скріншоти з Дії)."""
+    try:
+        if not os.path.isdir(PUMB_EXAMPLE_PHOTOS_DIR):
+            return []
+        files = [
+            f for f in os.listdir(PUMB_EXAMPLE_PHOTOS_DIR)
+            if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.gif'))
+        ]
+        files.sort()
+        return [os.path.join(PUMB_EXAMPLE_PHOTOS_DIR, f) for f in files]
+    except Exception:
+        return []
 
 def should_send_client_reply(client_id: int, key: str = "default", cooldown: float = 3.0) -> bool:
     """Перевіряє, чи не було аналогічної відповіді клієнту протягом останніх cooldown секунд (для захисту від дублів у альбомах/флуді)"""
@@ -37,90 +58,125 @@ async def handle_waiting_number_text(message: Message):
 @router.message(F.chat.type == "private", F.text.in_({"Розпочати знову", "🔄 Розпочати знову"}))
 async def cmd_start(message: Message, state: FSMContext):
     """Обробник команди /start для клієнта"""
-    if message.from_user.id == get_admin_id():
-        from bot.handlers.admin import get_admin_keyboard, clear_previous_admin_messages, register_admin_message
-        msg = await message.answer(
-            "Привіт, Адміне!\n\n"
-            "Оберіть потрібну дію на клавіатурі нижче:",
-            reply_markup=get_admin_keyboard()
-        )
-        if state:
-            await clear_previous_admin_messages(message.chat.id, state, message.bot)
+    try:
+        bot_name = getattr(message, 'bot', None)
+        bot_username = None
+        if bot_name:
             try:
-                await message.delete()
-            except Exception:
-                pass
-            await register_admin_message(msg, state)
-        return
+                me = await bot_name.get_me()
+                bot_username = me.username
+            except Exception as e:
+                logger.warning(f"cmd_start get_me failed: {e}")
+        logger.info(
+            f"cmd_start triggered: user_id={message.from_user.id}, "
+            f"username={message.from_user.username}, chat_type={message.chat.type}, "
+            f"bot_username={bot_username}"
+        )
 
-    # Перевірка режиму сну
-    from bot.sleep_mode import is_in_sleep_mode
-    if is_in_sleep_mode():
-        from bot.config import get_cached_setting
-        reply_text = get_cached_setting("sleep_mode_reply", "На жаль, зараз не робочий час. Поверніться пізніше.")
-        await message.answer(reply_text, reply_markup=ReplyKeyboardRemove())
-        return
-
-    client_id = message.from_user.id
-    existing_session = await db.get_session(client_id)
-
-    if existing_session and existing_session['status'] in ('number_assigned', 'waiting_code'):
-        await message.answer("Ваш запит вже обробляється або лінія активна. Будь ласка, очікуйте вказівок адміна.")
-        return
-
-    if existing_session and existing_session['status'] in ('registered', 'waiting_verification', 'verified'):
-        # Якщо всі банки завершено (немає залишкових банків), дозволяємо розпочати нову сесію
-        remaining_banks_str = existing_session.get('remaining_banks', '')
-        remaining = [b for b in remaining_banks_str.split(",") if b]
-        if remaining or not existing_session.get('selected_banks'):
-            await message.answer(
-                "Ваш запит на верифікацію вже прийнято і він очікує перевірки адміністратором. Будь ласка, очікуйте призначення номера телефону.",
-                reply_markup=get_waiting_keyboard()
+        if message.from_user.id == get_admin_id():
+            from bot.handlers.admin import get_admin_keyboard, clear_previous_admin_messages, register_admin_message
+            msg = await message.answer(
+                "Привіт, Адміне!\n\n"
+                "Оберіть потрібну дію на клавіатурі нижче:",
+                reply_markup=get_admin_keyboard()
             )
+            if state:
+                await clear_previous_admin_messages(message.chat.id, state, message.bot)
+                try:
+                    await message.delete()
+                except Exception:
+                    pass
+                await register_admin_message(msg, state)
             return
 
-    await state.clear()
-    username_db = message.from_user.username or "Немає юзернейму"
-    await db.create_registering_session(client_id, username_db)
-    await register_reg_msg(state, message.message_id)
-    
-    # Перевіряємо можливість автозаповнення з попередньої/поточної сесії
-    if existing_session and existing_session['client_data']:
-        ipn_match = re.search(r'ІПН:\s*(\d+)', existing_session['client_data'])
-        pib_match = re.search(r'ПІБ:\s*(.+)', existing_session['client_data'])
-        dob_match = re.search(r'Дата:\s*(.+)', existing_session['client_data'])
-        
-        if ipn_match and pib_match and dob_match:
-            ipn = ipn_match.group(1)
-            pib = pib_match.group(1)
-            dob = dob_match.group(1)
-            
-            welcome_text = (
-                f"Привіт! Знайдено ваші попередні дані верифікації:\n\n"
-                f"• **ПІБ:** {pib}\n"
-                f"• **Дата народження:** {dob}\n"
-                f"• **ІПН:** {ipn}\n\n"
-                f"Бажаєте використати ці дані для автозаповнення чи ввести нові дані (наприклад, для друга)?"
-            )
+        # Перевірка режиму сну
+        from bot.sleep_mode import is_in_sleep_mode
+        if is_in_sleep_mode():
+            from bot.config import get_cached_setting
+            reply_text = get_cached_setting("sleep_mode_reply", "На жаль, зараз не робочий час. Поверніться пізніше.")
+            await message.answer(reply_text, reply_markup=ReplyKeyboardRemove())
+            return
+
+        client_id = message.from_user.id
+        username_db = message.from_user.username or "Немає юзернейму"
+        client_bot_username = bot_username
+
+        # ПУМБ-бот: запитуємо тип реєстрації — нова або перев'яз
+        if client_bot_username and client_bot_username.lower() == 'fornotvolfbankbot':
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🔄 Використати ці дані", callback_data="autofill_use")],
-                [InlineKeyboardButton(text="✍️ Ввести нові дані", callback_data="autofill_new")]
+                [InlineKeyboardButton(text="Нова Реєстрація", callback_data="pumb_new")],
+                [InlineKeyboardButton(text="Перев'яз", callback_data="pumb_rebind")]
             ])
-            msg = await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
-            await register_reg_msg(state, msg.message_id)
-            await state.update_data(welcome_msg_ids=[msg.message_id], old_pib=pib, old_dob=dob, old_ipn=ipn)
-            await state.set_state(RegistrationStates.waiting_pib_dob)
+            await message.answer("Оберіть тип реєстрації:", reply_markup=keyboard)
+            await state.update_data(client_bot_username=client_bot_username)
             return
 
-    # Крок 1: Запитуємо ПІБ та Дату народження
-    await db.update_session_client_phone(client_id, None)
-    pib_msg = await message.answer(
-        "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
-        reply_markup=get_cancel_keyboard()
-    )
-    await register_reg_msg(state, pib_msg.message_id)
-    await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
-    await state.set_state(RegistrationStates.waiting_pib_dob)
+        # Для rummyverifbot та інших — без привітання, одразу ПІБ/ДОБ
+        existing_session = await db.get_session(client_id)
+
+        if existing_session and existing_session['status'] in ('number_assigned', 'waiting_code'):
+            await message.answer("Ваш запит вже обробляється або лінія активна. Будь ласка, очікуйте вказівок адміна.")
+            return
+
+        if existing_session and existing_session['status'] in ('registered', 'waiting_verification', 'verified'):
+            # Якщо всі банки завершено (немає залишкових банків), дозволяємо розпочати нову сесію
+            remaining_banks_str = existing_session.get('remaining_banks', '')
+            remaining = [b for b in remaining_banks_str.split(",") if b]
+            if remaining or not existing_session.get('selected_banks'):
+                await message.answer(
+                    "Ваш запит на верифікацію вже прийнято і він очікує перевірки адміністратором. Будь ласка, очікуйте призначення номера телефону.",
+                    reply_markup=get_waiting_keyboard()
+                )
+                return
+
+        await state.clear()
+        await state.update_data(client_bot_username=client_bot_username)
+        await db.create_registering_session(client_id, username_db, bot_username=client_bot_username)
+        await register_reg_msg(state, message.message_id)
+
+        # Перевіряємо можливість автозаповнення з попередньої/поточної сесії
+        if existing_session and existing_session['client_data']:
+            ipn_match = re.search(r'ІПН:\s*(\d+)', existing_session['client_data'])
+            pib_match = re.search(r'ПІБ:\s*(.+)', existing_session['client_data'])
+            dob_match = re.search(r'Дата:\s*(.+)', existing_session['client_data'])
+
+            if ipn_match and pib_match and dob_match:
+                ipn = ipn_match.group(1)
+                pib = pib_match.group(1)
+                dob = dob_match.group(1)
+
+                welcome_text = (
+                    f"Привіт! Знайдено ваші попередні дані верифікації:\n\n"
+                    f"• **ПІБ:** {pib}\n"
+                    f"• **Дата народження:** {dob}\n"
+                    f"• **ІПН:** {ipn}\n\n"
+                    f"Бажаєте використати ці дані для автозаповнення чи ввести нові дані (наприклад, для друга)?"
+                )
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="🔄 Використати ці дані", callback_data="autofill_use")],
+                    [InlineKeyboardButton(text="✍️ Ввести нові дані", callback_data="autofill_new")]
+                ])
+                msg = await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
+                await register_reg_msg(state, msg.message_id)
+                await state.update_data(welcome_msg_ids=[msg.message_id], old_pib=pib, old_dob=dob, old_ipn=ipn)
+                await state.set_state(RegistrationStates.waiting_pib_dob)
+                return
+
+        # Крок 1: Запитуємо ПІБ та Дату народження
+        await db.update_session_client_phone(client_id, None)
+        pib_msg = await message.answer(
+            "Напишіть мені будь ласка Ваші\nПІБ та Дату Народження",
+            reply_markup=get_cancel_keyboard()
+        )
+        await register_reg_msg(state, pib_msg.message_id)
+        await state.update_data(pib_prompt_msg_id=pib_msg.message_id)
+        await state.set_state(RegistrationStates.waiting_pib_dob)
+    except Exception as e:
+        logger.exception(f"cmd_start error for user {message.from_user.id}: {e}")
+        try:
+            await message.answer("Виникла технічна помилка. Спробуйте /start ще раз трохи пізніше.")
+        except Exception:
+            pass
 @router.callback_query(F.data == "autofill_use")
 async def handle_autofill_use(callback: CallbackQuery, state: FSMContext):
     """Обробник вибору використання попередніх даних"""
@@ -467,8 +523,29 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
     username_db = username or "Немає юзернейму"
 
 
-    # Створюємо нову сесію в базі даних
-    await db.create_or_update_session(client_id, username_db, client_data)
+    # Створюємо/оновлюємо сесію в базі даних
+    # Визначаємо username бота, з якого прийшло підтвердження
+    try:
+        me = await callback.bot.get_me()
+        client_bot_username = me.username
+    except Exception:
+        client_bot_username = None
+
+    if not client_bot_username:
+        state_data = await state.get_data()
+        client_bot_username = state_data.get('client_bot_username')
+
+    await db.create_or_update_session(client_id, username_db, client_data, bot_username=client_bot_username)
+
+    # Беремо обрані банки з профілю цього бота
+    profile = await get_bank_profile_by_bot_username(client_bot_username) if client_bot_username else None
+    preselected_banks = []
+    if profile and profile.get('selected_banks'):
+        preselected_banks = [b for b in profile['selected_banks'] if b]
+    if preselected_banks:
+        selected_str = ",".join(preselected_banks)
+        remaining_str = selected_str
+        await db.update_session_banks(client_id, selected_str, remaining_str)
         
     msg = await callback.message.answer(
         "Зачекайте будь ласка кілька хвилин",
@@ -489,9 +566,9 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
     passed_banks = {h['bank'] for h in history if h['status'] == 'success'}
     banned_banks = {h['bank'] for h in history if h['status'] in ('banned', 'failure')}
 
-    # Створюємо кнопки вибору банків
+    # Створюємо кнопки вибору банків (якщо профіль має банки — вони вже позначені)
     keyboard_buttons = build_bank_selection_rows(
-        all_banks, client_id, passed_banks=passed_banks, banned_banks=banned_banks
+        all_banks, client_id, selected=preselected_banks, passed_banks=passed_banks, banned_banks=banned_banks
     )
     
     # Додаємо керівні кнопки
@@ -512,7 +589,12 @@ async def handle_confirm_reg(callback: CallbackQuery, state: FSMContext, bot: Bo
         f"Оберіть банки, які має пройти клієнт:{escaped_warning}"
     )
     
-    await bot.send_message(chat_id=get_admin_id(), text=admin_msg, reply_markup=markup, parse_mode="HTML")
+    # Надсилаємо адміну з основного/дефолтного бота (адмін може не писати профільним ботом)
+    admin_bot = get_bot() or callback.bot
+    try:
+        await admin_bot.send_message(chat_id=get_admin_id(), text=admin_msg, reply_markup=markup, parse_mode="HTML")
+    except Exception as e:
+        logger.error(f"Помилка надсилання адмін-повідомлення: {e}")
 @router.callback_query(F.data == "restart_reg")
 async def handle_restart_reg(callback: CallbackQuery, state: FSMContext):
     """Обробник скасування та заповнення анкети заново"""
@@ -1353,34 +1435,47 @@ async def handle_relink_choice(callback: CallbackQuery, state: FSMContext, bot: 
     choice = parts[2]  # "relink" or "fresh"
     line_id = int(parts[3])
     bank_key = "_".join(parts[4:])
-    
-    template_data = await db.get_bank_template_db(bank_key)
-    bank_name = (template_data.get('display_name') if template_data and template_data.get('display_name') else bank_key) or bank_key
-    
-    if choice == "relink":
-        await state.update_data(is_relink=True, bank_name=bank_key, assign_line_id=line_id)
-        await state.set_state(RegistrationStates.waiting_relink_initial_screenshot)
-        
-        relink_msg = (template_data.get('relink_instruction_text') if template_data else None) or (
-            f"Надішліть, будь ласка, скріншот Головного екрану або вкладки Картки у додатку {bank_name}, щоб перевірити стан акаунту."
+
+    client_id = callback.from_user.id
+    is_relink = choice == "relink"
+
+    # Оновлюємо session: is_relink + статус
+    async with aiosqlite.connect(db.DB_FILE) as conn:
+        await conn.execute(
+            "UPDATE sessions SET is_relink = ?, status = 'number_assigned' WHERE client_id = ?",
+            (1 if is_relink else 0, client_id)
         )
+        await conn.commit()
+
+    await state.update_data(is_relink=is_relink, bank_name=bank_key, assign_line_id=line_id)
+
+    # Видаляємо повідомлення з вибором
+    try:
+        await callback.message.delete()
+    except Exception:
         try:
-            await callback.message.edit_text(relink_msg)
-        except Exception:
-            await callback.message.answer(relink_msg)
-        await callback.answer("Обрано Перев'яз")
-    else:
-        client_id = callback.from_user.id
-        await state.update_data(is_relink=False, bank_name=bank_key)
-        try:
-            await callback.message.delete()
+            await callback.message.edit_reply_markup(reply_markup=None)
         except Exception:
             pass
-        from bot.services.line_assignment import send_assigned_phone_to_client
-        await send_assigned_phone_to_client(client_id, line_id, bot, is_relink=False)
-        await db.set_session_status(client_id, 'number_assigned')
-        await state.set_state(RegistrationStates.waiting_code)
-        await callback.answer("Обрано Нову реєстрацію")
+
+    from bot.services.line_assignment import send_assigned_phone_to_client
+    try:
+        await send_assigned_phone_to_client(client_id, line_id, bot, is_relink=is_relink)
+    except Exception as e:
+        logger.error(f"Помилка надсилання номера після вибору relink/fresh: {e}")
+        # Відкочуємо призначення
+        await db.set_line_status(line_id, 'available')
+        async with aiosqlite.connect(db.DB_FILE) as conn:
+            await conn.execute(
+                "UPDATE sessions SET line_id = NULL, status = 'registered' WHERE client_id = ?",
+                (client_id,)
+            )
+            await conn.commit()
+        await callback.answer("Помилка при відправці. Спробуйте ще раз.", show_alert=True)
+        return
+
+    await state.set_state(RegistrationStates.waiting_code)
+    await callback.answer("Обрано Перев'яз" if is_relink else "Обрано Нову реєстрацію")
 
 @router.message(RegistrationStates.waiting_relink_initial_screenshot, F.chat.type == "private")
 async def process_relink_initial_screenshot(message: Message, state: FSMContext, bot: Bot):
@@ -1458,3 +1553,91 @@ async def process_relink_initial_screenshot(message: Message, state: FSMContext,
         except Exception:
             pass
         await message.answer("Виникла технічна затримка під час авто-перевірки. Надішліть скріншот ще раз.")
+
+
+async def _continue_pumb_start(client_id: int, username_db: str, client_bot_username: str, pumb_type: str, client_message: Message, bot: Bot):
+    """Продовження обробки PUMB-профілю після вибору типу реєстрації."""
+    profile = await get_bank_profile_by_bot_username(client_bot_username)
+    pumb_banks = []
+    if profile and profile.get('selected_banks'):
+        pumb_banks = [b for b in profile['selected_banks'] if b]
+    if not pumb_banks:
+        pumb_banks = ['PUMB']
+
+    selected_str = ','.join(pumb_banks)
+    # Створюємо сесію зі статусом заповнення анкети, як і для інших ботів
+    await db.create_registering_session(client_id, username_db, bot_username=client_bot_username)
+    await db.set_session_is_relink(client_id, 1 if pumb_type == "rebind" else 0)
+    await db.update_session_banks(client_id, selected_str, selected_str)
+
+    all_banks = await get_all_banks_for_selection()
+    history = await db.get_client_verification_history(client_id)
+    passed_banks = {h['bank'] for h in history if h['status'] == 'success'}
+    banned_banks = {h['bank'] for h in history if h['status'] in ('banned', 'failure')}
+    keyboard_buttons = build_bank_selection_rows(
+        all_banks, client_id, selected=pumb_banks, passed_banks=passed_banks, banned_banks=banned_banks
+    )
+    keyboard_buttons.append([InlineKeyboardButton(text="Зберегти та продовжити", callback_data=f"savebanks_{client_id}")])
+    keyboard_buttons.append([InlineKeyboardButton(text="Відхилити запит", callback_data=f"reject_{client_id}")])
+    markup = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+
+    escaped_username = html.escape(username_db) if username_db else "Невідомий"
+    type_label = "Нова Реєстрація" if pumb_type == "new" else "Перев'яз"
+    admin_msg = (
+        f"Новий клієнт на верифікацію (ПУМБ)!\n"
+        f"• Telegram: @{escaped_username} (ID: {client_id})\n"
+        f"• Банк: PUMB\n"
+        f"• Тип: {type_label}\n\n"
+        f"Оберіть банки, які має пройти клієнт:"
+    )
+    admin_bot = get_bot() or bot
+    try:
+        await admin_bot.send_message(chat_id=get_admin_id(), text=admin_msg, reply_markup=markup, parse_mode="HTML")
+    except Exception as e:
+        logger.error(f"Помилка надсилання адмін-повідомлення: {e}")
+
+
+@router.callback_query(F.data == "pumb_new")
+@router.callback_query(F.data == "pumb_rebind")
+async def handle_pumb_choice(callback: CallbackQuery, state: FSMContext):
+    """Обробник вибору типу реєстрації для ПУМБ."""
+    pumb_type = "new" if callback.data == "pumb_new" else "rebind"
+
+    # Видаляємо повідомлення з кнопками вибору типу реєстрації
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+
+    state_data = await state.get_data()
+    client_bot_username = state_data.get("client_bot_username")
+    if not client_bot_username:
+        try:
+            me = await callback.bot.get_me()
+            client_bot_username = me.username
+        except Exception:
+            client_bot_username = ""
+
+    client_id = callback.from_user.id
+    username_db = callback.from_user.username or "Немає юзернейму"
+    chat_id = callback.message.chat.id
+
+    if pumb_type == "new":
+        example_photos = _get_pumb_example_photos()
+        if example_photos:
+            media = []
+            for i, photo_path in enumerate(example_photos):
+                caption = "Надішліть такі 3 фото" if i == 0 else None
+                media.append(InputMediaPhoto(media=FSInputFile(photo_path), caption=caption))
+            try:
+                await callback.bot.send_media_group(chat_id=chat_id, media=media)
+            except Exception as e:
+                logger.warning(f"Не вдалося надіслати приклади фото ПУМБ: {e}")
+                await callback.bot.send_message(chat_id=chat_id, text="Надішліть такі 3 фото")
+        else:
+            await callback.bot.send_message(chat_id=chat_id, text="Надішліть такі 3 фото")
+    else:
+        await callback.bot.send_message(chat_id=chat_id, text="Надішліть отаке одне фото")
+
+    await _continue_pumb_start(client_id, username_db, client_bot_username, pumb_type, callback.message, callback.bot)
+    await callback.answer()

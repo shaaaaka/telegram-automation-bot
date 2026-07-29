@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 import bot.database as db
 from bot.config import set_cached_setting
 from web.models import *
+from bot.services import bank_profiles_service
 
 router = APIRouter()
 
@@ -43,9 +44,11 @@ async def get_settings_endpoint():
             settings["archive_group_id"] = str(ARCHIVE_GROUP_ID) if ARCHIVE_GROUP_ID else ""
 
         templates = await db.get_all_bank_templates()
+        profiles = await bank_profiles_service.get_all_bank_profiles()
         return {
             "settings": settings,
-            "templates": templates
+            "templates": templates,
+            "profiles": profiles
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get settings: {str(e)}")
@@ -362,6 +365,51 @@ async def delete_template_endpoint(key: str):
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete bank template: {str(e)}")
+
+@router.get("/api/settings/profiles")
+async def get_profiles_endpoint():
+    """Отримання списку профілів банків"""
+    try:
+        profiles = await bank_profiles_service.get_all_bank_profiles()
+        return profiles
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get bank profiles: {str(e)}")
+
+@router.post("/api/settings/profiles")
+async def save_profile_endpoint(body: BankProfileUpdate):
+    """Збереження профілю банків"""
+    try:
+        await bank_profiles_service.save_bank_profile(
+            profile_key=body.profile_key,
+            name=body.name or body.profile_key,
+            selected_banks=body.selected_banks,
+            bot_username=body.bot_username,
+            bot_token=body.bot_token,
+            avatar_data_url=body.avatar_data_url,
+            is_active=body.is_active,
+            sort_order=body.sort_order,
+        )
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save bank profile: {str(e)}")
+
+@router.post("/api/settings/profiles/order")
+async def update_profiles_order_endpoint(ordered_keys: List[str]):
+    """Оновлення порядку профілів"""
+    try:
+        await bank_profiles_service.update_bank_profiles_order(ordered_keys)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update profiles order: {str(e)}")
+
+@router.delete("/api/settings/profiles/{key}")
+async def delete_profile_endpoint(key: str):
+    """Видалення профілю банків"""
+    try:
+        await bank_profiles_service.delete_bank_profile(key)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete bank profile: {str(e)}")
 
 @router.get("/api/settings/ai")
 async def get_ai_settings():

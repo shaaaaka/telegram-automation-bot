@@ -82,13 +82,14 @@ async function loadSettings() {
         }
 
         window.bankTemplates = data.templates;
-        
+        window.bankProfiles = data.profiles;
+
         // Render bank accordion items
         const activeAccordionKey = localStorage.getItem('active_bank_accordion') || null;
         renderBankAccordion(data.templates, activeAccordionKey);
 
-        if (typeof window.renderAllProfileBanks === 'function') {
-            window.renderAllProfileBanks();
+        if (typeof window.loadBankProfiles === 'function') {
+            window.loadBankProfiles(data.profiles);
         }
 
         if (typeof renderChatPageTemplates === 'function') {
@@ -250,6 +251,12 @@ function switchSettingsSubtab(subtabId) {
     // 4. Load AI settings if active
     if (subtabId === 'ai' && typeof loadAISettings === 'function') {
         loadAISettings();
+    }
+
+    // Restore active bank settings pane (Banks / Profiles)
+    if (subtabId === 'banks' && typeof switchBankSettingsPane === 'function') {
+        const savedBankPane = sessionStorage.getItem('active_bank_settings_pane') || 'banks';
+        switchBankSettingsPane(savedBankPane);
     }
 
     // 5. Update theme cards active state if theme subtab

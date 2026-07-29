@@ -1222,10 +1222,11 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
             const accentColor = repliedLog.sender === 'client' ? '#3b82f6' : (repliedLog.sender === 'bot' ? '#06b6d4' : '#a855f7');
             
             const photoId = repliedLog.photo_id || (repliedLog.photo_ids && repliedLog.photo_ids.length > 0 ? repliedLog.photo_ids[0] : null);
+            const photoClientParam = selectedChatClientId ? `?client_id=${selectedChatClientId}` : '';
             let quoteThumbHtml = '';
             let rText = '';
             if (photoId) {
-                quoteThumbHtml = `<img class="chat-msg-quote-thumb" src="/api/photos/${photoId}" alt="Photo" style="width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; max-width: 36px !important; max-height: 36px !important; object-fit: cover !important; border-radius: 6px !important; flex-shrink: 0 !important; display: inline-block !important; margin: 0 8px 0 0 !important;">`;
+                quoteThumbHtml = `<img class="chat-msg-quote-thumb" src="/api/photos/${photoId}${photoClientParam}" alt="Photo" style="width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; max-width: 36px !important; max-height: 36px !important; object-fit: cover !important; border-radius: 6px !important; flex-shrink: 0 !important; display: inline-block !important; margin: 0 8px 0 0 !important;">`;
                 const captionText = repliedLog.message_text ? `: ${stripMessageQuotes(repliedLog.message_text)}` : '';
                 rText = `Фото${captionText}`;
             } else {
@@ -1264,7 +1265,8 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
         const galleryHtml = `<div class="chat-msg-gallery ${albumClass}">` +
             log.photo_ids.map(pid => {
                 const scrollOnLoad = isHistoryRender ? '' : ' scrollToBottom(\'chat-window-body-container\')';
-                return `<img class="chat-msg-gallery-img" src="/api/photos/${pid}" onerror="handlePhotoError(this)" onload="checkGalleryImgLayout(this);${scrollOnLoad}">`;
+                const pidClientParam = selectedChatClientId ? `?client_id=${selectedChatClientId}` : '';
+                return `<img class="chat-msg-gallery-img" src="/api/photos/${pid}${pidClientParam}" onerror="handlePhotoError(this)" onload="checkGalleryImgLayout(this);${scrollOnLoad}">`;
             }).join('') +
             `</div>`;
         if (hasText) {
@@ -1289,8 +1291,8 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
         contentHtml += `
             <div class="chat-msg-media-wrapper">
                 <div class="chat-msg-photo-wrapper">
-                    <div class="chat-msg-photo-blur-bg" style="background-image: url('/api/photos/${singlePhotoId}');"></div>
-                    <img class="chat-msg-img" src="/api/photos/${singlePhotoId}" onerror="handlePhotoError(this)" ${scrollOnLoad}>
+                    <div class="chat-msg-photo-blur-bg" style="background-image: url('/api/photos/${singlePhotoId}?client_id=${selectedChatClientId || ''}');"></div>
+                    <img class="chat-msg-img" src="/api/photos/${singlePhotoId}?client_id=${selectedChatClientId || ''}" onerror="handlePhotoError(this)" ${scrollOnLoad}>
                 </div>
                 <span class="chat-msg-time-inline photo-time">${timeStr}</span>
             </div>
@@ -1300,8 +1302,8 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
             const scrollOnLoad = isHistoryRender ? '' : 'onload="scrollToBottom(\'chat-window-body-container\')"';
             contentHtml += `
                 <div class="chat-msg-photo-wrapper">
-                    <div class="chat-msg-photo-blur-bg" style="background-image: url('/api/photos/${singlePhotoId}');"></div>
-                    <img class="chat-msg-img" src="/api/photos/${singlePhotoId}" onerror="handlePhotoError(this)" ${scrollOnLoad}>
+                    <div class="chat-msg-photo-blur-bg" style="background-image: url('/api/photos/${singlePhotoId}?client_id=${selectedChatClientId || ''}');"></div>
+                    <img class="chat-msg-img" src="/api/photos/${singlePhotoId}?client_id=${selectedChatClientId || ''}" onerror="handlePhotoError(this)" ${scrollOnLoad}>
                 </div>
             `;
         }
@@ -1484,11 +1486,12 @@ function setChatReplyTo(log) {
     if (previewBar) {
         const senderName = log.sender === 'client' ? 'Клієнта' : (log.sender === 'bot' ? 'Бота' : 'Оператора');
         const photoId = log.photo_id || (log.photo_ids && log.photo_ids.length > 0 ? log.photo_ids[0] : null);
-        
+        const replyClientParam = selectedChatClientId ? `?client_id=${selectedChatClientId}` : '';
+
         let replyThumbHtml = '';
         let textSnippet = '';
         if (photoId) {
-            replyThumbHtml = `<img class="chat-reply-thumb" src="/api/photos/${photoId}" alt="Photo">`;
+            replyThumbHtml = `<img class="chat-reply-thumb" src="/api/photos/${photoId}${replyClientParam}" alt="Photo">`;
             const captionText = log.message_text ? `: ${stripMessageQuotes(log.message_text)}` : '';
             textSnippet = `Фото${captionText}`;
         } else {
@@ -1750,7 +1753,8 @@ function handleIncomingWebSocketMessage(data) {
                             const img2 = document.createElement('img');
                             img2.className = 'chat-msg-gallery-img';
                             img2.onerror = function() { handlePhotoError(img2); };
-                            img2.src = `/api/photos/${data.photo_id}`;
+                            const photoParam2 = selectedChatClientId ? `?client_id=${selectedChatClientId}` : '';
+                            img2.src = `/api/photos/${data.photo_id}${photoParam2}`;
                             img2.onload = function() { checkGalleryImgLayout(img2); checkGalleryImgLayout(img1); scrollToBottom('chat-window-body-container'); };
                             
                             gallery.appendChild(img1);
@@ -1786,7 +1790,8 @@ function handleIncomingWebSocketMessage(data) {
                             const img = document.createElement('img');
                             img.className = 'chat-msg-gallery-img';
                             img.onerror = function() { handlePhotoError(img); };
-                            img.src = `/api/photos/${data.photo_id}`;
+                            const photoParam = selectedChatClientId ? `?client_id=${selectedChatClientId}` : '';
+                            img.src = `/api/photos/${data.photo_id}${photoParam}`;
                             img.onload = function() { checkGalleryImgLayout(img); scrollToBottom('chat-window-body-container'); };
                             
                             existingGallery.appendChild(img);

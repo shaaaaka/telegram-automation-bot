@@ -4,6 +4,7 @@ from fastapi import APIRouter
 import bot.database as db
 from web.core import manager
 import web.core
+from bot.bot_registry import get_bot_for_session, get_bot
 
 
 router = APIRouter()
@@ -13,9 +14,10 @@ async def ban_user_endpoint(client_id: int):
     """Блокування користувача"""
     username = "Невідомий"
     session = await db.get_session(client_id)
-    if web.core.bot:
+    bot = await get_bot_for_session(client_id) or get_bot() or web.core.bot
+    if bot:
         try:
-            chat = await web.core.bot.get_chat(client_id)
+            chat = await bot.get_chat(client_id)
             if chat.username:
                 username = chat.username
             elif chat.first_name:
@@ -29,9 +31,9 @@ async def ban_user_endpoint(client_id: int):
     # Якщо є активна сесія, примусово закриваємо її
     if session:
         # Прибираємо кнопку у клієнта, якщо вона є
-        if session['client_message_id'] and web.core.bot:
+        if session['client_message_id'] and bot:
             try:
-                await web.core.bot.edit_message_reply_markup(
+                await bot.edit_message_reply_markup(
                     chat_id=client_id,
                     message_id=session['client_message_id'],
                     reply_markup=None
@@ -40,10 +42,10 @@ async def ban_user_endpoint(client_id: int):
                 pass
         
         # Повідомляємо клієнта
-        if web.core.bot:
+        if bot:
             try:
                 from aiogram.types import ReplyKeyboardRemove
-                await web.core.bot.send_message(
+                await bot.send_message(
                     chat_id=client_id,
                     text="Ваш доступ до бота обмежено.",
                     reply_markup=ReplyKeyboardRemove()

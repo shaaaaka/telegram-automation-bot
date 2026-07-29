@@ -429,6 +429,19 @@ function renderSessions(sessions) {
             if (session.status === 'waiting_verification') statusText = 'Перевірка';
             if (session.status === 'completed') statusText = 'Завершено';
 
+            const bankNorm = (s) => String(s || '').toLowerCase().replace(/[ .\-]/g, '').replace(/bank/g, '');
+
+            function getBankInfo(bankName) {
+                const norm = bankNorm(bankName);
+                const templates = window.bankTemplates || {};
+                for (const [key, tpl] of Object.entries(templates)) {
+                    if (bankNorm(key) === norm) {
+                        return { key, displayName: tpl.display_name || key, norm, template: tpl };
+                    }
+                }
+                return { key: bankName, displayName: bankName, norm, template: null };
+            }
+
             let bankChipsHTML = '';
             let selectedList;
             if (tempSelectedBanks[session.client_id] !== undefined) {
@@ -436,13 +449,31 @@ function renderSessions(sessions) {
             } else {
                 selectedList = session.selected_banks ? session.selected_banks.split(',') : [];
             }
-            
+
             const remainingBanksStr = session.remaining_banks;
             const remainingList = remainingBanksStr ? remainingBanksStr.split(',').filter(Boolean) : [];
             const bankStatuses = session.bank_statuses || {};
-            
+
+            const selectedMap = new Map();
+            const remainingMap = new Map();
+            const statusByNorm = new Map();
+
+            selectedList.forEach(b => {
+                const info = getBankInfo(b);
+                if (!selectedMap.has(info.norm)) selectedMap.set(info.norm, info);
+            });
+            remainingList.forEach(b => {
+                const info = getBankInfo(b);
+                if (!remainingMap.has(info.norm)) remainingMap.set(info.norm, info);
+            });
+            Object.entries(bankStatuses).forEach(([k, v]) => {
+                statusByNorm.set(bankNorm(k), v);
+            });
+
+            const selectedNorms = new Set(selectedMap.keys());
+            const remainingNorms = new Set(remainingMap.keys());
+
             const historyBanks = Object.keys(bankStatuses);
-            // Build order dynamically from templates order in Settings
             const savedOrderStr = localStorage.getItem('bank_accordion_order');
             let customOrder = [];
             if (savedOrderStr) {
@@ -455,51 +486,51 @@ function renderSessions(sessions) {
             }
 
             const allPossibleBanks = [];
-            const seenLower = new Set();
-            const inputSources = [...availableBanks, ...selectedList, ...historyBanks];
+            const seenNorm = new Set();
+            const inputSources = [...selectedList, ...remainingList, ...historyBanks];
 
-            // 1. Add all banks from customOrder (preserving settings order)
-            customOrder.forEach(b => {
-                const lower = b.toLowerCase();
-                if (!seenLower.has(lower) && lower !== 'ecobank' && lower !== 'pumb') {
-                    seenLower.add(lower);
-                    const matched = inputSources.find(x => x.toLowerCase() === lower);
-                    allPossibleBanks.push(matched || b);
-                }
-            });
+            function addCandidate(b) {
+                if (!b) return;
+                const info = getBankInfo(b);
+                const n = info.norm;
+                if (!n || seenNorm.has(n)) return;
 
-            // 2. Add any remaining unique banks (fallback)
-            inputSources.forEach(b => {
-                if (b) {
-                    const lower = b.toLowerCase();
-                    if (!seenLower.has(lower) && lower !== 'ecobank' && lower !== 'pumb') {
-                        seenLower.add(lower);
-                        allPossibleBanks.push(b);
-                    }
-                }
-            });
+                const isSelected = selectedNorms.has(n);
+                const isRemaining = remainingNorms.has(n);
+                const hasHistory = statusByNorm.has(n);
+                const inSources = inputSources.some(x => bankNorm(x) === n);
 
-            // 3. Sort allPossibleBanks to match customOrder index
+                if (!isSelected && !isRemaining && !hasHistory && !inSources) return;
+
+                seenNorm.add(n);
+                allPossibleBanks.push(info);
+            }
+
+            customOrder.forEach(b => addCandidate(b));
+            inputSources.forEach(b => addCandidate(b));
+
             allPossibleBanks.sort((a, b) => {
-                const idxA = customOrder.findIndex(x => x.toLowerCase() === a.toLowerCase());
-                const idxB = customOrder.findIndex(x => x.toLowerCase() === b.toLowerCase());
+                const idxA = customOrder.findIndex(x => bankNorm(x) === a.norm);
+                const idxB = customOrder.findIndex(x => bankNorm(x) === b.norm);
                 if (idxA !== -1 && idxB !== -1) return idxA - idxB;
                 if (idxA !== -1) return -1;
                 if (idxB !== -1) return 1;
-                return a.localeCompare(b);
+                return a.key.localeCompare(b.key);
             });
 
             const isRegistering = session.status === 'registering';
 
-            allPossibleBanks.forEach(bank => {
-                const isSelected = selectedList.some(x => x.toLowerCase() === bank.toLowerCase());
-                const isRemaining = remainingList.some(x => x.toLowerCase() === bank.toLowerCase());
+            allPossibleBanks.forEach(info => {
+                const bank = info.key;
+                const displayName = info.displayName;
+                const n = info.norm;
+                const isSelected = selectedNorms.has(n);
+                const isRemaining = remainingNorms.has(n);
                 const bankClass = getBankClass(bank);
-                const historyKey = Object.keys(bankStatuses).find(x => x.toLowerCase() === bank.toLowerCase());
-                const hasHistory = historyKey !== undefined;
+                const status = statusByNorm.get(n);
+                const hasHistory = statusByNorm.has(n);
 
-                // Hide chip if bank is paused globally, and client is not active on it or has no history
-                const isGloballyActive = typeof availableBanks !== 'undefined' && availableBanks.some(x => x.toLowerCase() === bank.toLowerCase());
+                const isGloballyActive = Array.isArray(availableBanks) && availableBanks.some(x => bankNorm(x) === n);
                 if (!isGloballyActive && !isSelected && !hasHistory && !isRemaining) {
                     return;
                 }
@@ -517,7 +548,6 @@ function renderSessions(sessions) {
                     }
                 } else {
                     if (hasHistory) {
-                        const status = bankStatuses[historyKey] || 'released';
                         if (status === 'success') {
                             chipClasses += ' success-done';
                             statusIcon = '<span class="chip-status-icon">✓</span>';
@@ -535,7 +565,7 @@ function renderSessions(sessions) {
                         onclickAttr = `onclick="toggleBankChip(this, ${session.client_id}, '${bank}', 'readd')"`;
                     }
                 }
-                
+
                 if (isRegistering) {
                     chipClasses += ' disabled';
                     onclickAttr = '';
@@ -545,13 +575,7 @@ function renderSessions(sessions) {
                     <div class="${chipClasses}" ${onclickAttr}>
                         <input type="checkbox" data-bank="${bank}" ${isSelected ? 'checked' : ''} style="display: none;">
                         ${statusIcon}
-                        <span>${(function() {
-                            let displayName = bank;
-                            if (window.bankTemplates && window.bankTemplates[bank]) {
-                                displayName = window.bankTemplates[bank].display_name || bank;
-                            }
-                            return displayName;
-                        })()}</span>
+                        <span>${displayName}</span>
                     </div>
                 `;
             });

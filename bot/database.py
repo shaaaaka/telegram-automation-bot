@@ -140,7 +140,9 @@ async def init_db():
             ("is_verified", "INTEGER DEFAULT 0"),
             ("waiting_proceedings", "INTEGER DEFAULT 0"),
             ("proceedings_question_msg_id", "INTEGER"),
-            ("notified_banks", "TEXT DEFAULT ''")
+            ("notified_banks", "TEXT DEFAULT ''"),
+            ("bot_username", "TEXT"),
+            ("is_relink", "INTEGER")
         ]
         
         for col_name, col_type in new_columns:
@@ -220,6 +222,58 @@ async def init_db():
             except Exception:
                 pass
         
+        # Таблиця для профілів банків з прив'язкою до Telegram-бота
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS bank_profiles (
+                profile_key TEXT PRIMARY KEY,
+                name TEXT,
+                selected_banks TEXT,
+                bot_username TEXT,
+                bot_token TEXT,
+                avatar_data_url TEXT,
+                is_active INTEGER DEFAULT 1,
+                sort_order INTEGER DEFAULT 0
+            )
+        """)
+        for col, col_def in [
+            ("avatar_data_url", "TEXT"),
+            ("sort_order", "INTEGER DEFAULT 0"),
+        ]:
+            try:
+                await db.execute(f"ALTER TABLE bank_profiles ADD COLUMN {col} {col_def}")
+            except Exception:
+                pass
+        for col in ["start_message", "method_key"]:
+            try:
+                await db.execute(f"ALTER TABLE bank_profiles DROP COLUMN IF EXISTS {col}")
+            except Exception:
+                pass
+        try:
+            await db.execute("ALTER TABLE bank_profiles DROP COLUMN IF EXISTS manual_mode")
+        except Exception:
+            pass
+
+        # Таблиця методів верифікації з прив'язкою до ботів
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS verification_methods (
+                key TEXT PRIMARY KEY,
+                display_name TEXT,
+                allowed_banks TEXT,
+                linked_bots TEXT,
+                avatar_path TEXT,
+                required_client_fields TEXT,
+                initial_message TEXT,
+                is_active INTEGER DEFAULT 1,
+                sort_order INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        try:
+            await db.execute("ALTER TABLE verification_methods ADD COLUMN sort_order INTEGER DEFAULT 0")
+        except Exception:
+            pass
+
         # Таблиця для збереження історії чату з дропом
         await db.execute("""
             CREATE TABLE IF NOT EXISTS chat_logs (
@@ -436,6 +490,7 @@ from bot.services.sessions_service import (
     update_session_client_phone,
     update_session_banks,
     set_session_status,
+    set_session_is_relink,
     complete_current_bank,
     send_archive_report,
     close_session,
@@ -481,6 +536,16 @@ from bot.services.ai_rules_service import (
     delete_ai_example,
     update_ai_example,
     toggle_ai_example,
+)
+
+# --- Методи верифікації (Verification Methods) ---
+
+from bot.services.verification_methods_service import (
+    save_verification_method,
+    get_verification_method,
+    get_verification_methods,
+    get_verification_method_by_bot_username,
+    delete_verification_method,
 )
 
 # --- Блокування користувачів (Ban System) ---

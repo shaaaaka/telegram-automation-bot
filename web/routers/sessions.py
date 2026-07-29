@@ -13,6 +13,7 @@ from bot.services.session_completion import send_completion_client_messages
 from web.models import *
 from web.core import dp, manager
 import web.core
+from bot.bot_registry import get_bot_for_session, get_bot
 
 
 router = APIRouter()
@@ -119,7 +120,8 @@ async def get_session_chat(client_id: int):
 @router.post("/api/sessions/{client_id}/send_template")
 async def send_session_template(client_id: int, body: TemplateSendRequest):
     """Надсилання готового шаблону (наприклад, фото AmoBank) через бота"""
-    if not web.core.bot:
+    bot = await get_bot_for_session(client_id) or get_bot() or web.core.bot
+    if not bot:
         raise HTTPException(status_code=500, detail="Bot is not configured")
     try:
         session = await db.get_session(client_id)
@@ -141,7 +143,7 @@ async def send_session_template(client_id: int, body: TemplateSendRequest):
                     media.append(InputMediaPhoto(media=FSInputFile(img_path), caption=caption))
             
             if media:
-                sent_messages = await web.core.bot.send_media_group(chat_id=client_id, media=media)
+                sent_messages = await bot.send_media_group(chat_id=client_id, media=media)
                 # Логуємо кожне надіслане повідомлення
                 for i, msg in enumerate(sent_messages):
                     photo_id = msg.photo[-1].file_id if msg.photo else None
@@ -201,13 +203,14 @@ async def send_to_verifier_endpoint(client_id: int):
     session = await db.get_session(client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-        
+
     await db.set_session_status(client_id, 'waiting_verification')
-    
+
     from bot.handlers.client import send_anketa_to_verifier
-    if web.core.bot:
-        await send_anketa_to_verifier(client_id, web.core.bot)
-        
+    bot = get_bot() or web.core.bot
+    if bot:
+        await send_anketa_to_verifier(client_id, bot)
+
     return {"status": "success"}
 
 @router.post("/api/sessions/{client_id}/verify-manually")
@@ -318,8 +321,9 @@ async def reset_session_bank(client_id: int, bank: str):
 @router.post("/api/sessions/{client_id}/assign")
 async def assign_line(client_id: int, body: LineAssignment, background_tasks: BackgroundTasks):
     """Призначення телефонної лінії для клієнта через веб-інтерфейс"""
-    if not web.core.bot:
-        raise HTTPException(status_code=500, detail="Telegram web.core.bot is not initialized")
+    bot = await get_bot_for_session(client_id) or get_bot() or web.core.bot
+    if not bot:
+        raise HTTPException(status_code=500, detail="Telegram bot is not initialized")
 
     session = await db.get_session(client_id)
     if not session:
@@ -334,15 +338,16 @@ async def assign_line(client_id: int, body: LineAssignment, background_tasks: Ba
     await db.log_verification_start(client_id, session['username'], line_info['bank'], line_info['phone_number'])
 
     # 2. Додаємо завдання відправки повідомлень у фоновий потік, щоб не блокувати сайт
-    background_tasks.add_task(send_line_assignment_messages, client_id, body.line_id, web.core.bot)
+    background_tasks.add_task(send_line_assignment_messages, client_id, body.line_id, bot)
 
     return {"status": "success", "line_id": body.line_id}
 
 @router.post("/api/sessions/{client_id}/complete")
 async def complete_bank(client_id: int, result: str = "success"):
     """Завершення або відмова верифікації для поточного банку клієнта"""
-    if not web.core.bot:
-        raise HTTPException(status_code=500, detail="Telegram web.core.bot is not initialized")
+    bot = await get_bot_for_session(client_id) or get_bot() or web.core.bot
+    if not bot:
+        raise HTTPException(status_code=500, detail="Telegram bot is not initialized")
 
     session = await db.get_session(client_id)
     if not session or not session['line_id']:
@@ -365,7 +370,7 @@ async def complete_bank(client_id: int, result: str = "success"):
         bank_name=bank_name,
         result=result,
         remaining=bool(remaining),
-        bot=web.core.bot,
+        bot=bot,
         session=session,
         is_admin_mode=False,
     )
@@ -381,8 +386,9 @@ async def complete_bank(client_id: int, result: str = "success"):
 @router.post("/api/sessions/{client_id}/terminate")
 async def terminate_session(client_id: int):
     """Остаточне закриття сесії клієнта вручну (або скасування реєстрації)"""
-    if not web.core.bot:
-        raise HTTPException(status_code=500, detail="Telegram web.core.bot is not initialized")
+    bot = await get_bot_for_session(client_id) or get_bot() or web.core.bot
+    if not bot:
+        raise HTTPException(status_code=500, detail="Telegram bot is not initialized")
 
     session = await db.get_session(client_id)
     if not session:
@@ -394,7 +400,7 @@ async def terminate_session(client_id: int):
         if dp:
             try:
                 from aiogram.fsm.storage.base import StorageKey
-                key = StorageKey(bot_id=web.core.bot.id, chat_id=client_id, user_id=client_id)
+                key = StorageKey(bot_id=bot.id, chat_id=client_id, user_id=client_id)
                 await dp.storage.set_state(key, None)
                 await dp.storage.set_data(key, {})
             except Exception as e:
@@ -402,7 +408,7 @@ async def terminate_session(client_id: int):
 
         # Повідомляємо клієнта
         try:
-            await web.core.bot.send_message(
+            await bot.send_message(
                 chat_id=client_id,
                 text="Введення даних скасовано адміністратором. Напишіть /start, щоб почати спочатку.",
                 reply_markup=ReplyKeyboardRemove()
@@ -417,7 +423,7 @@ async def terminate_session(client_id: int):
     # Прибираємо кнопку у клієнта, якщо вона є
     if session['client_message_id']:
         try:
-            await web.core.bot.edit_message_reply_markup(
+            await bot.edit_message_reply_markup(
                 chat_id=client_id,
                 message_id=session['client_message_id'],
                 reply_markup=None
@@ -436,7 +442,7 @@ async def terminate_session(client_id: int):
             one_time_keyboard=False,
             is_persistent=True
         )
-        await web.core.bot.send_message(
+        await bot.send_message(
             chat_id=client_id,
             text="Роботу завершили, дякуємо за співпрацю.",
             parse_mode="Markdown",

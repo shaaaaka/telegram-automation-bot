@@ -318,6 +318,7 @@ function switchTab(tabId) {
     }
     currentTab = tabId;
     localStorage.setItem('activeTab', tabId);
+    sessionStorage.setItem('activeTab', tabId);
     
     if (tabId === 'chat') {
         if (typeof chatUnreadCounts !== 'undefined' && typeof selectedChatClientId !== 'undefined' && selectedChatClientId) {
@@ -600,8 +601,9 @@ function isArraysEqual(arr1, arr2) {
 
 // --- Global Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
-    // Restore active tab
-    const savedTab = localStorage.getItem('activeTab') || 'control';
+    // Start on the main menu only for the initial page load in this tab;
+    // on reload, restore the tab that was active in this tab/window.
+    const savedTab = sessionStorage.getItem('activeTab') || 'control';
     switchTab(savedTab);
 
     // Sync initial sound state to global header toggle button

@@ -15,12 +15,12 @@ async def increment_session_sent_codes_count(client_id: int):
         """, (client_id,))
         await db.commit()
 
-async def create_registering_session(client_id: int, username: str):
+async def create_registering_session(client_id: int, username: str, bot_username: str = None):
     """Створення сесії в статусі заповнення анкети (для відображення на сайті)"""
     async with aiosqlite.connect(db_mod.DB_FILE) as db:
         await db.execute("""
-            INSERT INTO sessions (client_id, username, client_data, status, client_message_id, selected_banks, remaining_banks, success_photo_id, card_first4, card_last4, card_photo_id, sent_codes_count)
-            VALUES (?, ?, '📝 Заповнює реєстраційні дані...', 'registering', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0)
+            INSERT INTO sessions (client_id, username, client_data, status, client_message_id, selected_banks, remaining_banks, success_photo_id, card_first4, card_last4, card_photo_id, sent_codes_count, bot_username)
+            VALUES (?, ?, '📝 Заповнює реєстраційні дані...', 'registering', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, ?)
             ON CONFLICT(client_id) DO UPDATE SET
                 username = excluded.username,
                 client_data = excluded.client_data,
@@ -37,16 +37,17 @@ async def create_registering_session(client_id: int, username: str):
                 sent_codes_count = 0,
                 is_verified = 0,
                 verifier_message_id = NULL,
-                notified_banks = ''
-        """, (client_id, username))
+                notified_banks = '',
+                bot_username = COALESCE(excluded.bot_username, sessions.bot_username)
+        """, (client_id, username, bot_username))
         await db.commit()
 
-async def create_or_update_session(client_id: int, username: str, client_data: str):
+async def create_or_update_session(client_id: int, username: str, client_data: str, bot_username: str = None):
     """Створення нової сесії для клієнта (коли він надсилає свої дані)"""
     async with aiosqlite.connect(db_mod.DB_FILE) as db:
         await db.execute("""
-            INSERT INTO sessions (client_id, username, client_data, status, client_message_id, selected_banks, remaining_banks, success_photo_id, card_first4, card_last4, card_photo_id, sent_codes_count)
-            VALUES (?, ?, ?, 'registered', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0)
+            INSERT INTO sessions (client_id, username, client_data, status, client_message_id, selected_banks, remaining_banks, success_photo_id, card_first4, card_last4, card_photo_id, sent_codes_count, bot_username)
+            VALUES (?, ?, ?, 'registered', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, ?)
             ON CONFLICT(client_id) DO UPDATE SET
                 username = excluded.username,
                 client_data = excluded.client_data,
@@ -63,8 +64,9 @@ async def create_or_update_session(client_id: int, username: str, client_data: s
                 sent_codes_count = 0,
                 is_verified = 0,
                 verifier_message_id = NULL,
-                notified_banks = ''
-        """, (client_id, username, client_data))
+                notified_banks = '',
+                bot_username = COALESCE(excluded.bot_username, sessions.bot_username)
+        """, (client_id, username, client_data, bot_username))
         await db.commit()
 
 async def update_session_verification_data(client_id: int, success_photo_id: str = None, card_first4: str = None, card_last4: str = None, card_photo_id: str = None):
@@ -152,19 +154,29 @@ async def get_all_waiting_sessions():
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
-async def assign_line_to_session(client_id: int, line_id: int):
-    """Призначення лінії для клієнта"""
+async def assign_line_to_session(client_id: int, line_id: int, bot_username: str = None):
+    """Призначення лінії для клієнта.
+
+    Записує line_id, bank, status='number_assigned', bot_username.
+    Якщо у клієнта вже була line іншого банку — звільняє її.
+    Керує notified_banks, щоб при повторному призначенні того самого банку
+    не дублювати intro.
+    """
     async with aiosqlite.connect(db_mod.DB_FILE) as db:
         db.row_factory = aiosqlite.Row
         await db.execute("BEGIN IMMEDIATE")
-        
+
         old_bank = None
         notified_banks_str = ""
-        async with db.execute("SELECT line_id, bank, notified_banks FROM sessions WHERE client_id = ?", (client_id,)) as cursor:
+        old_bot_username = None
+        old_is_relink = 0
+        async with db.execute("SELECT line_id, bank, notified_banks, bot_username, is_relink FROM sessions WHERE client_id = ?", (client_id,)) as cursor:
             row = await cursor.fetchone()
             if row:
                 old_bank = row['bank']
                 notified_banks_str = row['notified_banks'] or ""
+                old_bot_username = row['bot_username']
+                old_is_relink = row['is_relink'] or 0
                 if row['line_id'] and row['line_id'] != line_id:
                     await db.execute("UPDATE lines SET status = 'available' WHERE id = ?", (row['line_id'],))
 
@@ -174,16 +186,21 @@ async def assign_line_to_session(client_id: int, line_id: int):
             if l_row:
                 bank_name = l_row['bank']
 
-        if bank_name and old_bank != bank_name:
+        # Якщо банк той самий — зберігаємо is_relink і notified_banks; інакше скидаємо
+        if bank_name and old_bank == bank_name:
+            new_notified_banks = notified_banks_str
+            new_is_relink = old_is_relink
+        else:
             notified_list = [b.strip() for b in notified_banks_str.split(",") if b.strip()]
             if bank_name in notified_list:
                 notified_list.remove(bank_name)
             new_notified_banks = ",".join(notified_list)
-        else:
-            new_notified_banks = notified_banks_str
+            new_is_relink = None  # дозволити вибір relink/fresh, якщо шаблон дозволяє
+
+        bot_username_to_set = bot_username or old_bot_username
 
         await db.execute("""
-            UPDATE sessions 
+            UPDATE sessions
             SET line_id = ?, status = 'number_assigned',
                 bank = ?,
                 success_photo_id = NULL,
@@ -191,9 +208,11 @@ async def assign_line_to_session(client_id: int, line_id: int):
                 card_first4 = NULL,
                 card_last4 = NULL,
                 sent_codes_count = 0,
-                notified_banks = ?
+                notified_banks = ?,
+                bot_username = ?,
+                is_relink = ?
             WHERE client_id = ?
-        """, (line_id, bank_name, new_notified_banks, client_id))
+        """, (line_id, bank_name, new_notified_banks, bot_username_to_set, new_is_relink, client_id))
         await db.execute("UPDATE lines SET status = 'busy' WHERE id = ?", (line_id,))
         await db.commit()
 
@@ -235,6 +254,12 @@ async def set_session_status(client_id: int, status: str):
     """Зміна статусу сесії ('registered', 'number_assigned', 'waiting_code', 'completed')"""
     async with aiosqlite.connect(db_mod.DB_FILE) as db:
         await db.execute("UPDATE sessions SET status = ? WHERE client_id = ?", (status, client_id))
+        await db.commit()
+
+async def set_session_is_relink(client_id: int, is_relink: int):
+    """Встановлення прапорця перев'язу для сесії"""
+    async with aiosqlite.connect(db_mod.DB_FILE) as db:
+        await db.execute("UPDATE sessions SET is_relink = ? WHERE client_id = ?", (is_relink, client_id))
         await db.commit()
 
 async def complete_current_bank(client_id: int, result: str) -> dict | None:
@@ -380,7 +405,8 @@ async def close_session(client_id: int):
 
     try:
         import web.core
-        bot = web.core.bot
+        from bot.bot_registry import get_bot
+        bot = web.core.bot or get_bot()
         if bot:
             await send_archive_report(client_id, bot)
     except Exception as e:

@@ -14,6 +14,7 @@ from bot.database import init_db
 from bot.handlers import client, admin, giver, verifier
 from bot.scheduler import auto_reminder_loop
 from bot.sleep_mode import silence_method_if_sleeping
+from bot.bot_registry import init_bots, get_all_bots, get_bot, close_all_bots
 from web.app import app as web_app
 from web.core import set_bot, set_dp
 
@@ -170,18 +171,17 @@ class IncomingLoggingMiddleware(BaseMiddleware):
                 logging.error(f"Error logging incoming message: {e}")
         return await handler(event, data)
 
-# Налаштування логування
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-    stream=sys.stdout
+# Додаємо FileHandler до кореневого логера, бо basicConfig вже сконфігурований у bot.config
+root_logger = logging.getLogger()
+file_handler = logging.FileHandler("bot.log", encoding="utf-8")
+file_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s")
 )
+root_logger.addHandler(file_handler)
+# Піднімаємо рівень aiogram API debug, щоб не засмічував лог
+logging.getLogger("aiogram").setLevel(logging.INFO)
 
 async def main():
-    if not BOT_TOKEN:
-        logging.error("BOT_TOKEN не задано! Будь ласка, створить файл .env та вкажіть його.")
-        return
-
     # Ініціалізація бази даних
     logging.info("Ініціалізація бази даних...")
     await init_db()
@@ -199,9 +199,9 @@ async def main():
         if val:
             set_cached_setting(key, val)
 
-    # Ініціалізація бота та диспетчера та реєстрація middleware
-    bot = Bot(token=BOT_TOKEN)
-    bot.session.middleware(OutgoingLoggingMiddleware(log_bot=log_bot))
+    # Ініціалізація бота (головного + профільних) через реєстр
+    await init_bots(BOT_TOKEN)
+
     dp = Dispatcher()
     dp.message.outer_middleware(BanMiddleware())
     dp.callback_query.outer_middleware(BanMiddleware())
@@ -214,7 +214,10 @@ async def main():
     dp.include_router(client.router)
 
     # Передаємо об'єкт бота та диспетчера у FastAPI додаток
-    set_bot(bot)
+    default_bot = get_bot()
+    for b in get_all_bots():
+        b.session.middleware(OutgoingLoggingMiddleware(log_bot=log_bot))
+    set_bot(default_bot)
     set_dp(dp)
 
     # Налаштування конфігурації Uvicorn
@@ -240,31 +243,42 @@ async def main():
 
     logging.info("Запуск бота та веб-панелі...")
     try:
+        bots = get_all_bots()
+        if not bots:
+            logging.error("Не знайдено жодного Telegram-бота для запуску (BOT_TOKEN або токени в профілях).")
+            return
+
         # Очищуємо накопичені повідомлення перед запуском (щоб не відповідати на старі)
-        await bot.delete_webhook(drop_pending_updates=True)
-        
+        for b in bots:
+            try:
+                await b.delete_webhook(drop_pending_updates=True)
+            except Exception as e:
+                logging.warning(f"Не вдалося скинути webhook для бота: {e}")
+
         # Скидаємо кастомну кнопку меню (якщо вона була встановлена як WebApp) до дефолтної
         from aiogram.types import MenuButtonDefault
-        try:
-            await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
-            logging.info("Кнопку меню бота успішно скинуто до стандартної.")
-        except Exception as e:
-            logging.warning(f"Не вдалося скинути кнопку меню бота: {e}")
-        
+        for b in bots:
+            try:
+                await b.set_chat_menu_button(menu_button=MenuButtonDefault())
+                logging.info("Кнопку меню бота успішно скинуто до стандартної.")
+            except Exception as e:
+                logging.warning(f"Не вдалося скинути кнопку меню бота: {e}")
+
         # Отримуємо всі типи оновлень, які використовує бот
         allowed_updates = dp.resolve_used_update_types()
         if "message_reaction" not in allowed_updates:
             allowed_updates.append("message_reaction")
         logging.info(f"Allowed updates for polling: {allowed_updates}")
-        
-        # Запускаємо і бота, і веб-сервер, і планувальник нагадувань паралельно
+
+        # Запускаємо polling для всіх ботів, веб-сервер та планувальник паралельно
+        # Dispatcher.start_polling приймає *bots та обробляє всіх одночасно.
         await asyncio.gather(
-            dp.start_polling(bot, allowed_updates=allowed_updates),
+            dp.start_polling(*bots, allowed_updates=allowed_updates),
             server.serve(),
-            auto_reminder_loop(bot)
+            auto_reminder_loop(default_bot)
         )
     finally:
-        await bot.session.close()
+        await close_all_bots()
         if log_bot:
             await log_bot.session.close()
 

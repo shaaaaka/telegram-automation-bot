@@ -17,6 +17,18 @@ DB_FILE = os.getenv("DB_FILE", "bot.db")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-flash-1.5")
 
+# Мульти-бот конфігурація: BOTS='[{"username":"@pumbverifbot","token":"111:..."}, ...]'
+BOTS = os.getenv("BOTS")
+BOTS_LIST = []
+if BOTS:
+    try:
+        BOTS_LIST = json.loads(BOTS)
+        if not isinstance(BOTS_LIST, list):
+            BOTS_LIST = []
+    except Exception as e:
+        logger.warning(f"Failed to parse BOTS env: {e}")
+        BOTS_LIST = []
+
 # Зчитуємо та перетворюємо ID адміна та чату гівера
 try:
     ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))

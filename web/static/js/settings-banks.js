@@ -1765,10 +1765,14 @@ window.applyProfileMeta = function(profileItem, profileId) {
     const meta = window.profileBankMeta[profileId] || {};
     const nameInput = profileItem.querySelector('.bank-profile-name-input');
     const keyInput = profileItem.querySelector('.bank-profile-key-input');
+    const botUserInput = profileItem.querySelector('.bank-profile-bot-username');
+    const botTokenInput = profileItem.querySelector('.bank-profile-bot-token');
     const nameEl = profileItem.querySelector('.bank-profile-name');
     const keyEl = profileItem.querySelector('.bank-profile-key');
     if (nameInput && meta.name !== undefined) nameInput.value = meta.name;
     if (keyInput && meta.key !== undefined) keyInput.value = meta.key;
+    if (botUserInput && meta.bot_username !== undefined) botUserInput.value = meta.bot_username || '';
+    if (botTokenInput && meta.bot_token !== undefined) botTokenInput.value = meta.bot_token || '';
     if (nameEl && meta.name !== undefined) nameEl.textContent = meta.name;
     if (keyEl && meta.key !== undefined) keyEl.textContent = meta.key;
     const isActive = meta.isActive !== undefined ? meta.isActive : true;
@@ -1814,7 +1818,7 @@ function saveBankProfilesOpen() {
         document.querySelectorAll('#bank-profiles-list .bank-profile-item.active').forEach(item => {
             if (item.dataset.profileId) openIds.push(item.dataset.profileId);
         });
-        localStorage.setItem('bank_profiles_open', JSON.stringify(openIds));
+        sessionStorage.setItem('bank_profiles_open', JSON.stringify(openIds));
     } catch (e) {}
 }
 
@@ -1824,7 +1828,7 @@ function saveBankProfileMeta() {
     } catch (e) {}
 }
 
-window.createBankProfile = function(profileId, name, key, isActive, isNew) {
+window.createBankProfile = function(profileId, name, key, isActive, isNew, botUsername, botToken, avatarDataUrl) {
     const list = document.getElementById('bank-profiles-list');
     const template = document.getElementById('bank-profile-template');
     if (!list || !template) return null;
@@ -1832,17 +1836,31 @@ window.createBankProfile = function(profileId, name, key, isActive, isNew) {
     const item = clone.querySelector('.bank-profile-item');
     const nameInput = clone.querySelector('.bank-profile-name-input');
     const keyInput = clone.querySelector('.bank-profile-key-input');
+    const botUserInput = clone.querySelector('.bank-profile-bot-username');
+    const botTokenInput = clone.querySelector('.bank-profile-bot-token');
     const nameLabel = clone.querySelector('.bank-profile-name');
     const keyLabel = clone.querySelector('.bank-profile-key');
     if (item) {
         item.dataset.profileId = profileId;
-        if (isActive) item.classList.add('active');
+        // Only auto-open a brand-new profile for editing;
+        // loaded profiles stay collapsed by default.
+        if (isNew) item.classList.add('active');
         if (isNew) item.dataset.isNew = 'true';
     }
     if (nameInput) nameInput.value = name || '';
     if (keyInput) keyInput.value = key || '';
+    if (botUserInput) botUserInput.value = botUsername || '';
+    if (botTokenInput) botTokenInput.value = botToken || '';
     if (nameLabel) nameLabel.textContent = name || '';
     if (keyLabel) keyLabel.textContent = key || '';
+    window.profileBankMeta[profileId] = {
+        name: name || '',
+        key: key || profileId,
+        bot_username: botUsername || '',
+        bot_token: botToken || '',
+        avatar: avatarDataUrl || '',
+        isActive: isActive !== false
+    };
     list.appendChild(clone);
     if (!window.profileBankSelections[profileId]) window.profileBankSelections[profileId] = [];
     renderProfileBankSelector(item, profileId);
@@ -1860,7 +1878,6 @@ window.addBankProfileVisual = function() {
     const item = window.createBankProfile(newKey, newName, newKey, true, true);
     if (item) {
         if (typeof saveProfileBankSelections === 'function') saveProfileBankSelections();
-        window.profileBankMeta[newKey] = { name: newName, key: newKey };
         saveBankProfileMeta();
         saveBankProfilesOrder();
         saveBankProfilesOpen();
@@ -1875,6 +1892,7 @@ window.toggleBankProfile = function(header) {
 };
 
 window.switchBankSettingsPane = function(pane) {
+    sessionStorage.setItem('active_bank_settings_pane', pane);
     const banksPane = document.getElementById('bank-banks-pane');
     const profilesPane = document.getElementById('bank-profiles-pane');
     const banksTab = document.getElementById('bank-tab-banks');
@@ -1885,55 +1903,58 @@ window.switchBankSettingsPane = function(pane) {
     if (profilesTab) profilesTab.classList.toggle('active', pane === 'profiles');
 };
 
-window.loadBankProfiles = function() {
+window.loadBankProfiles = function(profiles) {
     const list = document.getElementById('bank-profiles-list');
     if (!list) return;
-    const orderRaw = localStorage.getItem('bank_profiles_order');
-    if (!orderRaw) {
-        // first load: initialize from existing DOM
-        document.querySelectorAll('#bank-profiles-list .bank-profile-item').forEach(item => {
-            const profileId = item.dataset.profileId;
-            if (profileId) {
-                renderProfileBankSelector(item, profileId);
-                renderProfileBankAccordions(item, profileId);
-                applyProfileMeta(item, profileId);
-            }
-        });
-        saveBankProfilesOrder();
-        saveBankProfilesOpen();
+    if (!profiles) profiles = window.bankProfiles;
+    if (!profiles) {
+        console.warn('[loadBankProfiles] no profiles provided and none cached');
         return;
     }
+    console.log('[loadBankProfiles] received profiles:', Object.keys(profiles), profiles);
 
-    let order = [];
-    try {
-        order = JSON.parse(orderRaw);
-    } catch (e) {}
+    window.bankProfiles = profiles;
+
+    const sorted = Object.values(profiles).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
     let openIds = [];
     try {
-        openIds = JSON.parse(localStorage.getItem('bank_profiles_open') || '[]');
+        // Use sessionStorage so each tab starts with collapsed profiles,
+        // while preserving manual open/close state during the same session.
+        openIds = JSON.parse(sessionStorage.getItem('bank_profiles_open') || '[]');
     } catch (e) {}
 
-    // remove DOM profiles not in saved order
-    list.querySelectorAll('.bank-profile-item').forEach(item => {
-        if (!order.includes(item.dataset.profileId)) item.remove();
+    list.innerHTML = '';
+    window.profileBankSelections = {};
+    const templates = window.getProfileBankTemplates();
+
+    sorted.forEach(profile => {
+        const profileId = profile.profile_key;
+        const isActive = profile.is_active !== 0;
+        const item = window.createBankProfile(
+            profileId,
+            profile.name || profileId,
+            profileId,
+            isActive,
+            false,
+            profile.bot_username || '',
+            profile.bot_token || '',
+            profile.avatar_data_url || ''
+        );
+        if (openIds.includes(profileId)) item.classList.add('active');
+
+        const selected = (profile.selected_banks || [])
+            .map(b => normalizeBankKey(b))
+            .filter(k => templates[k]);
+        window.profileBankSelections[profileId] = selected;
     });
 
-    // ensure all saved profiles exist in DOM
-    order.forEach((profileId, index) => {
-        let item = list.querySelector(`.bank-profile-item[data-profile-id="${profileId}"]`);
-        if (!item) {
-            const meta = window.profileBankMeta[profileId] || {};
-            item = window.createBankProfile(profileId, meta.name || profileId, meta.key || profileId, openIds.includes(profileId), false);
-        } else {
-            if (openIds.includes(profileId)) item.classList.add('active');
-            else item.classList.remove('active');
-        }
-        if (item) applyProfileMeta(item, profileId);
-    });
+    window.renderAllProfileBanks();
+    saveBankProfilesOrder();
+    saveBankProfilesOpen();
 };
 
 function normalizeBankKey(str) {
-    return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return String(str || '').toLowerCase().replace(/[ .\-]/g, '').replace(/bank/g, '');
 }
 
 window.getProfileBankTemplates = function() {
@@ -1942,7 +1963,8 @@ window.getProfileBankTemplates = function() {
     const result = {};
 
     Object.keys(demo).forEach(k => {
-        result[k] = demo[k];
+        const key = normalizeBankKey(k);
+        if (key) result[key] = { ...demo[k], key: k };
     });
 
     if (Array.isArray(backend)) {
@@ -1950,12 +1972,12 @@ window.getProfileBankTemplates = function() {
             if (!item || typeof item !== 'object') return;
             const rawKey = item.key || item.display_name || item.name || String(i);
             const key = normalizeBankKey(rawKey);
-            if (key) result[key] = item;
+            if (key) result[key] = { ...item, key: rawKey };
         });
     } else {
         Object.keys(backend).forEach(k => {
             const key = normalizeBankKey(k);
-            if (key) result[key] = backend[k];
+            if (key) result[key] = { ...backend[k], key: k };
         });
     }
 
@@ -2016,11 +2038,16 @@ window.toggleBankInProfile = function(profileId, bankKey) {
     }
 };
 
-window.deleteBankProfile = function(btn) {
+window.deleteBankProfile = async function(btn) {
     const item = btn && btn.closest ? btn.closest('.bank-profile-item') : null;
     if (!item) return;
     const profileId = item.dataset.profileId;
     if (profileId) {
+        try {
+            await fetch(`/api/settings/profiles/${encodeURIComponent(profileId)}`, { method: 'DELETE' });
+        } catch (e) {
+            console.error('Failed to delete profile on server', e);
+        }
         delete window.profileBankSelections[profileId];
         delete window.profileBankMeta[profileId];
         if (typeof saveProfileBankSelections === 'function') {
@@ -2048,24 +2075,83 @@ window.confirmDeleteBankProfile = async function(btn) {
     if (confirmed) deleteBankProfile(btn);
 };
 
-window.saveBankProfile = function(btn) {
+window.saveBankProfile = async function(btn) {
     const item = btn && btn.closest ? btn.closest('.bank-profile-item') : null;
     if (!item) return;
-    const profileId = item.dataset.profileId;
+    const oldProfileId = item.dataset.profileId;
     const nameInput = item.querySelector('.bank-profile-name-input');
     const keyInput = item.querySelector('.bank-profile-key-input');
+    const botUserInput = item.querySelector('.bank-profile-bot-username');
+    const botTokenInput = item.querySelector('.bank-profile-bot-token');
     const nameEl = item.querySelector('.bank-profile-name');
     const keyEl = item.querySelector('.bank-profile-key');
-    if (nameInput && nameEl) nameEl.textContent = nameInput.value;
-    if (keyInput && keyEl) keyEl.textContent = keyInput.value;
-    if (profileId) {
-        window.profileBankMeta[profileId] = window.profileBankMeta[profileId] || {};
-        window.profileBankMeta[profileId].name = nameInput ? nameInput.value : '';
-        window.profileBankMeta[profileId].key = keyInput ? keyInput.value : '';
-        saveBankProfileMeta();
+
+    const newKey = (keyInput ? keyInput.value : oldProfileId).trim();
+    const name = (nameInput ? nameInput.value : '').trim();
+    if (!newKey) {
+        showToast('Ключ профілю не може бути порожнім', 'error');
+        return;
     }
-    item.dataset.isNew = 'false';
-    if (typeof showToast === 'function') showToast('Профіль збережено', 'success');
+
+    const templates = window.getProfileBankTemplates();
+    const selectedBanks = (window.profileBankSelections[oldProfileId] || [])
+        .map(k => (templates[k] && templates[k].key) || k);
+
+    const profileMeta = window.profileBankMeta[oldProfileId] || {};
+    const payload = {
+        profile_key: newKey,
+        name: name,
+        selected_banks: selectedBanks,
+        bot_username: (botUserInput ? botUserInput.value : '').replace(/^@/, '').trim() || null,
+        bot_token: (botTokenInput ? botTokenInput.value : '').trim() || null,
+        avatar_data_url: profileMeta.avatar || null,
+        is_active: 1
+    };
+
+    console.log('[saveBankProfile] saving payload:', payload);
+    try {
+        const res = await fetch('/api/settings/profiles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        console.log('[saveBankProfile] response status:', res.status);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            console.error('[saveBankProfile] server error:', err);
+            showToast('Помилка збереження: ' + (err.detail || res.status), 'error');
+            return;
+        }
+
+        if (nameInput && nameEl) nameEl.textContent = name;
+        if (keyInput && keyEl) keyEl.textContent = newKey;
+        item.dataset.profileId = newKey;
+        item.dataset.isNew = 'false';
+
+        window.profileBankMeta[newKey] = window.profileBankMeta[newKey] || {};
+        window.profileBankMeta[newKey].name = name;
+        window.profileBankMeta[newKey].key = newKey;
+        window.profileBankMeta[newKey].bot_username = botUserInput ? botUserInput.value : '';
+        window.profileBankMeta[newKey].bot_token = botTokenInput ? botTokenInput.value : '';
+
+        if (oldProfileId !== newKey) {
+            window.profileBankSelections[newKey] = window.profileBankSelections[oldProfileId] || [];
+            delete window.profileBankSelections[oldProfileId];
+            window.profileBankMeta[newKey] = { ...window.profileBankMeta[oldProfileId], ...window.profileBankMeta[newKey] };
+            delete window.profileBankMeta[oldProfileId];
+            try {
+                await fetch(`/api/settings/profiles/${encodeURIComponent(oldProfileId)}`, { method: 'DELETE' });
+            } catch (e) { console.error(e); }
+        }
+
+        saveBankProfileMeta();
+        saveProfileBankSelections();
+        saveBankProfilesOrder();
+        showToast('Профіль збережено', 'success');
+        if (typeof loadSettings === 'function') await loadSettings();
+    } catch (e) {
+        showToast('Помилка збереження профілю: ' + e.message, 'error');
+    }
 };
 
 window.renderProfileBankSelector = function(profileItem, profileId) {
