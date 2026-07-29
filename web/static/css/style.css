@@ -8443,7 +8443,11 @@ html body .chat-msg-gallery.album-count-6 {
     grid-template-rows: repeat(2, 360px) !important;
 }
 
-html body .chat-msg-gallery.album-count-7,
+html body .chat-msg-gallery.album-count-7 {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    grid-template-rows: 460px 460px 300px !important;
+}
+
 html body .chat-msg-gallery.album-count-8,
 html body .chat-msg-gallery.album-count-10 {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;

@@ -487,7 +487,7 @@ function applyAlbumGridLayout(gallery) {
         cellStyles.push({ col: '3', row: '2' });
     } else if (n === 7) {
         cols = 'repeat(6, minmax(0, 1fr))';
-        rows = 'repeat(3, 260px)';
+        rows = '460px 460px 300px';
         cellStyles.push({ col: '1 / span 3', row: '1' });
         cellStyles.push({ col: '4 / span 3', row: '1' });
         cellStyles.push({ col: '1 / span 3', row: '2' });
