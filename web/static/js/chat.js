@@ -351,8 +351,8 @@ function applyAlbumGridLayout(gallery) {
         if (img.parentElement && img.parentElement.classList.contains('chat-msg-gallery-more-cell')) return;
         img.style.setProperty('width', '100%', 'important');
         img.style.setProperty('height', '100%', 'important');
-        img.style.setProperty('object-fit', 'contain', 'important');
-        img.style.setProperty('object-position', 'center center', 'important');
+        img.style.setProperty('object-fit', 'cover', 'important');
+        img.style.setProperty('object-position', 'top center', 'important');
         img.style.removeProperty('position');
         img.style.removeProperty('left');
         img.style.removeProperty('top');
