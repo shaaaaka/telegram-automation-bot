@@ -476,14 +476,15 @@ function applyAlbumGridLayout(gallery) {
         cellStyles.push({ col: '3 / span 2', row: '2' });
         cellStyles.push({ col: '5 / span 2', row: '2' });
     } else if (n === 6) {
+        // 3 columns × 2 rows: 1/2/3 on top, 4/5/6 on bottom.
         cols = 'repeat(3, minmax(0, 1fr))';
-        rows = 'repeat(3, 260px)';
-        cellStyles.push({ col: '1', row: '1 / span 2' });
+        rows = 'repeat(2, 360px)';
+        cellStyles.push({ col: '1', row: '1' });
         cellStyles.push({ col: '2', row: '1' });
         cellStyles.push({ col: '3', row: '1' });
-        cellStyles.push({ col: '1', row: '3' });
-        cellStyles.push({ col: '2', row: '3' });
-        cellStyles.push({ col: '3', row: '3' });
+        cellStyles.push({ col: '1', row: '2' });
+        cellStyles.push({ col: '2', row: '2' });
+        cellStyles.push({ col: '3', row: '2' });
     } else if (n === 7) {
         cols = 'repeat(6, minmax(0, 1fr))';
         rows = 'repeat(3, 260px)';

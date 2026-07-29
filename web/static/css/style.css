@@ -8438,7 +8438,11 @@ html body .chat-msg-gallery.album-count-5 {
     grid-template-rows: 460px 240px !important;
 }
 
-html body .chat-msg-gallery.album-count-6,
+html body .chat-msg-gallery.album-count-6 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(2, 360px) !important;
+}
+
 html body .chat-msg-gallery.album-count-7,
 html body .chat-msg-gallery.album-count-8,
 html body .chat-msg-gallery.album-count-10 {
