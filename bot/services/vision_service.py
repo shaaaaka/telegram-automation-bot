@@ -1,5 +1,6 @@
 import base64
 import logging
+import re
 from bot.config import OPENROUTER_MODEL
 
 logger = logging.getLogger(__name__)
@@ -326,3 +327,252 @@ async def verify_relink_initial_screenshot(client, media_bytes: bytes, bank_name
     except Exception as e:
         logger.error(f"Error in verify_relink_initial_screenshot: {e}")
         return True, f"Помилка ШІ-верифікації: {e} (пропущено)"
+
+def _clean_pumb_value(value) -> str | None:
+    """Прибирає службові позначки та переклади зі значення."""
+    if value is None:
+        return None
+    s = str(value).strip().rstrip('.,;')
+    if s.lower() in ('null', 'none', 'undefined', 'не визначено', 'н/д', 'n/a'):
+        return None
+    # Якщо є дубль українською/англійською — беремо першу частину
+    if '/' in s:
+        s = s.split('/')[0].strip()
+    if '|' in s:
+        s = s.split('|')[0].strip()
+    # Видаляємо примусові пояснення в дужках
+    s = re.sub(r'\s*\([^)]*\)\s*$', '', s).strip()
+    if not s:
+        return None
+    return s
+
+
+def _parse_pumb_registration_data(text: str) -> dict:
+    """Парсинг відповіді ШІ на поля ПІБ, дата народження та ІПН."""
+    import json
+    result = {"pib": None, "dob": None, "ipn": None}
+    if not text:
+        return result
+
+    # 1. Спочатку намагаємося розпарсити JSON (markdown з трьома апострофами ігнорується)
+    try:
+        text_no_md = re.sub(r'```(?:json)?', '', text)
+        json_match = re.search(r'\{[\s\S]*?\}', text_no_md, re.DOTALL)
+        if json_match:
+            data = json.loads(json_match.group(0))
+            for k in result.keys():
+                if k in data:
+                    result[k] = _clean_pumb_value(data[k])
+    except Exception:
+        pass
+
+    # 1b. Fallback: шукаємо значення полів прямо в raw JSON/тексті
+    if not result['pib']:
+        m = re.search(r'"pib"\s*:\s*"([^"]+)"', text)
+        if m:
+            result['pib'] = _clean_pumb_value(m.group(1))
+    if not result['dob']:
+        m = re.search(r'"dob"\s*:\s*"([^"]+)"', text)
+        if m:
+            result['dob'] = _clean_pumb_value(m.group(1))
+    if not result['ipn']:
+        m = re.search(r'"ipn"\s*:\s*"([^"]+)"', text)
+        if m:
+            result['ipn'] = _clean_pumb_value(m.group(1))
+
+    # 2. Якщо JSON не вдався або не повний — fallback-регекси
+
+    # ПІБ
+    if not result['pib']:
+        pib_match = re.search(
+            r'(?:ПІБ|П\.?І\.?Б\.?|ПIБ|PIB|ФИО|Full\s*name|Name|Прізвище,?\s*ім\'?я,?\s*по\s*батькові)[\s:：]+([^\n]+)',
+            text, re.IGNORECASE
+        )
+        if pib_match:
+            result['pib'] = _clean_pumb_value(pib_match.group(1))
+        else:
+            # Fallback: шукаємо 3+ слова ВЕЛЬШИМИ літерами українською або латиницею
+            for line in text.split('\n'):
+                line = line.strip().rstrip('.,;')
+                if not line:
+                    continue
+                # Пропускаємо зрозумілі заголовки документів
+                if re.search(r'ПАСПОРТ|ГРОМАДЯНИНА|УКРАЇНИ|ДОВІДКА|EXECUTIVE|PROCEEDINGS|ВИКОНАВЧІ|ПРОВАДЖЕННЯ', line, re.IGNORECASE):
+                    continue
+                m = re.search(r'([A-ZА-ЯІЇЄҐ\']{2,}(?:\s+[A-ZА-ЯІЇЄҐ\']{2,}){2,})', line)
+                if m:
+                    candidate = m.group(1).strip()
+                    if len(candidate.split()) >= 3:
+                        result['pib'] = candidate
+                        break
+
+    # Дата народження
+    if not result['dob']:
+        dob_match = re.search(
+            r'(?:Дата\s*народження|Дата\s*рождения|Date\s*of\s*birth|ДР)[\s:：]+([^\n]+)',
+            text, re.IGNORECASE
+        )
+        if dob_match:
+            raw = _clean_pumb_value(dob_match.group(1))
+            if raw:
+                date = re.search(r'\d{2}[./-]\d{2}[./-]\d{4}', raw)
+                if date:
+                    result['dob'] = date.group(0).replace('/', '.').replace('-', '.')
+        # Fallback: шукаємо дату у форматі ДД.ММ.РРРР з прийнятним роком народження
+        if not result['dob']:
+            for match in re.finditer(r'\d{2}[./-]\d{2}[./-]\d{4}', text):
+                candidate = match.group(0).replace('/', '.').replace('-', '.')
+                try:
+                    _, _, y = map(int, candidate.split('.'))
+                    if 1900 <= y <= 2006:
+                        result['dob'] = candidate
+                        break
+                except Exception:
+                    continue
+
+    # ІПН / РНОКПП
+    if not result['ipn']:
+        ipn_match = re.search(
+            r'(?:РНОКПП(?:\s*\(ІПН\))?|ІПН|ИНН|IPN|Individual\s*Tax\s*Number|Tax\s*number)[\s:：]+(\d{10})',
+            text, re.IGNORECASE
+        )
+        if ipn_match:
+            result['ipn'] = ipn_match.group(1)
+        else:
+            numbers = re.findall(r'(?<!\d)\d{10}(?!\d)', text)
+            if numbers:
+                result['ipn'] = numbers[0]
+
+    # Валідація
+    if result['pib']:
+        words = result['pib'].split()
+        if len(words) < 2:
+            result['pib'] = None
+    if result['dob']:
+        try:
+            d, m, y = map(int, result['dob'].split('.'))
+            if not (1 <= d <= 31 and 1 <= m <= 12 and 1900 <= y <= 2030):
+                result['dob'] = None
+        except Exception:
+            result['dob'] = None
+    if result['ipn']:
+        if not re.fullmatch(r'\d{10}', result['ipn']):
+            result['ipn'] = None
+
+    return result
+
+
+async def _extract_pumb_from_images(client, images: list[bytes]) -> dict | None:
+    """Внутрішній виклик OpenRouter для отримання ПІБ/дати/ІПН зі скріншотів."""
+    from bot.services.ai_economy_service import (
+        resize_and_compress_image,
+        record_ai_usage,
+    )
+
+    if not images:
+        return None
+
+    content: list[dict] = [
+        {
+            "type": "text",
+            "text": (
+                "You are an OCR and data extraction assistant. "
+                "You receive one or more screenshots from the Ukrainian 'Дія' app. "
+                "Some screenshots may be irrelevant (e.g. 'Виконавчі провадження' or a QR code); ignore those. "
+                "Find the passport/ID card (it contains full name and date of birth) and the taxpayer card (РНОКПП/ІПН, it contains a 10-digit number).\n\n"
+                "Return ONLY a valid JSON object. Do not use markdown, do not use code blocks, do not add explanations. "
+                "The JSON must have exactly these keys: pib, dob, ipn.\n\n"
+                'Example: {"pib":"ПРИЗВИЩЕ ІМ\'Я ПО БАТЬКОВІ","dob":"01.01.1990","ipn":"1234567890"}\n\n'
+                "Rules:\n"
+                "- pib = full name in Ukrainian exactly as shown in the passport/ID (3 words).\n"
+                "- dob = date of birth in DD.MM.YYYY format.\n"
+                "- ipn = 10-digit tax number (РНОКПП/ІПН).\n"
+                "- Use null (without quotes) for any missing field. "
+                "- Output must be a single JSON object on one line, no backticks."
+            )
+        }
+    ]
+
+    for img in images[:3]:
+        try:
+            # Збільшуємо розмір для кращого читання дрібного тексту
+            compressed = resize_and_compress_image(img, max_side=1600, quality=85)
+            b64 = base64.b64encode(compressed).decode('utf-8')
+            content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{b64}"}
+            })
+        except Exception as e:
+            logger.error(f"Error compressing image for PUMB extraction: {e}")
+            return None
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a precise data extraction assistant. "
+                "Read the screenshots carefully and return ONLY the requested JSON object. "
+                "Do not add explanations, markdown, code blocks, or any text outside the JSON. "
+                "You must output a single valid JSON object."
+            )
+        },
+        {
+            "role": "user",
+            "content": content
+        }
+    ]
+
+    try:
+        response = await client.chat.completions.create(
+            model=OPENROUTER_MODEL,
+            messages=messages,
+            max_tokens=1000,
+            temperature=0.0,
+            extra_headers={
+                "HTTP-Referer": "https://github.com/shaaaaka/telegram-automation-bot",
+                "X-Title": "Verification Support Bot"
+            }
+        )
+        if hasattr(response, 'usage') and response.usage:
+            await record_ai_usage(response.usage.prompt_tokens, response.usage.completion_tokens)
+
+        res_text = response.choices[0].message.content.strip()
+        logger.info(f"PUMB raw AI response: {res_text}")
+        return _parse_pumb_registration_data(res_text)
+    except Exception as e:
+        logger.error(f"Помилка OpenRouter при розпізнаванні ПУМБ-даних: {e}")
+        return None
+
+
+async def extract_pumb_registration_data(client, images: list[bytes]) -> dict | None:
+    """Розпізнавання ПІБ, дати народження та ІПН зі скріншотів додатку Дія."""
+    if not client:
+        logger.warning("extract_pumb_registration_data: OpenAI client is not configured")
+        return None
+
+    from bot.services.ai_economy_service import check_daily_limit_exceeded
+    if await check_daily_limit_exceeded():
+        logger.warning("AI daily limit exceeded in extract_pumb_registration_data")
+        return None
+
+    if not images:
+        return None
+
+    # Спроба 1: усі 3 скріншоти разом
+    extracted = await _extract_pumb_from_images(client, images) or {}
+    if all(extracted.values()):
+        return extracted
+
+    # Спроба 2: fallback по одному скріншоту, якщо разом не вдалося
+    for img in images:
+        single = await _extract_pumb_from_images(client, [img]) or {}
+        if single.get('pib') and not extracted.get('pib'):
+            extracted['pib'] = single['pib']
+        if single.get('dob') and not extracted.get('dob'):
+            extracted['dob'] = single['dob']
+        if single.get('ipn') and not extracted.get('ipn'):
+            extracted['ipn'] = single['ipn']
+        if all(extracted.values()):
+            break
+
+    return extracted if any(extracted.values()) else None

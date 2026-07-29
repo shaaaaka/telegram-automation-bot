@@ -262,6 +262,21 @@ async def set_session_is_relink(client_id: int, is_relink: int):
         await db.execute("UPDATE sessions SET is_relink = ? WHERE client_id = ?", (is_relink, client_id))
         await db.commit()
 
+async def update_session_client_data(client_id: int, client_data: str, status: str = None):
+    """Оновлення client_data сесії з можливістю зміни статусу без скидання банків/ліній"""
+    async with aiosqlite.connect(db_mod.DB_FILE) as db:
+        if status:
+            await db.execute(
+                "UPDATE sessions SET client_data = ?, status = ? WHERE client_id = ?",
+                (client_data, status, client_id)
+            )
+        else:
+            await db.execute(
+                "UPDATE sessions SET client_data = ? WHERE client_id = ?",
+                (client_data, client_id)
+            )
+        await db.commit()
+
 async def complete_current_bank(client_id: int, result: str) -> dict | None:
     """Завершення верифікації поточного банку: звільняє лінію, логує, оновлює сесію."""
     session = await get_session(client_id)

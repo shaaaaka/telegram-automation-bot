@@ -13,6 +13,7 @@ import aiosqlite
 import logging
 import time
 import html
+import io
 import os
 
 from bot.handlers.client_helpers import *
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 _client_reply_cooldowns = {}
+_pumb_new_photo_tasks: dict[int, asyncio.Task] = {}
 
 PUMB_EXAMPLE_PHOTOS_DIR = r"C:\Users\oliks\Documents\PUMB"
 
@@ -1636,8 +1638,105 @@ async def handle_pumb_choice(callback: CallbackQuery, state: FSMContext):
                 await callback.bot.send_message(chat_id=chat_id, text="Надішліть такі 3 фото")
         else:
             await callback.bot.send_message(chat_id=chat_id, text="Надішліть такі 3 фото")
+        # Після прикладів очікуємо 3 скріншоти від клієнта
+        await state.set_state(RegistrationStates.pumb_new_screenshots)
     else:
         await callback.bot.send_message(chat_id=chat_id, text="Надішліть отаке одне фото")
 
     await _continue_pumb_start(client_id, username_db, client_bot_username, pumb_type, callback.message, callback.bot)
     await callback.answer()
+
+
+PUMB_NEW_PHOTOS_PROCESS_DELAY = 4.0
+
+async def _process_pumb_new_photos(client_id: int, chat_id: int, state: FSMContext, bot: Bot):
+    """Завантаження 3 скріншотів, AI-розпізнавання та оновлення client_data."""
+    data = await state.get_data()
+    photos = data.get("pumb_new_photos", [])[:3]
+    if not photos:
+        return
+
+    await bot.send_chat_action(chat_id=chat_id, action="typing")
+    try:
+        images = []
+        for file_id in photos:
+            file = await bot.get_file(file_id)
+            buf = io.BytesIO()
+            await bot.download_file(file.file_path, buf)
+            images.append(buf.getvalue())
+
+        from bot.openai_client import extract_pumb_registration_data
+        extracted = await extract_pumb_registration_data(images)
+        logger.info(f"PUMB extracted data: {extracted}")
+        if not extracted or not (extracted.get('pib') and extracted.get('dob') and extracted.get('ipn')):
+            await bot.send_message(
+                chat_id=chat_id,
+                text="Не вдалося розпізнати ПІБ, дату народження чи ІПН. Будь ласка, надішліть 3 чіткі скріншоти."
+            )
+            await state.update_data(pumb_new_photos=[])
+            return
+
+        client_data = f"ПІБ: {extracted['pib']}\nДата народження: {extracted['dob']}\nІПН: {extracted['ipn']}"
+        logger.info(f"PUMB client_data: {client_data}")
+        await db.update_session_client_data(client_id, client_data, status='registered')
+        await db.update_session_verification_data(client_id, success_photo_id=",".join(photos))
+
+        await bot.send_message(chat_id=chat_id, text="Дякую! Реєстраційні дані прийнято.")
+        await state.clear()
+    except Exception as e:
+        logger.exception(f"Помилка обробки ПУМБ-скріншотів: {e}")
+        await bot.send_message(
+            chat_id=chat_id,
+            text="Помилка обробки. Спробуйте надіслати скріншоти ще раз."
+        )
+        await state.update_data(pumb_new_photos=[])
+
+
+async def _delayed_pumb_photos_check(client_id: int, chat_id: int, state: FSMContext, bot: Bot):
+    """Затримка перед обробкою, щоб зібрати всі 3 скріншоти альбому."""
+    try:
+        await asyncio.sleep(PUMB_NEW_PHOTOS_PROCESS_DELAY)
+        data = await state.get_data()
+        photos = data.get("pumb_new_photos", [])
+        if not photos:
+            return
+        if len(photos) >= 3:
+            await _process_pumb_new_photos(client_id, chat_id, state, bot)
+        else:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=f"Отримано {len(photos)}/3 фото. Будь ласка, надішліть всі 3 скріншоти."
+            )
+    except asyncio.CancelledError:
+        return
+    except Exception as e:
+        logger.exception(f"Помилка перевірки зібраних фото ПУМБ: {e}")
+
+
+@router.message(RegistrationStates.pumb_new_screenshots, F.chat.type == "private", F.photo)
+async def process_pumb_new_screenshots(message: Message, state: FSMContext, bot: Bot):
+    """Збір 3 скріншотів від ПУМБ-клієнта та запуск AI-обробки."""
+    client_id = message.from_user.id
+    file_id = message.photo[-1].file_id
+
+    data = await state.get_data()
+    photos = data.get("pumb_new_photos", [])
+    if file_id not in photos:
+        photos.append(file_id)
+    await state.update_data(pumb_new_photos=photos)
+
+    existing = _pumb_new_photo_tasks.pop(client_id, None)
+    if existing and not existing.done():
+        existing.cancel()
+        try:
+            await existing
+        except asyncio.CancelledError:
+            pass
+
+    if len(photos) >= 3:
+        await _process_pumb_new_photos(client_id, message.chat.id, state, bot)
+    else:
+        task = asyncio.create_task(
+            _delayed_pumb_photos_check(client_id, message.chat.id, state, bot)
+        )
+        _pumb_new_photo_tasks[client_id] = task

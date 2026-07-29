@@ -491,6 +491,7 @@ from bot.services.sessions_service import (
     update_session_banks,
     set_session_status,
     set_session_is_relink,
+    update_session_client_data,
     complete_current_bank,
     send_archive_report,
     close_session,

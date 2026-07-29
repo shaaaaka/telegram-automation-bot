@@ -34,6 +34,9 @@ async def verify_deletion_proof(media_bytes: bytes, media_type: str, bank_name: 
 async def verify_relink_initial_screenshot(media_bytes: bytes, bank_name: str = None) -> tuple[bool, str]:
     return await vision_mod.verify_relink_initial_screenshot(client, media_bytes, bank_name)
 
+async def extract_pumb_registration_data(images: list[bytes]) -> dict | None:
+    return await vision_mod.extract_pumb_registration_data(client, images)
+
 
 from bot.services.ai_economy_service import (
     resize_and_compress_image,
