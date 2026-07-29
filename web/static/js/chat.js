@@ -2073,16 +2073,29 @@ function handleIncomingWebSocketMessage(data) {
                             gallery.appendChild(img2);
                             sortGalleryImages(gallery);
 
-                            singleImg.replaceWith(gallery);
+                            // Replace the whole photo wrapper so the gallery sits inside .chat-msg-media-wrapper
+                            // instead of inside the constrained .chat-msg-photo-wrapper (max-width 480px / max-height 520px).
+                            const photoWrapper = singleImg.closest('.chat-msg-photo-wrapper');
+                            if (photoWrapper) {
+                                photoWrapper.replaceWith(gallery);
+                            } else {
+                                singleImg.replaceWith(gallery);
+                            }
                             applyAlbumGridLayout(gallery);
-                            
-                            lastBubble.classList.add('has-photo');
-                            if (!lastBubble.querySelector('.chat-msg-text')) {
+
+                            lastBubble.classList.add('has-photo', 'has-gallery');
+                            const hadTextBefore = !!lastBubble.querySelector('.chat-msg-text');
+                            const willHaveText = hadTextBefore || Boolean(data.message_text);
+
+                            if (willHaveText) {
+                                lastBubble.classList.remove('photo-only');
+                                lastMsgContainer.classList.remove('photo-only-msg');
+                            } else {
                                 lastBubble.classList.add('photo-only');
                             }
-                            
+
                             // If the incoming message has text and the bubble doesn't, add it
-                            if (data.message_text && !lastBubble.querySelector('.chat-msg-text')) {
+                            if (data.message_text && !hadTextBefore) {
                                 let rawText = stripMessageQuotes(data.message_text);
                                 let escapedText = escapeHtml(rawText);
                                 escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -2120,10 +2133,29 @@ function handleIncomingWebSocketMessage(data) {
                             const newAlbumClass = newCount > 9 ? 'album-count-many' : `album-count-${newCount}`;
                             existingGallery.className = `chat-msg-gallery ${newAlbumClass}`;
 
+                            // If an older gallery is still inside the constrained photo wrapper, move it into the media wrapper.
+                            const photoWrapper = existingGallery.closest('.chat-msg-photo-wrapper');
+                            const mediaWrapper = existingGallery.closest('.chat-msg-media-wrapper');
+                            if (photoWrapper && mediaWrapper) {
+                                mediaWrapper.insertBefore(existingGallery, photoWrapper);
+                                photoWrapper.remove();
+                            }
+
                             applyAlbumGridLayout(existingGallery);
 
+                            lastBubble.classList.add('has-gallery');
+                            const hadTextBefore = !!lastBubble.querySelector('.chat-msg-text');
+                            const willHaveText = hadTextBefore || Boolean(data.message_text);
+
+                            if (willHaveText) {
+                                lastBubble.classList.remove('photo-only');
+                                lastMsgContainer.classList.remove('photo-only-msg');
+                            } else if (!lastBubble.classList.contains('photo-only')) {
+                                lastBubble.classList.add('photo-only');
+                            }
+
                             // If the incoming message has text and the bubble doesn't, add it
-                            if (data.message_text && !lastBubble.querySelector('.chat-msg-text')) {
+                            if (data.message_text && !hadTextBefore) {
                                 let rawText = stripMessageQuotes(data.message_text);
                                 let escapedText = escapeHtml(rawText);
                                 escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
