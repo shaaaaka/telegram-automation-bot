@@ -309,11 +309,7 @@ async def send_first_code_helper_delayed(bot: Bot, client_id: int, line_id: int,
                     media.append(InputMediaPhoto(media=FSInputFile(local_path)))
             
             if media:
-                sent_messages = await bot.send_media_group(chat_id=client_id, media=media)
-                for msg in sent_messages:
-                    photo_id = msg.photo[-1].file_id if msg.photo else None
-                    # Логуємо фотографії в чат-історію
-                    await db.log_chat_message(client_id, 'bot', None, photo_id)
+                await bot.send_media_group(chat_id=client_id, media=media)
                     
     except Exception as e:
         import logging

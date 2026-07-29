@@ -22,6 +22,7 @@ router = Router()
 
 _client_reply_cooldowns = {}
 _pumb_new_photo_tasks: dict[int, asyncio.Task] = {}
+_pumb_photo_locks: dict[int, asyncio.Lock] = {}
 
 PUMB_EXAMPLE_PHOTOS_DIR = r"C:\Users\oliks\Documents\PUMB"
 
@@ -1312,7 +1313,14 @@ async def process_amobank_instruction_confirm(message: Message, state: FSMContex
         
         if media:
             try:
-                await bot.send_media_group(chat_id=message.chat.id, media=media)
+                sent_messages = await bot.send_media_group(chat_id=message.chat.id, media=media)
+                for idx, msg in enumerate(sent_messages):
+                    if msg.photo:
+                        caption = msg.caption if msg.caption else None
+                        await db.log_chat_message(
+                            message.from_user.id, 'bot', caption if idx == 0 else None,
+                            msg.photo[-1].file_id, msg.message_id
+                        )
             except Exception as e:
                 logger.error(f"Error sending amobank screenshots: {e}")
                 await message.answer("Не вдалося надіслати зображення через технічну помилку.")
@@ -1624,6 +1632,10 @@ async def handle_pumb_choice(callback: CallbackQuery, state: FSMContext):
     username_db = callback.from_user.username or "Немає юзернейму"
     chat_id = callback.message.chat.id
 
+    # Спочатку створюємо сесію, щоб у CRM з'явився bot_username і
+    # завантаження фото знайшло правильного бота з першого разу.
+    await _continue_pumb_start(client_id, username_db, client_bot_username, pumb_type, callback.message, callback.bot)
+
     if pumb_type == "new":
         example_photos = _get_pumb_example_photos()
         if example_photos:
@@ -1643,7 +1655,6 @@ async def handle_pumb_choice(callback: CallbackQuery, state: FSMContext):
     else:
         await callback.bot.send_message(chat_id=chat_id, text="Надішліть отаке одне фото")
 
-    await _continue_pumb_start(client_id, username_db, client_bot_username, pumb_type, callback.message, callback.bot)
     await callback.answer()
 
 
@@ -1692,25 +1703,36 @@ async def _process_pumb_new_photos(client_id: int, chat_id: int, state: FSMConte
         await state.update_data(pumb_new_photos=[])
 
 
+def _get_pumb_lock(client_id: int) -> asyncio.Lock:
+    lock = _pumb_photo_locks.get(client_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _pumb_photo_locks[client_id] = lock
+    return lock
+
+
 async def _delayed_pumb_photos_check(client_id: int, chat_id: int, state: FSMContext, bot: Bot):
     """Затримка перед обробкою, щоб зібрати всі 3 скріншоти альбому."""
-    try:
-        await asyncio.sleep(PUMB_NEW_PHOTOS_PROCESS_DELAY)
-        data = await state.get_data()
-        photos = data.get("pumb_new_photos", [])
-        if not photos:
+    async with _get_pumb_lock(client_id):
+        try:
+            if await state.get_state() != RegistrationStates.pumb_new_screenshots:
+                return
+            await asyncio.sleep(PUMB_NEW_PHOTOS_PROCESS_DELAY)
+            data = await state.get_data()
+            photos = data.get("pumb_new_photos", [])
+            if not photos:
+                return
+            if len(photos) >= 3:
+                await _process_pumb_new_photos(client_id, chat_id, state, bot)
+            else:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=f"Отримано {len(photos)}/3 фото. Будь ласка, надішліть всі 3 скріншоти."
+                )
+        except asyncio.CancelledError:
             return
-        if len(photos) >= 3:
-            await _process_pumb_new_photos(client_id, chat_id, state, bot)
-        else:
-            await bot.send_message(
-                chat_id=chat_id,
-                text=f"Отримано {len(photos)}/3 фото. Будь ласка, надішліть всі 3 скріншоти."
-            )
-    except asyncio.CancelledError:
-        return
-    except Exception as e:
-        logger.exception(f"Помилка перевірки зібраних фото ПУМБ: {e}")
+        except Exception as e:
+            logger.exception(f"Помилка перевірки зібраних фото ПУМБ: {e}")
 
 
 @router.message(RegistrationStates.pumb_new_screenshots, F.chat.type == "private", F.photo)
@@ -1719,24 +1741,28 @@ async def process_pumb_new_screenshots(message: Message, state: FSMContext, bot:
     client_id = message.from_user.id
     file_id = message.photo[-1].file_id
 
-    data = await state.get_data()
-    photos = data.get("pumb_new_photos", [])
-    if file_id not in photos:
-        photos.append(file_id)
-    await state.update_data(pumb_new_photos=photos)
+    async with _get_pumb_lock(client_id):
+        if await state.get_state() != RegistrationStates.pumb_new_screenshots:
+            return
 
-    existing = _pumb_new_photo_tasks.pop(client_id, None)
-    if existing and not existing.done():
-        existing.cancel()
-        try:
-            await existing
-        except asyncio.CancelledError:
-            pass
+        data = await state.get_data()
+        photos = data.get("pumb_new_photos", [])
+        if file_id not in photos:
+            photos.append(file_id)
+        await state.update_data(pumb_new_photos=photos)
 
-    if len(photos) >= 3:
-        await _process_pumb_new_photos(client_id, message.chat.id, state, bot)
-    else:
-        task = asyncio.create_task(
-            _delayed_pumb_photos_check(client_id, message.chat.id, state, bot)
-        )
-        _pumb_new_photo_tasks[client_id] = task
+        existing = _pumb_new_photo_tasks.pop(client_id, None)
+        if existing and not existing.done():
+            existing.cancel()
+            try:
+                await existing
+            except asyncio.CancelledError:
+                pass
+
+        if len(photos) >= 3:
+            await _process_pumb_new_photos(client_id, message.chat.id, state, bot)
+        else:
+            task = asyncio.create_task(
+                _delayed_pumb_photos_check(client_id, message.chat.id, state, bot)
+            )
+            _pumb_new_photo_tasks[client_id] = task
