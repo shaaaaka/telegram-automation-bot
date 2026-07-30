@@ -2089,6 +2089,7 @@ async function sendChatPageMessage() {
         if (res.ok) {
             textarea.value = '';
             cancelChatReply();
+            scrollToBottom('chat-window-body-container', true);
         } else {
             showToast("Не вдалося надіслати повідомлення", "error");
         }
@@ -2419,7 +2420,7 @@ function handleIncomingWebSocketMessage(data) {
                             }
 
                             targetContainer._receivedAt = Date.now();
-                            scrollToBottom('chat-window-body-container');
+                            scrollToBottom('chat-window-body-container', data.sender !== 'client' || isNearBottom);
                             return;
                         }
                     }
@@ -2437,7 +2438,7 @@ function handleIncomingWebSocketMessage(data) {
             }
 
             renderSingleChatMessage(bodyContainer, logObj);
-            scrollToBottom('chat-window-body-container');
+            scrollToBottom('chat-window-body-container', data.sender !== 'client' || isNearBottom);
         }
     } else {
         if (data.sender === 'client') {
