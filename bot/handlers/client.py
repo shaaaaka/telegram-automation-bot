@@ -2012,6 +2012,7 @@ async def _delayed_pumb_rebind_process(client_id: int, chat_id: int, state: FSMC
                     pib_val = session.get('pib')
 
 
+                client_data_lines = []
                 if pib_val and pib_val not in ('—', '-'):
                     await state.update_data(pumb_extracted_pib=pib_val)
                     client_data_lines.append(f"ПІБ: {pib_val}")
