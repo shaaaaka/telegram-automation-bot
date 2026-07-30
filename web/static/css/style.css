@@ -8326,10 +8326,9 @@ html body .chat-msg-gallery.album-count-2 {
     grid-template-rows: minmax(380px, 520px) !important;
 }
 
-html body .chat-msg-gallery.album-count-3,
 html body .chat-msg-gallery.album-count-3 {
     grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) !important;
-    grid-template-rows: repeat(2, 300px) !important;
+    grid-template-rows: repeat(2, 380px) !important;
 }
 
 html body .chat-msg-gallery.album-count-3 .chat-msg-gallery-img:first-child,
