@@ -1996,19 +1996,14 @@ window.scrollToQuotedMessage = function(targetId, event) {
             }, 4000);
         }
 
-        // Highlight specific photo in album if applicable
+        // Highlight ONLY the specific target photo element in album
         if (photoEl) {
-            const photoWrapper = photoEl.closest('.chat-msg-gallery-more-cell') || photoEl.parentElement || photoEl;
-            photoEl.classList.remove('quote-highlight-photo');
-            if (photoWrapper) photoWrapper.classList.remove('quote-highlight-photo');
-            void photoEl.offsetWidth;
-            if (photoWrapper) void photoWrapper.offsetWidth;
-
-            photoEl.classList.add('quote-highlight-photo');
-            if (photoWrapper) photoWrapper.classList.add('quote-highlight-photo');
+            const targetPhoto = photoEl.closest('.chat-msg-gallery-more-cell') || photoEl;
+            targetPhoto.classList.remove('quote-highlight-photo');
+            void targetPhoto.offsetWidth;
+            targetPhoto.classList.add('quote-highlight-photo');
             setTimeout(() => {
-                photoEl.classList.remove('quote-highlight-photo');
-                if (photoWrapper) photoWrapper.classList.remove('quote-highlight-photo');
+                targetPhoto.classList.remove('quote-highlight-photo');
             }, 4000);
         }
     }
