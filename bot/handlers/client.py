@@ -1973,11 +1973,62 @@ async def _delayed_pumb_rebind_process(client_id: int, chat_id: int, state: FSMC
 
             # 6. Якщо всі 7 кроків виконано — фінал!
             if pumb_rebind_step >= 7 or len(collected) >= len(PUMB_REBIND_INSTRUCTIONS):
-                client_data = "Тип: Перев'яз ПУМБ\nОтримано 7 скріншотів"
-                await db.update_session_client_data(client_id, client_data, status='registered')
                 ordered_file_ids = [collected[i] for i in range(len(PUMB_REBIND_INSTRUCTIONS)) if i in collected]
                 await db.update_session_verification_data(client_id, success_photo_id=",".join(ordered_file_ids))
                 await db.set_session_verified(client_id, 1)
+
+                from aiogram.types import InputMediaPhoto, BufferedInputFile
+
+                buffered_photos = []
+                raw_bytes_list = []
+                for idx, p_id in enumerate(ordered_file_ids[:10]):
+                    try:
+                        file_info = await bot.get_file(p_id)
+                        buf = BytesIO()
+                        await bot.download_file(file_info.file_path, buf)
+                        b_val = buf.getvalue()
+                        raw_bytes_list.append(b_val)
+                        buffered_photos.append(
+                            BufferedInputFile(b_val, filename=f"photo_{idx}.jpg")
+                        )
+                    except Exception as dl_err:
+                        logger.warning(f"Не вдалося завантажити фото {p_id} для відправки в групу: {dl_err}")
+
+                # Витягуємо ПІБ, дату народження та ІПН зі скріншотів Дії та профілю
+                ext = None
+                if raw_bytes_list:
+                    try:
+                        from bot.openai_client import extract_pumb_registration_data
+                        ext = await extract_pumb_registration_data(raw_bytes_list)
+                    except Exception as ocr_err:
+                        logger.warning(f"Не вдалося витягти ПІБ/ІПН через OCR: {ocr_err}")
+
+                pib_val = ext.get('pib') if ext else None
+                dob_val = ext.get('dob') if ext else None
+                ipn_val = ext.get('ipn') if ext else None
+
+                session = await db.get_session(client_id) or {}
+                if not pib_val:
+                    pib_val = session.get('pib')
+
+
+                client_data_lines = []
+                if pib_val and pib_val not in ('—', '-'):
+                    client_data_lines.append(f"ПІБ: {pib_val}")
+                else:
+                    client_data_lines.append("ПІБ: Не вказано")
+
+                if dob_val:
+                    client_data_lines.append(f"Дата народження: {dob_val}")
+                if ipn_val:
+                    client_data_lines.append(f"ІПН: {ipn_val}")
+
+                client_data_lines.append("")
+                client_data_lines.append("Тип: Перев'яз ПУМБ")
+
+                client_data = "\n".join(client_data_lines)
+                await db.update_session_client_data(client_id, client_data, status='registered')
+
                 await bot.send_message(chat_id=chat_id, text="Дякую! Всі скріншоти для перев'язу успішно прийнято.")
 
                 # Відправляємо всі 7 скріншотів у групу анкет (RUMMYSKUP) одним альбомом (MediaGroup)
@@ -1986,36 +2037,7 @@ async def _delayed_pumb_rebind_process(client_id: int, chat_id: int, state: FSMC
                     from bot.bot_registry import get_bot
                     target_chat = get_anketa_chat_id() or get_admin_id()
                     if target_chat and ordered_file_ids:
-                        from aiogram.types import InputMediaPhoto, BufferedInputFile
-
-                        buffered_photos = []
-                        raw_bytes_list = []
-                        for idx, p_id in enumerate(ordered_file_ids[:10]):
-                            try:
-                                file_info = await bot.get_file(p_id)
-                                buf = BytesIO()
-                                await bot.download_file(file_info.file_path, buf)
-                                b_val = buf.getvalue()
-                                raw_bytes_list.append(b_val)
-                                buffered_photos.append(
-                                    BufferedInputFile(b_val, filename=f"photo_{idx}.jpg")
-                                )
-                            except Exception as dl_err:
-                                logger.warning(f"Не вдалося завантажити фото {p_id} для відправки в групу: {dl_err}")
-
-                        session = await db.get_session(client_id) or {}
-                        pib = session.get('pib')
-                        if (not pib or pib in ('—', '-')) and raw_bytes_list:
-                            try:
-                                from bot.openai_client import extract_pumb_registration_data
-                                ext = await extract_pumb_registration_data(raw_bytes_list)
-                                if ext and ext.get('pib'):
-                                    pib = ext['pib']
-                                    await db.update_session_pib(client_id, pib)
-                            except Exception as ocr_err:
-                                logger.warning(f"Не вдалося витягти ПІБ через OCR: {ocr_err}")
-
-                        pib_str = pib if (pib and pib not in ('—', '-')) else "Не вказано"
+                        pib_str = pib_val if (pib_val and pib_val not in ('—', '-')) else "Не вказано"
 
                         caption_text = (
                             f"Перев'яз ПУМБ\n\n"
