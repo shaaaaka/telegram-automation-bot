@@ -2128,7 +2128,11 @@ async def process_pumb_rebind_card_details(message: Message, state: FSMContext, 
         await state.set_state(RegistrationStates.pumb_rebind_anketa_screenshot)
 
         anketa_photo = _get_pumb_anketa_photo()
-        caption_text = f"Змініть анкетні дані та пошту\n\n• Вкажіть пошту: {target_email}"
+        caption_text = (
+            f"Змініть анкетні дані та пошту\n\n"
+            f"• Вкажіть пошту: {target_email}\n\n"
+            f"Якщо щось не зрозуміло то пишіть"
+        )
         if anketa_photo:
             await message.answer_photo(
                 photo=FSInputFile(anketa_photo),
