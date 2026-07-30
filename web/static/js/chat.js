@@ -1643,16 +1643,6 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
         setChatReplyTo(log);
     };
     containerDiv.oncontextmenu = function(e) {
-        const target = e.target;
-        if (target && (
-            target.tagName === 'IMG' ||
-            target.classList.contains('chat-msg-img') ||
-            target.classList.contains('chat-msg-gallery-img') ||
-            target.closest('.chat-msg-photo-wrapper, .chat-msg-gallery, .chat-msg-media-wrapper, .chat-msg-gallery-more-cell')
-        )) {
-            removeContextMenu();
-            return; // Allow native browser context menu for photos (Copy image, Save image as...)
-        }
         showTelegramContextMenu(e, log);
     };
     containerDiv._receivedAt = Date.now();
@@ -1665,6 +1655,54 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
             const firstImg = gallery && gallery.querySelector('.chat-msg-gallery-img');
             if (firstImg) checkGalleryImgLayout(firstImg);
         });
+    }
+}
+
+// Helper to copy photo to clipboard
+async function copyImageToClipboard(src) {
+    try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = src;
+        });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        canvas.toBlob(async (blob) => {
+            if (!blob) {
+                if (typeof showToast === 'function') showToast('Помилка копіювання фото', 'error');
+                return;
+            }
+            try {
+                if (navigator.clipboard && navigator.clipboard.write) {
+                    await navigator.clipboard.write([
+                        new ClipboardItem({ 'image/png': blob })
+                    ]);
+                    if (typeof showToast === 'function') {
+                        showToast('Зображення скопійовано', 'success');
+                    }
+                } else {
+                    throw new Error('Clipboard API not supported');
+                }
+            } catch (err) {
+                console.error('Clipboard write failed:', err);
+                if (typeof showToast === 'function') {
+                    showToast('Не вдалося скопіювати зображення', 'error');
+                }
+            }
+        }, 'image/png');
+    } catch (err) {
+        console.error('Failed to load image for clipboard copy:', err);
+        if (typeof showToast === 'function') {
+            showToast('Помилка завантаження фото', 'error');
+        }
     }
 }
 
@@ -1686,22 +1724,53 @@ function showTelegramContextMenu(e, log) {
     e.stopPropagation();
     removeContextMenu();
 
+    let targetImgSrc = null;
+    const target = e.target;
+    if (target) {
+        if (target.tagName === 'IMG' && target.src) {
+            targetImgSrc = target.src;
+        } else {
+            const moreCell = target.closest ? target.closest('.chat-msg-gallery-more-cell') : null;
+            if (moreCell) {
+                const img = moreCell.querySelector('img.chat-msg-gallery-img');
+                if (img) targetImgSrc = img.src;
+            } else {
+                const img = target.closest ? target.closest('.chat-msg-img, .chat-msg-gallery-img, .chat-msg-photo-wrapper') : null;
+                if (img && img.querySelector) {
+                    const foundImg = img.tagName === 'IMG' ? img : img.querySelector('img');
+                    if (foundImg) targetImgSrc = foundImg.src;
+                }
+            }
+        }
+    }
+
     const menu = document.createElement('div');
     menu.className = 'chat-context-menu';
 
-    menu.innerHTML = `
+    let menuItems = `
         <div class="chat-context-menu-item" id="ctx-item-reply">
             <svg viewBox="0 0 24 24"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
             <span>Відповісти</span>
         </div>
-        ${log.message_text ? `
-        <div class="chat-context-menu-item" id="ctx-item-copy">
+    `;
+
+    if (targetImgSrc) {
+        menuItems += `
+        <div class="chat-context-menu-item" id="ctx-item-copy-img">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            <span>Скопіювати фото</span>
+        </div>
+        `;
+    } else if (log.message_text) {
+        menuItems += `
+        <div class="chat-context-menu-item" id="ctx-item-copy-text">
             <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             <span>Скопіювати текст</span>
         </div>
-        ` : ''}
-    `;
+        `;
+    }
 
+    menu.innerHTML = menuItems;
     document.body.appendChild(menu);
 
     let x = e.clientX;
@@ -1727,9 +1796,18 @@ function showTelegramContextMenu(e, log) {
         };
     }
 
-    const copyBtn = menu.querySelector('#ctx-item-copy');
-    if (copyBtn) {
-        copyBtn.onclick = function(ev) {
+    const copyImgBtn = menu.querySelector('#ctx-item-copy-img');
+    if (copyImgBtn && targetImgSrc) {
+        copyImgBtn.onclick = function(ev) {
+            ev.stopPropagation();
+            removeContextMenu();
+            copyImageToClipboard(targetImgSrc);
+        };
+    }
+
+    const copyTextBtn = menu.querySelector('#ctx-item-copy-text');
+    if (copyTextBtn) {
+        copyTextBtn.onclick = function(ev) {
             ev.stopPropagation();
             removeContextMenu();
             if (navigator.clipboard && log.message_text) {
