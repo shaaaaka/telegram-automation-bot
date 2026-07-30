@@ -108,42 +108,67 @@ async def clear_statistics():
         await db.execute("DELETE FROM bank_verifications")
         await db.commit()
 
-async def log_chat_message(client_id: int, sender: str, message_text: str = None, photo_id: str = None, message_id: int = None, reply_to_message_id: int = None):
-    """Збереження повідомлення в історію чату"""
+async def log_chat_message(client_id: int, sender: str, message_text: str = None, photo_id: str = None, message_id: int = None, reply_to_message_id: int = None, media_group_id: str = None):
+    """Збереження повідомлення в історію чату. Ігноруємо повторне однакове message_id, щоб не було дублів."""
     async with aiosqlite.connect(db_mod.DB_FILE) as db:
+        if message_id:
+            try:
+                async with db.execute("SELECT id FROM chat_logs WHERE client_id = ? AND message_id = ? LIMIT 1", (client_id, message_id)) as cursor:
+                    existing = await cursor.fetchone()
+                    if existing:
+                        return
+            except Exception:
+                pass
+
         try:
             await db.execute("""
-                INSERT INTO chat_logs (client_id, sender, message_text, photo_id, message_id, reply_to_message_id)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (client_id, sender, message_text, photo_id, message_id, reply_to_message_id))
+                INSERT INTO chat_logs (client_id, sender, message_text, photo_id, message_id, reply_to_message_id, media_group_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (client_id, sender, message_text, photo_id, message_id, reply_to_message_id, media_group_id))
         except Exception:
             try:
                 await db.execute("""
-                    INSERT INTO chat_logs (client_id, sender, message_text, photo_id, message_id)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (client_id, sender, message_text, photo_id, message_id))
+                    INSERT INTO chat_logs (client_id, sender, message_text, photo_id, message_id, media_group_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (client_id, sender, message_text, photo_id, message_id, media_group_id))
             except Exception:
-                await db.execute("""
-                    INSERT INTO chat_logs (client_id, sender, message_text, photo_id)
-                    VALUES (?, ?, ?, ?)
-                """, (client_id, sender, message_text, photo_id))
+                try:
+                    await db.execute("""
+                        INSERT INTO chat_logs (client_id, sender, message_text, photo_id, media_group_id)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (client_id, sender, message_text, photo_id, media_group_id))
+                except Exception:
+                    await db.execute("""
+                        INSERT INTO chat_logs (client_id, sender, message_text, photo_id)
+                        VALUES (?, ?, ?, ?)
+                    """, (client_id, sender, message_text, photo_id))
         await db.commit()
-    
+
     for cb in chat_message_callbacks:
         try:
-            asyncio.create_task(cb(client_id, sender, message_text, photo_id, message_id, reply_to_message_id))
+            asyncio.create_task(cb(client_id, sender, message_text, photo_id, message_id, reply_to_message_id, media_group_id))
         except Exception as e:
             logging.error(f"Error in chat_message_callback: {e}")
 
 async def get_chat_logs(client_id: int):
-    """Отримання всієї історії чату для конкретного клієнта"""
+    """Отримання всієї історії чату для конкретного клієнта. Викидаємо дублікати за message_id."""
     async with aiosqlite.connect(db_mod.DB_FILE) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT * FROM chat_logs WHERE client_id = ? ORDER BY created_at ASC, COALESCE(message_id, id) ASC
         """, (client_id,)) as cursor:
             rows = await cursor.fetchall()
-            return [dict(row) for row in rows]
+            seen = set()
+            result = []
+            for row in rows:
+                row_dict = dict(row)
+                key = (client_id, row_dict.get('message_id'))
+                if key[1] is not None:
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                result.append(row_dict)
+            return result
 
 async def clear_chat_logs(client_id: int):
     """Видалення всієї історії чату для конкретного клієнта"""

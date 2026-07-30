@@ -284,6 +284,7 @@ async def init_db():
                 photo_id TEXT,
                 message_id INTEGER,
                 reply_to_message_id INTEGER,
+                media_group_id TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -293,6 +294,10 @@ async def init_db():
             pass
         try:
             await db.execute("ALTER TABLE chat_logs ADD COLUMN reply_to_message_id INTEGER;")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE chat_logs ADD COLUMN media_group_id TEXT;")
         except Exception:
             pass
         

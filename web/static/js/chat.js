@@ -1461,6 +1461,9 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
         containerDiv.setAttribute('data-msg-id', String(log.message_id || ''));
         containerDiv.setAttribute('data-log-id', String(log.id || ''));
     }
+    if (log.media_group_id) {
+        containerDiv.setAttribute('data-media-group-id', String(log.media_group_id));
+    }
     
     let timeStr = '';
     if (log.created_at) {
@@ -1530,7 +1533,8 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
         const visiblePhotoIds = overflowCount > 0 ? allPhotoIds.slice(0, 9) : allPhotoIds;
         const albumClass = overflowCount > 0 ? 'album-count-many' : `album-count-${allPhotoIds.length}`;
         const pidClientParam = selectedChatClientId ? `?client_id=${selectedChatClientId}` : '';
-        const galleryHtml = `<div class="chat-msg-gallery ${albumClass}">` +
+        const mediaGroupAttr = log.media_group_id ? ` data-media-group-id="${String(log.media_group_id)}"` : '';
+        const galleryHtml = `<div class="chat-msg-gallery ${albumClass}"${mediaGroupAttr}>` +
             visiblePhotoIds.map((pid, vIdx) => {
                 const scrollOnLoad = isHistoryRender ? '' : ' scrollToBottom(\'chat-window-body-container\')';
                 const imgTag = `<img class="chat-msg-gallery-img" src="/api/photos/${pid}${pidClientParam}" onerror="handlePhotoError(this)" onload="checkGalleryImgLayout(this);${scrollOnLoad}">`;
@@ -2007,6 +2011,7 @@ function handleIncomingWebSocketMessage(data) {
                 photo_ids: data.photo_ids,
                 message_id: data.message_id,
                 reply_to_message_id: data.reply_to_message_id,
+                media_group_id: data.media_group_id,
                 created_at: data.created_at
             };
             if (!chatLogsCache[data.client_id]) {
@@ -2050,13 +2055,43 @@ function handleIncomingWebSocketMessage(data) {
                 return 'support';
             };
 
-            // Attempt to merge a single photo in real-time if received within 180 seconds (3 minutes).
-            // Batches with multiple photo_ids are rendered as a new gallery so no photos are lost.
-            if (data.photo_id && (!data.photo_ids || data.photo_ids.length === 1) && lastMsgContainer && lastMsgContainer._receivedAt && (Date.now() - lastMsgContainer._receivedAt < 180000)) {
+            // Real-time album merge:
+            // - Album photos (media_group_id): merge only with the existing same-album
+            //   gallery, even if it is not the last message (e.g. bot text in between).
+            //   Do NOT fall back to time-based merge for albums.
+            // - Loose photos: use 180-second window with the last same-sender message,
+            //   but never merge into an existing album gallery.
+            let targetContainer = null;
+            if (data.media_group_id && data.photo_id) {
+                const senderClass = getSenderGroup(data.sender);
+                const containers = Array.from(bodyContainer.querySelectorAll('.chat-msg-container'));
+                for (let c = containers.length - 1; c >= 0; c--) {
+                    const cont = containers[c];
+                    if (cont.dataset.mediaGroupId === data.media_group_id && getLastMsgSenderGroup(cont) === senderClass) {
+                        if (cont.querySelector('.chat-msg-img') || cont.querySelector('.chat-msg-gallery')) {
+                            targetContainer = cont;
+                            break;
+                        }
+                    }
+                }
+            } else if (data.photo_id && (!data.photo_ids || data.photo_ids.length === 1) &&
+                lastMsgContainer && !lastMsgContainer.dataset.mediaGroupId &&
+                lastMsgContainer._receivedAt &&
+                (Date.now() - lastMsgContainer._receivedAt < 180000)) {
                 if (getLastMsgSenderGroup(lastMsgContainer) === getSenderGroup(data.sender)) {
-                    const lastBubble = lastMsgContainer.querySelector('.chat-msg-bubble');
-                    if (lastBubble) {
-                        const singleImg = lastBubble.querySelector('.chat-msg-img');
+                    targetContainer = lastMsgContainer;
+                }
+            }
+
+            if (targetContainer) {
+                    const targetBubble = targetContainer.querySelector('.chat-msg-bubble');
+                    if (targetBubble) {
+                        // Safety: don’t add the same message_id to the same gallery twice.
+                        if (data.message_id != null && targetBubble.querySelector(`img[data-msg-id="${data.message_id}"]`)) {
+                            return;
+                        }
+
+                        const singleImg = targetBubble.querySelector('.chat-msg-img');
                         if (singleImg) {
                             // Convert single image to gallery
                             const gallery = document.createElement('div');
@@ -2067,7 +2102,7 @@ function handleIncomingWebSocketMessage(data) {
                             img1.removeAttribute('height');
                             img1.removeAttribute('style');
                             img1.className = 'chat-msg-gallery-img';
-                            img1.dataset.msgId = singleImg.dataset.msgId || lastMsgContainer.getAttribute('data-msg-id') || '';
+                            img1.dataset.msgId = singleImg.dataset.msgId || targetContainer.getAttribute('data-msg-id') || '';
                             img1.onload = function() { checkGalleryImgLayout(img1); };
 
                             const img2 = document.createElement('img');
@@ -2085,6 +2120,11 @@ function handleIncomingWebSocketMessage(data) {
                             gallery.appendChild(img2);
                             sortGalleryImages(gallery);
 
+                            if (data.media_group_id) {
+                                gallery.setAttribute('data-media-group-id', data.media_group_id);
+                                targetContainer.setAttribute('data-media-group-id', data.media_group_id);
+                            }
+
                             // Replace the whole photo wrapper so the gallery sits inside .chat-msg-media-wrapper
                             // instead of inside the constrained .chat-msg-photo-wrapper (max-width 480px / max-height 520px).
                             const photoWrapper = singleImg.closest('.chat-msg-photo-wrapper');
@@ -2095,18 +2135,18 @@ function handleIncomingWebSocketMessage(data) {
                             }
                             applyAlbumGridLayout(gallery);
 
-                            lastBubble.classList.add('has-photo', 'has-gallery');
-                            const hadTextBefore = !!lastBubble.querySelector('.chat-msg-text');
+                            targetBubble.classList.add('has-photo', 'has-gallery');
+                            const hadTextBefore = !!targetBubble.querySelector('.chat-msg-text');
                             const willHaveText = hadTextBefore || Boolean(data.message_text);
 
                             if (willHaveText) {
-                                lastBubble.classList.remove('photo-only');
-                                lastMsgContainer.classList.remove('photo-only-msg');
+                                targetBubble.classList.remove('photo-only');
+                                targetContainer.classList.remove('photo-only-msg');
                             } else {
-                                lastBubble.classList.add('photo-only');
+                                targetBubble.classList.add('photo-only');
                             }
 
-                            // If the incoming message has text and the bubble doesn't, add it
+                            // If the incoming message has text and the bubble doesn’t, add it
                             if (data.message_text && !hadTextBefore) {
                                 let rawText = stripMessageQuotes(data.message_text);
                                 let escapedText = escapeHtml(rawText);
@@ -2114,16 +2154,16 @@ function handleIncomingWebSocketMessage(data) {
                                 const textSpan = document.createElement('span');
                                 textSpan.className = 'chat-msg-text';
                                 textSpan.innerHTML = escapedText.replace(/\n/g, '<br>');
-                                lastBubble.insertBefore(textSpan, lastBubble.querySelector('.chat-msg-time-inline'));
+                                targetBubble.insertBefore(textSpan, targetBubble.querySelector('.chat-msg-time-inline'));
                             }
-                            
+
                             // Update _receivedAt to extend the grouping window for subsequent photos
-                            lastMsgContainer._receivedAt = Date.now();
+                            targetContainer._receivedAt = Date.now();
                             scrollToBottom('chat-window-body-container');
                             return;
                         }
                         
-                        const existingGallery = lastBubble.querySelector('.chat-msg-gallery');
+                        const existingGallery = targetBubble.querySelector('.chat-msg-gallery');
                         if (existingGallery) {
                             // Add to existing gallery
                             const img = document.createElement('img');
@@ -2140,6 +2180,11 @@ function handleIncomingWebSocketMessage(data) {
                             existingGallery.appendChild(img);
                             sortGalleryImages(existingGallery);
 
+                            if (data.media_group_id) {
+                                existingGallery.setAttribute('data-media-group-id', data.media_group_id);
+                                targetContainer.setAttribute('data-media-group-id', data.media_group_id);
+                            }
+
                             // Update grid layout class based on new photo count
                             const newCount = existingGallery.querySelectorAll('.chat-msg-gallery-img:not(.chat-msg-gallery-img-hidden)').length;
                             const newAlbumClass = newCount > 9 ? 'album-count-many' : `album-count-${newCount}`;
@@ -2155,18 +2200,18 @@ function handleIncomingWebSocketMessage(data) {
 
                             applyAlbumGridLayout(existingGallery);
 
-                            lastBubble.classList.add('has-gallery');
-                            const hadTextBefore = !!lastBubble.querySelector('.chat-msg-text');
+                            targetBubble.classList.add('has-gallery');
+                            const hadTextBefore = !!targetBubble.querySelector('.chat-msg-text');
                             const willHaveText = hadTextBefore || Boolean(data.message_text);
 
                             if (willHaveText) {
-                                lastBubble.classList.remove('photo-only');
-                                lastMsgContainer.classList.remove('photo-only-msg');
-                            } else if (!lastBubble.classList.contains('photo-only')) {
-                                lastBubble.classList.add('photo-only');
+                                targetBubble.classList.remove('photo-only');
+                                targetContainer.classList.remove('photo-only-msg');
+                            } else if (!targetBubble.classList.contains('photo-only')) {
+                                targetBubble.classList.add('photo-only');
                             }
 
-                            // If the incoming message has text and the bubble doesn't, add it
+                            // If the incoming message has text and the bubble doesn’t, add it
                             if (data.message_text && !hadTextBefore) {
                                 let rawText = stripMessageQuotes(data.message_text);
                                 let escapedText = escapeHtml(rawText);
@@ -2174,16 +2219,15 @@ function handleIncomingWebSocketMessage(data) {
                                 const textSpan = document.createElement('span');
                                 textSpan.className = 'chat-msg-text';
                                 textSpan.innerHTML = escapedText.replace(/\n/g, '<br>');
-                                lastBubble.insertBefore(textSpan, lastBubble.querySelector('.chat-msg-time-inline'));
+                                targetBubble.insertBefore(textSpan, targetBubble.querySelector('.chat-msg-time-inline'));
                             }
-                            
-                            lastMsgContainer._receivedAt = Date.now();
+
+                            targetContainer._receivedAt = Date.now();
                             scrollToBottom('chat-window-body-container');
                             return;
                         }
                     }
                 }
-            }
 
             const isSameGroup = lastMsgContainer && getSenderGroup(data.sender) === getLastMsgSenderGroup(lastMsgContainer);
 
@@ -2442,27 +2486,80 @@ autocompleteStyle.textContent = `
 `;
 document.head.appendChild(autocompleteStyle);
 
-// Preprocess messages list to group consecutive photos from the same sender within 3 minutes.
+// Preprocess messages list to group photos.
+// - Real Telegram albums share media_group_id: collect ALL photos with the same
+//   media_group_id across the entire log list (even if bot text is interleaved).
+// - Loose photos fall back to a 3-minute sliding window between consecutive photos.
 function groupPhotoLogs(logs) {
-    const grouped = [];
-    let i = 0;
-
     const getPhotoIds = (log) => {
         if (log.photo_ids && log.photo_ids.length) return log.photo_ids;
         if (log.photo_id) return [log.photo_id];
         return [];
     };
 
+    // First pass: build a map of complete media groups by media_group_id.
+    const mediaGroups = new Map();
+    logs.forEach((log, idx) => {
+        const mgid = log.media_group_id;
+        if (!mgid) return;
+        const pids = getPhotoIds(log);
+        if (pids.length === 0) return;
+
+        if (!mediaGroups.has(mgid)) {
+            mediaGroups.set(mgid, {
+                photoIds: [],
+                text: '',
+                sender: log.sender,
+                firstIndex: idx,
+                firstLog: log
+            });
+        }
+        const g = mediaGroups.get(mgid);
+        g.photoIds = g.photoIds.concat(pids);
+        if (!g.text && log.message_text) g.text = log.message_text;
+    });
+
+    const grouped = [];
+    const outputGroups = new Set();
+    let i = 0;
+
     while (i < logs.length) {
         const current = logs[i];
         const currentPhotoIds = getPhotoIds(current);
+
+        // Not a photo — pass through.
         if (currentPhotoIds.length === 0) {
             grouped.push(current);
             i++;
             continue;
         }
 
-        // It's a photo. Let's see if we can group it with subsequent photos.
+        const currentMediaGroupId = current.media_group_id || null;
+
+        // Album photo: output the whole album the first time we see it, then skip
+        // subsequent photos of the same album.
+        if (currentMediaGroupId && mediaGroups.has(currentMediaGroupId) && !outputGroups.has(currentMediaGroupId)) {
+            const g = mediaGroups.get(currentMediaGroupId);
+            const currentGroup = { ...g.firstLog, photo_ids: g.photoIds };
+            if (g.text && !currentGroup.message_text) currentGroup.message_text = g.text;
+            if (currentGroup.photo_ids.length === 1) {
+                currentGroup.photo_id = currentGroup.photo_ids[0];
+            } else if (currentGroup.photo_id) {
+                delete currentGroup.photo_id;
+            }
+            grouped.push(currentGroup);
+            outputGroups.add(currentMediaGroupId);
+            i++;
+            continue;
+        }
+
+        if (currentMediaGroupId && outputGroups.has(currentMediaGroupId)) {
+            // Already output as part of the album group.
+            i++;
+            continue;
+        }
+
+        // Loose photos: time-based consecutive grouping.
         const currentGroup = { ...current, photo_ids: currentPhotoIds };
         if (currentGroup.photo_ids.length === 1) {
             currentGroup.photo_id = currentGroup.photo_ids[0];
@@ -2483,13 +2580,16 @@ function groupPhotoLogs(logs) {
                 break;
             }
 
-            // Check time difference against the *previous* grouped photo (sliding window),
-            // not the first one. This prevents albums from splitting if the first and last
-            // photo are far apart but every consecutive pair is close.
+            const nextMediaGroupId = next.media_group_id || null;
+            if (nextMediaGroupId) {
+                // Next photo is part of an album; don't mix it with loose photos.
+                break;
+            }
+
             const nextTime = parseUtcToLocal(next.created_at);
             if (lastGroupTime && nextTime) {
                 const diffMs = Math.abs(nextTime.getTime() - lastGroupTime.getTime());
-                if (diffMs > 180000) { // 3 minutes threshold
+                if (diffMs > 180000) {
                     break;
                 }
                 lastGroupTime = nextTime;

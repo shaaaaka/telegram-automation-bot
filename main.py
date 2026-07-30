@@ -119,8 +119,9 @@ class OutgoingLoggingMiddleware(BaseRequestMiddleware):
                             item_photo_id = item.photo[-1].file_id if getattr(item, 'photo', None) else None
                             item_caption = getattr(item, 'caption', None) or ""
                             item_msg_id = getattr(item, 'message_id', None)
+                            item_media_group_id = getattr(item, 'media_group_id', None)
                             if item_photo_id:
-                                await log_chat_message(method.chat_id, sender, item_caption, item_photo_id, message_id=item_msg_id, reply_to_message_id=reply_to_id)
+                                await log_chat_message(method.chat_id, sender, item_caption, item_photo_id, message_id=item_msg_id, reply_to_message_id=reply_to_id, media_group_id=item_media_group_id)
         except Exception as e:
             logging.error(f"Error logging outgoing message: {e}")
         return res
@@ -143,7 +144,7 @@ class IncomingLoggingMiddleware(BaseMiddleware):
                 photo_id = event.photo[-1].file_id if event.photo else None
                 reply_to_id = getattr(event.reply_to_message, 'message_id', None) if event.reply_to_message else None
                 if text or photo_id:
-                    await log_chat_message(event.from_user.id, 'client', text, photo_id, message_id=event.message_id, reply_to_message_id=reply_to_id)
+                    await log_chat_message(event.from_user.id, 'client', text, photo_id, message_id=event.message_id, reply_to_message_id=reply_to_id, media_group_id=event.media_group_id)
                 
                 # Копіюємо повідомлення адміну, якщо активоване стеження
                 send_bot = log_bot if log_bot else event.bot
