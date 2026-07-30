@@ -349,78 +349,108 @@ function getPumbRebindTab2HTML(itemKey, template) {
     const delText = template.deletion_text || "🗑 Надішліть скріншот видалення додатка ПУМБ з вашого телефону.";
 
     return `
-        <div style="display: flex; flex-direction: column; gap: 16px;">
-            <div style="background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.25); border-radius: 12px; padding: 14px; color: #e0e7ff; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 1.2rem;">🔄</span>
-                <div><b>Конструктор кроків ПУМБ:</b> Налаштуйте текстові повідомлення та фото для кожного з 6 кроків перев'язу ПУМБ.</div>
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            <!-- Header Banner -->
+            <div style="background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08)); border: 1px solid rgba(99,102,241,0.25); border-radius: 14px; padding: 16px 20px; color: #e0e7ff; display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(99,102,241,0.2); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; border: 1px solid rgba(99,102,241,0.3);">⚡</div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 0.95rem; color: #fff; margin-bottom: 2px;">Конструктор сценарію ПУМБ</div>
+                        <div style="font-size: 0.78rem; color: rgba(255,255,255,0.6);">Налаштуйте текстові підказки та прикріплені фото для кожного з 6 послідовних кроків перев'язу ПУМБ.</div>
+                    </div>
+                </div>
+                <div style="background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); border-radius: 8px; padding: 6px 12px; color: #4ade80; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0;">
+                    6 Кроків Активні
+                </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+            <!-- 3x2 Grid of Step Cards -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px;">
 
                 <!-- Step 1: Diya Screenshots -->
-                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
-                    <div>
-                        <div style="font-size: 0.85rem; font-weight: 700; color: #818cf8; margin-bottom: 4px;">Крок 1: 7 Скріншотів з Дії</div>
-                        <div style="font-size: 0.74rem; color: rgba(255,255,255,0.5);">ШІ (OCR) автоматично розпізнає ПІБ, дату народження та ІПН з документів.</div>
+                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-height: 240px; box-sizing: border-box;">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); color: #818cf8; text-transform: uppercase; letter-spacing: 0.5px;">КРОК 01</span>
+                            <span style="font-size: 0.72rem; color: rgba(255,255,255,0.4); font-weight: 600;">7 Фото Дії</span>
+                        </div>
+                        <h4 style="margin: 4px 0 0 0; font-size: 0.92rem; font-weight: 700; color: #fff;">Скріншоти з Дії</h4>
+                        <p style="margin: 0; font-size: 0.76rem; color: rgba(255,255,255,0.5); line-height: 1.45;">Автоматичне AI-розпізнавання (OCR) ПІБ, дати народження та ІПН клієнта з документів.</p>
                     </div>
-                    <div style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); border-radius: 8px; padding: 8px 10px; color: #4ade80; font-size: 0.75rem; font-weight: 600; text-align: center;">
-                        🟢 ШІ OCR Увімкнено (ПІБ / ІПН)
+                    <div style="background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2); border-radius: 10px; padding: 12px; color: #4ade80; font-size: 0.76rem; font-weight: 600; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>✨</span> ШІ OCR Увімкнено (ПІБ / ІПН)
                     </div>
                 </div>
 
                 <!-- Step 2: Card Details -->
-                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
-                    <div>
-                        <div style="font-size: 0.85rem; font-weight: 700; color: #a5b4fc; margin-bottom: 4px;">Крок 2: Запит картки ПУМБ</div>
-                        <div style="font-size: 0.74rem; color: rgba(255,255,255,0.5); margin-bottom: 8px;">Текст прохання реквізитів картки (Номер, Термін, CVV).</div>
+                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-height: 240px; box-sizing: border-box;">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); color: #818cf8; text-transform: uppercase; letter-spacing: 0.5px;">КРОК 02</span>
+                            <span style="font-size: 0.72rem; color: rgba(255,255,255,0.4); font-weight: 600;">Реквізити</span>
+                        </div>
+                        <h4 style="margin: 4px 0 0 0; font-size: 0.92rem; font-weight: 700; color: #fff;">Запит картки ПУМБ</h4>
+                        <p style="margin: 0; font-size: 0.76rem; color: rgba(255,255,255,0.5); line-height: 1.45;">Текст прохання картки (Номер, Термін, CVV).</p>
                     </div>
-                    <textarea id="bank-acc-text-${itemKey}" class="form-control auto-grow-textarea" rows="3" style="font-size: 0.78rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #fff; padding: 8px 10px; width: 100%; box-sizing: border-box; font-family: inherit;" placeholder="Текст запиту картки...">${cardText}</textarea>
+                    <textarea id="bank-acc-text-${itemKey}" class="form-control auto-grow-textarea" style="font-size: 0.78rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; padding: 10px 12px; width: 100%; box-sizing: border-box; font-family: inherit; line-height: 1.4; height: 95px; resize: none;" placeholder="Текст запиту картки...">${cardText}</textarea>
                 </div>
 
                 <!-- Step 3: Anketa & Email -->
-                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
-                    <div>
-                        <div style="font-size: 0.85rem; font-weight: 700; color: #a5b4fc; margin-bottom: 4px;">Крок 3: Анкетні дані та пошта</div>
-                        <div style="font-size: 0.74rem; color: rgba(255,255,255,0.5); margin-bottom: 8px;">Надсилається разом з фото Anketa.jpg.</div>
-                    </div>
-                    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
-                        <span id="anketa-filename-${itemKey}" class="file-upload-filename-pill selected" style="font-size: 0.72rem;">Anketa.jpg (активне фото)</span>
-                        <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 180px;">
-                            <label for="bank-acc-anketa-${itemKey}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 6px 10px; font-size: 0.75rem;">
-                                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                                Обрати нову Anketa.jpg
-                            </label>
-                            <input type="file" id="bank-acc-anketa-${itemKey}" accept="image/*" style="display: none;" onchange="document.getElementById('anketa-filename-${itemKey}').textContent = this.files[0] ? this.files[0].name : 'Anketa.jpg'">
+                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-height: 240px; box-sizing: border-box;">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); color: #818cf8; text-transform: uppercase; letter-spacing: 0.5px;">КРОК 03</span>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span id="anketa-filename-${itemKey}" style="font-size: 0.7rem; color: #a5b4fc; font-weight: 600;">Anketa.jpg</span>
+                                <label for="bank-acc-anketa-${itemKey}" style="cursor: pointer; background: rgba(99,102,241,0.2); border: 1px solid rgba(99,102,241,0.4); border-radius: 6px; padding: 2px 8px; font-size: 0.68rem; color: #fff; font-weight: 600;">
+                                    📁 Змінити
+                                </label>
+                                <input type="file" id="bank-acc-anketa-${itemKey}" accept="image/*" style="display: none;" onchange="document.getElementById('anketa-filename-${itemKey}').textContent = this.files[0] ? this.files[0].name : 'Anketa.jpg'">
+                            </div>
                         </div>
+                        <h4 style="margin: 4px 0 0 0; font-size: 0.92rem; font-weight: 700; color: #fff;">Анкетні дані та пошта</h4>
+                        <p style="margin: 0; font-size: 0.76rem; color: rgba(255,255,255,0.5); line-height: 1.45;">Текст підказки з поштою (надсилається з фото Anketa.jpg).</p>
                     </div>
-                    <textarea id="bank-acc-relink-instr-${itemKey}" class="form-control auto-grow-textarea" rows="3" style="font-size: 0.78rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #fff; padding: 8px 10px; width: 100%; box-sizing: border-box; font-family: inherit;" placeholder="Текст прохання пошти...">${anketaText}</textarea>
+                    <textarea id="bank-acc-relink-instr-${itemKey}" class="form-control auto-grow-textarea" style="font-size: 0.78rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; padding: 10px 12px; width: 100%; box-sizing: border-box; font-family: inherit; line-height: 1.4; height: 95px; resize: none;" placeholder="Текст прохання пошти...">${anketaText}</textarea>
                 </div>
 
                 <!-- Step 4: Phone Change -->
-                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
-                    <div>
-                        <div style="font-size: 0.85rem; font-weight: 700; color: #a5b4fc; margin-bottom: 4px;">Крок 4: Зміна номера телефону</div>
-                        <div style="font-size: 0.74rem; color: rgba(255,255,255,0.5); margin-bottom: 8px;">Інструкція зміни номера та передачі СМС-коду.</div>
+                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-height: 240px; box-sizing: border-box;">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); color: #818cf8; text-transform: uppercase; letter-spacing: 0.5px;">КРОК 04</span>
+                            <span style="font-size: 0.72rem; color: rgba(255,255,255,0.4); font-weight: 600;">Телефон & СМС</span>
+                        </div>
+                        <h4 style="margin: 4px 0 0 0; font-size: 0.92rem; font-weight: 700; color: #fff;">Зміна номера телефону</h4>
+                        <p style="margin: 0; font-size: 0.76rem; color: rgba(255,255,255,0.5); line-height: 1.45;">Інструкція зміни номера та обробка СМС-коду.</p>
                     </div>
-                    <textarea id="bank-acc-instruction-text-${itemKey}" class="form-control auto-grow-textarea" rows="3" style="font-size: 0.78rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #fff; padding: 8px 10px; width: 100%; box-sizing: border-box; font-family: inherit;" placeholder="Текст зміни номера...">${phoneText}</textarea>
+                    <textarea id="bank-acc-instruction-text-${itemKey}" class="form-control auto-grow-textarea" style="font-size: 0.78rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; padding: 10px 12px; width: 100%; box-sizing: border-box; font-family: inherit; line-height: 1.4; height: 95px; resize: none;" placeholder="Текст зміни номера...">${phoneText}</textarea>
                 </div>
 
                 <!-- Step 5: PIN Code -->
-                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
-                    <div>
-                        <div style="font-size: 0.85rem; font-weight: 700; color: #a5b4fc; margin-bottom: 4px;">Крок 5: Ввід ПІН-коду</div>
-                        <div style="font-size: 0.74rem; color: rgba(255,255,255,0.5); margin-bottom: 8px;">Запит ПІН-коду / паролю входу в додаток.</div>
+                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-height: 240px; box-sizing: border-box;">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); color: #818cf8; text-transform: uppercase; letter-spacing: 0.5px;">КРОК 05</span>
+                            <span style="font-size: 0.72rem; color: rgba(255,255,255,0.4); font-weight: 600;">ПІН-код</span>
+                        </div>
+                        <h4 style="margin: 4px 0 0 0; font-size: 0.92rem; font-weight: 700; color: #fff;">Ввід ПІН-коду / паролю</h4>
+                        <p style="margin: 0; font-size: 0.76rem; color: rgba(255,255,255,0.5); line-height: 1.45;">Запит ПІН-коду або паролю входу в ПУМБ.</p>
                     </div>
-                    <textarea id="bank-acc-success-text-${itemKey}" class="form-control auto-grow-textarea" rows="3" style="font-size: 0.78rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #fff; padding: 8px 10px; width: 100%; box-sizing: border-box; font-family: inherit;" placeholder="Текст прохання ПІН-коду...">${pinText}</textarea>
+                    <textarea id="bank-acc-success-text-${itemKey}" class="form-control auto-grow-textarea" style="font-size: 0.78rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; padding: 10px 12px; width: 100%; box-sizing: border-box; font-family: inherit; line-height: 1.4; height: 95px; resize: none;" placeholder="Текст прохання ПІН-коду...">${pinText}</textarea>
                 </div>
 
                 <!-- Step 6: App Deletion -->
-                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
-                    <div>
-                        <div style="font-size: 0.85rem; font-weight: 700; color: #a5b4fc; margin-bottom: 4px;">Крок 6: Видалення додатка ПУМБ</div>
-                        <div style="font-size: 0.74rem; color: rgba(255,255,255,0.5); margin-bottom: 8px;">Запит скріншоту видалення додатка з телефону.</div>
+                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-height: 240px; box-sizing: border-box;">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); color: #818cf8; text-transform: uppercase; letter-spacing: 0.5px;">КРОК 06</span>
+                            <span style="font-size: 0.72rem; color: rgba(255,255,255,0.4); font-weight: 600;">Видалення</span>
+                        </div>
+                        <h4 style="margin: 4px 0 0 0; font-size: 0.92rem; font-weight: 700; color: #fff;">Видалення додатка ПУМБ</h4>
+                        <p style="margin: 0; font-size: 0.76rem; color: rgba(255,255,255,0.5); line-height: 1.45;">Запит скріншоту видалення додатка ПУМБ з ШІ-перевіркою.</p>
                     </div>
-                    <textarea id="bank-acc-deletion-text-${itemKey}" class="form-control auto-grow-textarea" rows="3" style="font-size: 0.78rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #fff; padding: 8px 10px; width: 100%; box-sizing: border-box; font-family: inherit;" placeholder="Текст запиту видалення...">${delText}</textarea>
+                    <textarea id="bank-acc-deletion-text-${itemKey}" class="form-control auto-grow-textarea" style="font-size: 0.78rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; padding: 10px 12px; width: 100%; box-sizing: border-box; font-family: inherit; line-height: 1.4; height: 95px; resize: none;" placeholder="Текст запиту видалення...">${delText}</textarea>
                 </div>
 
             </div>
