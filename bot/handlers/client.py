@@ -2264,7 +2264,7 @@ async def process_pumb_rebind_deletion_screenshot(message: Message, state: FSMCo
         if match:
             pib_val = match.group(1).strip()
 
-    pib_str = pib_val if (pib_val and pib_val not in ('—', '-')) else "Не вказано"
+    pib_str = pib_val.title() if (pib_val and pib_val not in ('—', '-')) else "Не вказано"
 
     final_report_text = (
         f"Перев'яз ПУМБ\n\n"

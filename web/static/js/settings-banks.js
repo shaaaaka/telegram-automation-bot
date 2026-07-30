@@ -208,7 +208,7 @@ window.getTelegramMockupHtml = function(rawTemplate, bankKey) {
     
     // Replace placeholders with mock data
     const replacements = {
-        "{pib}": "<b>МАТЮНІН ОЛЕГ ОЛЕГОВИЧ</b>",
+        "{pib}": "Матюнін Олег Олегович",
         "{dob}": "29.01.2007",
         "{ipn}": "3911006569",
         "{phone}": "+380 (97) 134 46 82",
