@@ -1967,21 +1967,45 @@ window.scrollToQuotedMessage = function(targetId, event) {
     const bodyContainer = document.getElementById('chat-window-body-container');
     if (!bodyContainer) return;
 
-    let el = document.getElementById(`chat-msg-log-${targetId}`);
-    if (!el) {
-        el = bodyContainer.querySelector(`[data-msg-id="${targetId}"], [data-log-id="${targetId}"]`);
+    // 1. Check if targetId matches a specific photo element in an album
+    let photoEl = bodyContainer.querySelector(`img[data-msg-id="${targetId}"], img[data-photo-id="${targetId}"]`);
+    
+    // 2. Find overall message row container
+    let containerEl = document.getElementById(`chat-msg-log-${targetId}`);
+    if (!containerEl) {
+        if (photoEl) {
+            containerEl = photoEl.closest('.chat-msg-item-wrapper, .chat-msg-container');
+        } else {
+            containerEl = bodyContainer.querySelector(`[data-msg-id="${targetId}"], [data-log-id="${targetId}"]`);
+        }
     }
 
-    if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const scrollTarget = photoEl || containerEl;
+
+    if (scrollTarget) {
+        scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
-        el.classList.remove('quote-highlight-target');
-        void el.offsetWidth; // Trigger reflow for animation restart
-        el.classList.add('quote-highlight-target');
-        
-        setTimeout(() => {
-            el.classList.remove('quote-highlight-target');
-        }, 4000);
+        // Highlight message container row
+        if (containerEl) {
+            const innerContainer = containerEl.classList.contains('chat-msg-container') ? containerEl : (containerEl.querySelector('.chat-msg-container') || containerEl);
+            innerContainer.classList.remove('quote-highlight-target');
+            void innerContainer.offsetWidth; // Trigger reflow for animation restart
+            innerContainer.classList.add('quote-highlight-target');
+            setTimeout(() => {
+                innerContainer.classList.remove('quote-highlight-target');
+            }, 4000);
+        }
+
+        // Highlight specific photo in album if applicable
+        if (photoEl) {
+            const photoWrapper = photoEl.closest('.chat-msg-gallery-more-cell') || photoEl;
+            photoWrapper.classList.remove('quote-highlight-photo');
+            void photoWrapper.offsetWidth; // Trigger reflow for animation restart
+            photoWrapper.classList.add('quote-highlight-photo');
+            setTimeout(() => {
+                photoWrapper.classList.remove('quote-highlight-photo');
+            }, 4000);
+        }
     }
 };
 

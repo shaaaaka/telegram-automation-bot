@@ -7159,6 +7159,38 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
     }
 }
 
+/* Specific photo highlight animation when clicking reply quote */
+.quote-highlight-photo {
+    animation: photoHighlightPulse 3.5s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    position: relative !important;
+    z-index: 15 !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+}
+
+@keyframes photoHighlightPulse {
+    0% {
+        box-shadow: 0 0 0 0px rgba(56, 189, 248, 0), 0 0 0px rgba(56, 189, 248, 0);
+        transform: scale(1);
+    }
+    8% {
+        box-shadow: 0 0 0 4px #38bdf8, 0 0 25px rgba(56, 189, 248, 0.9);
+        transform: scale(1.03);
+    }
+    20% {
+        box-shadow: 0 0 0 4px #38bdf8, 0 0 20px rgba(56, 189, 248, 0.8);
+        transform: scale(1);
+    }
+    75% {
+        box-shadow: 0 0 0 4px #38bdf8, 0 0 20px rgba(56, 189, 248, 0.8);
+        transform: scale(1);
+    }
+    100% {
+        box-shadow: 0 0 0 0px rgba(56, 189, 248, 0), 0 0 0px rgba(56, 189, 248, 0);
+        transform: scale(1);
+    }
+}
+
 /* Telegram-Style Floating Date Badge */
 .chat-floating-date-badge {
     position: absolute;
