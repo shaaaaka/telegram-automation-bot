@@ -469,7 +469,7 @@ function applyAlbumGridLayout(gallery) {
         }
     } else if (n === 5) {
         cols = 'repeat(6, minmax(0, 1fr))';
-        rows = '460px 240px';
+        rows = '460px 320px';
         cellStyles.push({ col: '1 / span 3', row: '1' });
         cellStyles.push({ col: '4 / span 3', row: '1' });
         cellStyles.push({ col: '1 / span 2', row: '2' });
