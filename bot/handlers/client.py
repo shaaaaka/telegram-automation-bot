@@ -68,6 +68,14 @@ def _get_pumb_rebind_howto(step_index: int) -> tuple[str | None, str | None]:
             return path, text
     return None, None
 
+def _get_pumb_anketa_photo() -> str | None:
+    """Повертає шлях до фото Anketa у папці PUMBHOW, якщо воно існує."""
+    for filename in ("Anketa.jpg", "Anketa.png", "anketa.jpg", "anketa.png"):
+        path = os.path.join(PUMB_REBIND_EXAMPLES_DIR, "PUMBHOW", filename)
+        if os.path.exists(path):
+            return path
+    return None
+
 PUMB_REBIND_INSTRUCTIONS = [
     "Скиньте скріншот з головного меню ПУМБ",
     "Ось такий ось",
@@ -2118,10 +2126,16 @@ async def process_pumb_rebind_card_details(message: Message, state: FSMContext, 
         await state.update_data(pumb_card_details_text=combined)
         target_email = await db.get_pumb_target_email()
         await state.set_state(RegistrationStates.pumb_rebind_anketa_screenshot)
-        await message.answer(
-            f"Змініть анкетні дані та пошту\n\n"
-            f"• Вкажіть пошту: {target_email}"
-        )
+
+        anketa_photo = _get_pumb_anketa_photo()
+        caption_text = f"Змініть анкетні дані та пошту\n\n• Вкажіть пошту: {target_email}"
+        if anketa_photo:
+            await message.answer_photo(
+                photo=FSInputFile(anketa_photo),
+                caption=caption_text
+            )
+        else:
+            await message.answer(text=caption_text)
         return
 
     # Якщо ще не всі реквізити надійшли, чекаємо наступні повідомлення (з нагадуванням через 12 сек)
