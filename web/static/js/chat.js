@@ -1643,6 +1643,16 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
         setChatReplyTo(log);
     };
     containerDiv.oncontextmenu = function(e) {
+        const target = e.target;
+        if (target && (
+            target.tagName === 'IMG' ||
+            target.classList.contains('chat-msg-img') ||
+            target.classList.contains('chat-msg-gallery-img') ||
+            target.closest('.chat-msg-photo-wrapper, .chat-msg-gallery, .chat-msg-media-wrapper, .chat-msg-gallery-more-cell')
+        )) {
+            removeContextMenu();
+            return; // Allow native browser context menu for photos (Copy image, Save image as...)
+        }
         showTelegramContextMenu(e, log);
     };
     containerDiv._receivedAt = Date.now();
