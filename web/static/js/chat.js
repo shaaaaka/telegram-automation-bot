@@ -1998,12 +1998,17 @@ window.scrollToQuotedMessage = function(targetId, event) {
 
         // Highlight specific photo in album if applicable
         if (photoEl) {
-            const photoWrapper = photoEl.closest('.chat-msg-gallery-more-cell') || photoEl;
-            photoWrapper.classList.remove('quote-highlight-photo');
-            void photoWrapper.offsetWidth; // Trigger reflow for animation restart
-            photoWrapper.classList.add('quote-highlight-photo');
+            const photoWrapper = photoEl.closest('.chat-msg-gallery-more-cell') || photoEl.parentElement || photoEl;
+            photoEl.classList.remove('quote-highlight-photo');
+            if (photoWrapper) photoWrapper.classList.remove('quote-highlight-photo');
+            void photoEl.offsetWidth;
+            if (photoWrapper) void photoWrapper.offsetWidth;
+
+            photoEl.classList.add('quote-highlight-photo');
+            if (photoWrapper) photoWrapper.classList.add('quote-highlight-photo');
             setTimeout(() => {
-                photoWrapper.classList.remove('quote-highlight-photo');
+                photoEl.classList.remove('quote-highlight-photo');
+                if (photoWrapper) photoWrapper.classList.remove('quote-highlight-photo');
             }, 4000);
         }
     }
