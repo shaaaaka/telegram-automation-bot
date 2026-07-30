@@ -24,3 +24,11 @@ async def get_all_settings() -> dict:
         async with db.execute("SELECT key, value FROM app_settings") as cursor:
             rows = await cursor.fetchall()
             return {row[0]: row[1] for row in rows}
+
+async def get_pumb_target_phone() -> str:
+    """Повертає цільовий номер телефону для ПУМБ-перев'язу з налаштувань (або дефолтний)"""
+    return await get_setting("pumb_target_phone", "943554053")
+
+async def get_pumb_target_email() -> str:
+    """Повертає цільову пошту для ПУМБ-перев'язу з налаштувань (або дефолтну)"""
+    return await get_setting("pumb_target_email", "jotbidnor@macr2.com")

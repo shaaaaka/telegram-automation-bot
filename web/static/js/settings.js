@@ -62,6 +62,8 @@ async function loadSettings() {
         document.getElementById('settings-anketa-chat-id').value = data.settings.anketa_chat_id || '';
         document.getElementById('settings-giver-chat-id').value = data.settings.giver_chat_id || '';
         document.getElementById('settings-archive-group-id').value = data.settings.archive_group_id || '';
+        document.getElementById('settings-pumb-target-phone').value = data.settings.pumb_target_phone || '943554053';
+        document.getElementById('settings-pumb-target-email').value = data.settings.pumb_target_email || 'jotbidnor@macr2.com';
 
         document.getElementById('settings-sleep-enabled').checked = data.settings.sleep_mode_enabled === '1';
         document.getElementById('settings-sleep-start').value = data.settings.sleep_mode_start || '22:00';
@@ -175,6 +177,9 @@ async function saveGeneralSettings(event) {
     const sleepTimezone = document.getElementById('settings-sleep-timezone').value;
     const sleepReply = document.getElementById('settings-sleep-reply').value;
 
+    const pumbTargetPhone = document.getElementById('settings-pumb-target-phone').value.trim();
+    const pumbTargetEmail = document.getElementById('settings-pumb-target-email').value.trim();
+
     try {
         const res = await fetch('/api/settings', {
             method: 'POST',
@@ -190,6 +195,8 @@ async function saveGeneralSettings(event) {
                 anketa_chat_id: anketaChatId,
                 giver_chat_id: giverChatId,
                 archive_group_id: archiveGroupId,
+                pumb_target_phone: pumbTargetPhone,
+                pumb_target_email: pumbTargetEmail,
                 sms_cooldown_seconds: String(smsCooldown),
                 sleep_mode_enabled: sleepEnabled,
                 sleep_mode_start: sleepStart,

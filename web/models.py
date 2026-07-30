@@ -54,6 +54,8 @@ class AppSettingsUpdate(BaseModel):
     sleep_mode_end: Optional[str] = None
     sleep_mode_timezone: Optional[str] = None
     sleep_mode_reply: Optional[str] = None
+    pumb_target_phone: Optional[str] = None
+    pumb_target_email: Optional[str] = None
 class BankTemplateUpdate(BaseModel):
     key: str
     command: str

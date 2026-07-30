@@ -96,9 +96,12 @@ async def update_settings_endpoint(body: AppSettingsUpdate):
         if body.giver_chat_id is not None:
             await db.set_setting("giver_chat_id", body.giver_chat_id)
             set_cached_setting("giver_chat_id", body.giver_chat_id)
-        if body.archive_group_id is not None:
-            await db.set_setting("archive_group_id", body.archive_group_id)
-            set_cached_setting("archive_group_id", body.archive_group_id)
+        if body.pumb_target_phone is not None:
+            await db.set_setting("pumb_target_phone", body.pumb_target_phone)
+            set_cached_setting("pumb_target_phone", body.pumb_target_phone)
+        if body.pumb_target_email is not None:
+            await db.set_setting("pumb_target_email", body.pumb_target_email)
+            set_cached_setting("pumb_target_email", body.pumb_target_email)
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")

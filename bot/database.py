@@ -515,6 +515,8 @@ from bot.services.settings_service import (
     get_setting,
     set_setting,
     get_all_settings,
+    get_pumb_target_phone,
+    get_pumb_target_email,
 )
 
 # --- Шаблони банків (Bank Templates) ---
