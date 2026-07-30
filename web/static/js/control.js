@@ -632,6 +632,8 @@ function renderSessions(sessions) {
                 `;
             } else if (Number(session.is_verified) !== 1) {
                 assignmentHTML = '';
+            } else if ((session.banks && session.banks.toUpperCase().includes('PUMB')) || (session.client_data && session.client_data.includes("Перев'яз ПУМБ"))) {
+                assignmentHTML = '';
             } else if (remaining.length > 0) {
                 if (session.line_id) {
                     const activeLine = (allLines || []).find(l => l.id === session.line_id);
