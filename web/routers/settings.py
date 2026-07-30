@@ -136,7 +136,8 @@ async def update_template_endpoint(
     success_text: Optional[str] = Form(None),
     deletion_text: Optional[str] = Form(None),
     allow_relink: int = Form(0),
-    relink_instruction_text: Optional[str] = Form(None)
+    relink_instruction_text: Optional[str] = Form(None),
+    anketa_file: Optional[UploadFile] = File(None)
 ):
     """Оновлення або додавання шаблону банку з файлами"""
     try:
@@ -237,6 +238,14 @@ async def update_template_endpoint(
                 shutil.copyfileobj(logo_file.file, buffer)
             logo_path = f"/static/images/uploaded/logos/{filename}"
             clear_logo = False
+
+        if anketa_file and anketa_file.filename and key.lower() == "pumb":
+            anketa_dir = os.path.join("bot", "resources", "images", "pumb_rebind", "PUMBHOW")
+            os.makedirs(anketa_dir, exist_ok=True)
+            anketa_path = os.path.join(anketa_dir, "Anketa.jpg")
+            with open(anketa_path, "wb") as buffer:
+                shutil.copyfileobj(anketa_file.file, buffer)
+            logger.info(f"Successfully saved new Anketa.jpg for PUMB")
             
         screenshot_path = None
         # Handle multiple uploaded files

