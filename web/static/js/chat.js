@@ -1483,12 +1483,30 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
     let contentHtml = '';
     if (log.reply_to_message_id && chatLogsCache[selectedChatClientId]) {
         const targetReplyId = String(log.reply_to_message_id);
-        const repliedLog = chatLogsCache[selectedChatClientId].find(l => (l.message_id != null && String(l.message_id) === targetReplyId) || (l.id != null && String(l.id) === targetReplyId));
+        const repliedLog = chatLogsCache[selectedChatClientId].find(l => {
+            if (l.message_id != null && String(l.message_id) === targetReplyId) return true;
+            if (l.id != null && String(l.id) === targetReplyId) return true;
+            if (l.message_ids && l.message_ids.some(m => String(m) === targetReplyId)) return true;
+            return false;
+        });
         if (repliedLog) {
             const rSender = repliedLog.sender === 'client' ? 'Клієнт' : (repliedLog.sender === 'bot' ? '🤖 AI-агент' : '👤 Оператор');
             const accentColor = repliedLog.sender === 'client' ? '#3b82f6' : (repliedLog.sender === 'bot' ? '#06b6d4' : '#a855f7');
             
-            const photoId = repliedLog.photo_id || (repliedLog.photo_ids && repliedLog.photo_ids.length > 0 ? repliedLog.photo_ids[0] : null);
+            let photoId = null;
+            if (repliedLog.photo_ids && repliedLog.photo_ids.length > 0) {
+                if (repliedLog.message_ids && repliedLog.message_ids.length === repliedLog.photo_ids.length) {
+                    const matchIdx = repliedLog.message_ids.findIndex(m => String(m) === targetReplyId);
+                    if (matchIdx !== -1) {
+                        photoId = repliedLog.photo_ids[matchIdx];
+                    }
+                }
+                if (!photoId) {
+                    photoId = repliedLog.photo_id || repliedLog.photo_ids[0];
+                }
+            } else {
+                photoId = repliedLog.photo_id || null;
+            }
             const photoClientParam = selectedChatClientId ? `?client_id=${selectedChatClientId}` : '';
             let quoteThumbHtml = '';
             let rText = '';
@@ -2632,6 +2650,7 @@ function groupPhotoLogs(logs) {
         if (!mediaGroups.has(mgid)) {
             mediaGroups.set(mgid, {
                 photoIds: [],
+                messageIds: [],
                 text: '',
                 sender: log.sender,
                 firstIndex: idx,
@@ -2640,6 +2659,9 @@ function groupPhotoLogs(logs) {
         }
         const g = mediaGroups.get(mgid);
         g.photoIds = g.photoIds.concat(pids);
+        for (let k = 0; k < pids.length; k++) {
+            g.messageIds.push(log.message_id || log.id);
+        }
         if (!g.text && log.message_text) g.text = log.message_text;
     });
 
@@ -2665,7 +2687,7 @@ function groupPhotoLogs(logs) {
         if (currentMediaGroupId && mediaGroups.has(currentMediaGroupId)) {
             if (!outputMediaGroups.has(currentMediaGroupId)) {
                 const g = mediaGroups.get(currentMediaGroupId);
-                const currentGroup = { ...g.firstLog, photo_ids: g.photoIds };
+                const currentGroup = { ...g.firstLog, photo_ids: g.photoIds, message_ids: g.messageIds };
                 if (g.text && !currentGroup.message_text) currentGroup.message_text = g.text;
                 if (currentGroup.photo_ids.length === 1) {
                     currentGroup.photo_id = currentGroup.photo_ids[0];
@@ -2680,7 +2702,11 @@ function groupPhotoLogs(logs) {
         }
 
         // Loose photos (no media_group_id): time-based consecutive grouping (within 10s).
-        const currentGroup = { ...current, photo_ids: [...currentPhotoIds] };
+        const currentGroup = {
+            ...current,
+            photo_ids: [...currentPhotoIds],
+            message_ids: currentPhotoIds.map(() => current.message_id || current.id)
+        };
         let j = i + 1;
         let lastGroupTime = parseUtcToLocal(current.created_at);
 
@@ -2704,6 +2730,9 @@ function groupPhotoLogs(logs) {
             }
 
             currentGroup.photo_ids = currentGroup.photo_ids.concat(nextPhotoIds);
+            for (let k = 0; k < nextPhotoIds.length; k++) {
+                currentGroup.message_ids.push(next.message_id || next.id);
+            }
             if (next.message_text && !currentGroup.message_text) {
                 currentGroup.message_text = next.message_text;
             }
