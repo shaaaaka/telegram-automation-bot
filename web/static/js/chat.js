@@ -1537,14 +1537,16 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
         const galleryHtml = `<div class="chat-msg-gallery ${albumClass}"${mediaGroupAttr}>` +
             visiblePhotoIds.map((pid, vIdx) => {
                 const scrollOnLoad = isHistoryRender ? '' : ' scrollToBottom(\'chat-window-body-container\')';
-                const imgTag = `<img class="chat-msg-gallery-img" src="/api/photos/${pid}${pidClientParam}" onerror="handlePhotoError(this)" onload="checkGalleryImgLayout(this);${scrollOnLoad}">`;
+                const msgIdForPid = (log.message_ids && log.message_ids[vIdx]) ? log.message_ids[vIdx] : (log.message_id || '');
+                const imgTag = `<img class="chat-msg-gallery-img" data-photo-id="${pid}" data-msg-id="${msgIdForPid}" src="/api/photos/${pid}${pidClientParam}" onerror="handlePhotoError(this)" onload="checkGalleryImgLayout(this);${scrollOnLoad}">`;
                 if (overflowCount > 0 && vIdx === visiblePhotoIds.length - 1) {
                     return `<div class="chat-msg-gallery-more-cell">${imgTag}<span class="chat-msg-gallery-more">+${overflowCount}</span></div>`;
                 }
                 return imgTag;
             }).join('') +
-            (overflowCount > 0 ? allPhotoIds.slice(9).map(pid => {
-                return `<img class="chat-msg-gallery-img chat-msg-gallery-img-hidden" src="/api/photos/${pid}${pidClientParam}" style="display:none;" onerror="handlePhotoError(this)">`;
+            (overflowCount > 0 ? allPhotoIds.slice(9).map((pid, extraIdx) => {
+                const msgIdForPid = (log.message_ids && log.message_ids[9 + extraIdx]) ? log.message_ids[9 + extraIdx] : (log.message_id || '');
+                return `<img class="chat-msg-gallery-img chat-msg-gallery-img-hidden" data-photo-id="${pid}" data-msg-id="${msgIdForPid}" src="/api/photos/${pid}${pidClientParam}" style="display:none;" onerror="handlePhotoError(this)">`;
             }).join('') : '') +
             `</div>`;
         if (hasText) {
@@ -1640,7 +1642,21 @@ function renderSingleChatMessage(container, log, hideAvatar = false, isHistoryRe
     `;
     containerDiv.ondblclick = function(e) {
         e.stopPropagation();
-        setChatReplyTo(log);
+        let targetPhotoId = null;
+        let targetMsgId = null;
+        const target = e.target;
+        if (target) {
+            const img = target.tagName === 'IMG' ? target : (target.closest ? target.closest('img') : null);
+            if (img) {
+                if (img.dataset && img.dataset.photoId) targetPhotoId = img.dataset.photoId;
+                else if (img.src) {
+                    const match = img.src.match(/\/api\/photos\/([^?#/]+)/);
+                    if (match && match[1]) targetPhotoId = match[1];
+                }
+                if (img.dataset && img.dataset.msgId) targetMsgId = img.dataset.msgId;
+            }
+        }
+        setChatReplyTo(log, targetPhotoId, targetMsgId);
     };
     containerDiv.oncontextmenu = function(e) {
         showTelegramContextMenu(e, log);
@@ -1847,8 +1863,16 @@ function scrollToBottom(containerId, force = false) {
 
 let activeChatReplyLog = null;
 
-function setChatReplyTo(log) {
-    activeChatReplyLog = log;
+function setChatReplyTo(log, targetPhotoId = null, targetMsgId = null) {
+    const activePhotoId = targetPhotoId || log.photo_id || (log.photo_ids && log.photo_ids.length > 0 ? log.photo_ids[0] : null);
+    const activeMsgId = targetMsgId || log.message_id;
+
+    activeChatReplyLog = {
+        ...log,
+        photo_id: activePhotoId,
+        message_id: activeMsgId
+    };
+
     let previewBar = document.getElementById('chat-reply-preview-bar');
     if (!previewBar) {
         const footer = document.querySelector('.chat-window-footer');
@@ -1860,13 +1884,12 @@ function setChatReplyTo(log) {
     }
     if (previewBar) {
         const senderName = log.sender === 'client' ? 'Клієнта' : (log.sender === 'bot' ? 'Бота' : 'Оператора');
-        const photoId = log.photo_id || (log.photo_ids && log.photo_ids.length > 0 ? log.photo_ids[0] : null);
         const replyClientParam = selectedChatClientId ? `?client_id=${selectedChatClientId}` : '';
 
         let replyThumbHtml = '';
         let textSnippet = '';
-        if (photoId) {
-            replyThumbHtml = `<img class="chat-reply-thumb" src="/api/photos/${photoId}${replyClientParam}" alt="Photo">`;
+        if (activePhotoId) {
+            replyThumbHtml = `<img class="chat-reply-thumb" src="/api/photos/${activePhotoId}${replyClientParam}" alt="Photo">`;
             const captionText = log.message_text ? `: ${stripMessageQuotes(log.message_text)}` : '';
             textSnippet = `Фото${captionText}`;
         } else {
