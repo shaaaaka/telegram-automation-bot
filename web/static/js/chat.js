@@ -509,7 +509,7 @@ function applyAlbumGridLayout(gallery) {
     } else {
         // 9 (or fallback for many): 3x3
         cols = 'repeat(3, minmax(0, 1fr))';
-        rows = 'repeat(3, 260px)';
+        rows = 'repeat(3, 320px)';
         for (let i = 0; i < n; i++) {
             const col = (i % 3) + 1;
             const row = Math.floor(i / 3) + 1;

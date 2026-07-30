@@ -8342,10 +8342,9 @@ html body .chat-msg-gallery.album-count-4 {
     grid-template-rows: repeat(2, 260px) !important;
 }
 
-html body .chat-msg-gallery.album-count-many,
 html body .chat-msg-gallery.album-count-many {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    grid-template-rows: repeat(3, 260px) !important;
+    grid-template-rows: repeat(3, 320px) !important;
 }
 
 html body .chat-msg-gallery-img,
@@ -8453,13 +8452,12 @@ html body .chat-msg-gallery.album-count-8 {
 
 html body .chat-msg-gallery.album-count-10 {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    grid-auto-rows: 260px !important;
+    grid-auto-rows: 320px !important;
 }
 
-html body .chat-msg-gallery.album-count-9,
 html body .chat-msg-gallery.album-count-9 {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    grid-template-rows: repeat(3, 260px) !important;
+    grid-template-rows: repeat(3, 320px) !important;
 }
 
 /* Cell that hosts the "+N" overflow overlay (albums with more than 10 photos) */
