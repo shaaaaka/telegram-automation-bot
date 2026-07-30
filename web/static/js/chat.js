@@ -1996,15 +1996,39 @@ window.scrollToQuotedMessage = function(targetId, event) {
             }, 4000);
         }
 
-        // Highlight ONLY the specific target photo element in album
+        // Highlight ONLY the specific target photo element in album with a clean overlay div
         if (photoEl) {
-            const targetPhoto = photoEl.closest('.chat-msg-gallery-more-cell') || photoEl;
-            targetPhoto.classList.remove('quote-highlight-photo');
-            void targetPhoto.offsetWidth;
-            targetPhoto.classList.add('quote-highlight-photo');
-            setTimeout(() => {
-                targetPhoto.classList.remove('quote-highlight-photo');
-            }, 4000);
+            const parent = photoEl.parentElement;
+            if (parent) {
+                const parentPos = window.getComputedStyle(parent).position;
+                if (parentPos === 'static') {
+                    parent.style.position = 'relative';
+                }
+
+                const oldOverlay = parent.querySelector('.photo-quote-highlight-overlay');
+                if (oldOverlay) oldOverlay.remove();
+
+                const overlay = document.createElement('div');
+                overlay.className = 'photo-quote-highlight-overlay';
+                overlay.style.position = 'absolute';
+                overlay.style.left = `${photoEl.offsetLeft}px`;
+                overlay.style.top = `${photoEl.offsetTop}px`;
+                overlay.style.width = `${photoEl.offsetWidth}px`;
+                overlay.style.height = `${photoEl.offsetHeight}px`;
+                
+                const computedRadius = window.getComputedStyle(photoEl).borderRadius;
+                if (computedRadius && computedRadius !== '0px') {
+                    overlay.style.borderRadius = computedRadius;
+                }
+
+                parent.appendChild(overlay);
+
+                setTimeout(() => {
+                    if (overlay && overlay.parentNode) {
+                        overlay.remove();
+                    }
+                }, 4000);
+            }
         }
     }
 };
