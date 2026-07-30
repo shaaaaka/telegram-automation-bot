@@ -7161,33 +7161,30 @@ body:has(#chat-reply-preview-bar.active) .chat-scroll-bottom-btn {
 
 /* Specific photo highlight animation when clicking reply quote */
 .quote-highlight-photo {
-    animation: photoHighlightPulse 3.5s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    animation: photoGlowPulse 4s cubic-bezier(0.16, 1, 0.3, 1) !important;
     position: relative !important;
     z-index: 15 !important;
-    border-radius: 8px !important;
-    overflow: hidden !important;
+    outline: 3px solid #38bdf8 !important;
+    outline-offset: -3px !important;
+    border-radius: 4px !important;
 }
 
-@keyframes photoHighlightPulse {
+@keyframes photoGlowPulse {
     0% {
-        box-shadow: 0 0 0 0px rgba(56, 189, 248, 0), 0 0 0px rgba(56, 189, 248, 0);
-        transform: scale(1);
+        outline-color: #38bdf8 !important;
+        box-shadow: inset 0 0 15px rgba(56, 189, 248, 0.6), 0 0 25px rgba(56, 189, 248, 0.95);
     }
-    8% {
-        box-shadow: 0 0 0 4px #38bdf8, 0 0 25px rgba(56, 189, 248, 0.9);
-        transform: scale(1.03);
-    }
-    20% {
-        box-shadow: 0 0 0 4px #38bdf8, 0 0 20px rgba(56, 189, 248, 0.8);
-        transform: scale(1);
+    15% {
+        outline-color: #38bdf8 !important;
+        box-shadow: inset 0 0 15px rgba(56, 189, 248, 0.6), 0 0 30px rgba(56, 189, 248, 1);
     }
     75% {
-        box-shadow: 0 0 0 4px #38bdf8, 0 0 20px rgba(56, 189, 248, 0.8);
-        transform: scale(1);
+        outline-color: #38bdf8 !important;
+        box-shadow: inset 0 0 15px rgba(56, 189, 248, 0.6), 0 0 20px rgba(56, 189, 248, 0.8);
     }
     100% {
-        box-shadow: 0 0 0 0px rgba(56, 189, 248, 0), 0 0 0px rgba(56, 189, 248, 0);
-        transform: scale(1);
+        outline-color: transparent !important;
+        box-shadow: inset 0 0 0px transparent, 0 0 0px transparent;
     }
 }
 
