@@ -1985,19 +1985,13 @@ window.scrollToQuotedMessage = function(targetId, event) {
     if (scrollTarget) {
         scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
-        // Highlight message container row
-        if (containerEl) {
-            const innerContainer = containerEl.classList.contains('chat-msg-container') ? containerEl : (containerEl.querySelector('.chat-msg-container') || containerEl);
-            innerContainer.classList.remove('quote-highlight-target');
-            void innerContainer.offsetWidth; // Trigger reflow for animation restart
-            innerContainer.classList.add('quote-highlight-target');
-            setTimeout(() => {
-                innerContainer.classList.remove('quote-highlight-target');
-            }, 4000);
-        }
-
-        // Highlight ONLY the specific target photo element in album with a clean overlay div
         if (photoEl) {
+            // PHOTO QUOTE CLICK: Highlight ONLY the specific photo, no row glow & no left blue stripe
+            if (containerEl) {
+                const innerContainer = containerEl.classList.contains('chat-msg-container') ? containerEl : (containerEl.querySelector('.chat-msg-container') || containerEl);
+                if (innerContainer) innerContainer.classList.remove('quote-highlight-target');
+            }
+
             const parent = photoEl.parentElement;
             if (parent) {
                 const parentPos = window.getComputedStyle(parent).position;
@@ -2027,6 +2021,17 @@ window.scrollToQuotedMessage = function(targetId, event) {
                     if (overlay && overlay.parentNode) {
                         overlay.remove();
                     }
+                }, 4000);
+            }
+        } else if (containerEl) {
+            // TEXT QUOTE CLICK: Highlight text message row & left blue stripe
+            const innerContainer = containerEl.classList.contains('chat-msg-container') ? containerEl : (containerEl.querySelector('.chat-msg-container') || containerEl);
+            if (innerContainer) {
+                innerContainer.classList.remove('quote-highlight-target');
+                void innerContainer.offsetWidth; // Trigger reflow for animation restart
+                innerContainer.classList.add('quote-highlight-target');
+                setTimeout(() => {
+                    innerContainer.classList.remove('quote-highlight-target');
                 }, 4000);
             }
         }
