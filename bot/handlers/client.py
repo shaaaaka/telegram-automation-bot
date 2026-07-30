@@ -2012,8 +2012,8 @@ async def _delayed_pumb_rebind_process(client_id: int, chat_id: int, state: FSMC
                     pib_val = session.get('pib')
 
 
-                client_data_lines = []
                 if pib_val and pib_val not in ('—', '-'):
+                    await state.update_data(pumb_extracted_pib=pib_val)
                     client_data_lines.append(f"ПІБ: {pib_val}")
                 else:
                     client_data_lines.append("ПІБ: Не вказано")
@@ -2181,8 +2181,14 @@ async def process_pumb_rebind_deletion_screenshot(message: Message, state: FSMCo
     card_details = data.get("pumb_card_details_text", "Не вказано")
     pincode = data.get("pumb_pincode", "Не вказано")
 
-    session = await db.get_session(client_id) or {}
-    pib_val = session.get('pib', 'Не вказано')
+    pib_val = data.get("pumb_extracted_pib")
+    if not pib_val or pib_val in ('—', '-'):
+        session = await db.get_session(client_id) or {}
+        client_data = session.get('client_data', '')
+        match = re.search(r'ПІБ:\s*(.+)', client_data)
+        if match:
+            pib_val = match.group(1).strip()
+
     pib_str = pib_val if (pib_val and pib_val not in ('—', '-')) else "Не вказано"
 
     final_report_text = (
@@ -2218,7 +2224,7 @@ async def process_pumb_rebind_deletion_screenshot(message: Message, state: FSMCo
                 media_group = []
                 for idx, b_file in enumerate(buffered_photos):
                     if idx == 0:
-                        media_group.append(InputMediaPhoto(media=b_file, caption=f"Перев'яз ПУМБ (Фінал)\n\nПІБ - {pib_str}", parse_mode="HTML"))
+                        media_group.append(InputMediaPhoto(media=b_file, caption="Перев'яз ПУМБ", parse_mode="HTML"))
                     else:
                         media_group.append(InputMediaPhoto(media=b_file))
 
@@ -2232,7 +2238,7 @@ async def process_pumb_rebind_deletion_screenshot(message: Message, state: FSMCo
                         if len(media_group) > 1:
                             await s_bot.send_media_group(chat_id=target_chat, media=media_group)
                         else:
-                            await s_bot.send_photo(chat_id=target_chat, photo=buffered_photos[0], caption=f"Перев'яз ПУМБ (Фінал)\n\nПІБ - {pib_str}", parse_mode="HTML")
+                            await s_bot.send_photo(chat_id=target_chat, photo=buffered_photos[0], caption="Перев'яз ПУМБ", parse_mode="HTML")
 
                         await s_bot.send_message(chat_id=target_chat, text=final_report_text)
                         logger.info(f"Фінальний звіт ПУМБ успішно надіслано в чат {target_chat}")
