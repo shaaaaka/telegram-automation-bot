@@ -107,6 +107,7 @@
                         <div class="section-label">Додати лінію вручну</div>
                         <form class="add-line-form" id="add-line-form" onsubmit="handleAddLine(event)">
                             <input type="text" id="add-phone" placeholder="Телефон" required>
+                            <input type="email" id="add-email" placeholder="Пошта (для ПУМБ)" style="display: none;">
                             <div class="add-bank-select-container" id="bank-select-container">
                                 <div class="add-bank-select-trigger" onclick="toggleCustomSelect()">
                                     <span id="custom-select-value" style="color: rgba(255, 255, 255, 0.4)">Банк</span>
@@ -124,7 +125,6 @@
                                 </div>
                                 <input type="hidden" id="add-bank" required>
                             </div>
-                            <input type="email" id="add-email" placeholder="Пошта (для ПУМБ)" style="display: none;">
                             <button type="submit" class="btn btn-primary btn-sm">Додати</button>
                         </form>
                         <div style="display: flex; justify-content: center; margin-top: 24px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px;">

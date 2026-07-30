@@ -1207,7 +1207,7 @@ textarea:focus {
 }
 
 .add-line-form.has-email {
-    grid-template-columns: 2fr 1.3fr 2fr auto;
+    grid-template-columns: 2.2fr 2.2fr 1.4fr auto;
 }
 
 @media (max-width: 768px) {
