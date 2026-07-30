@@ -417,6 +417,9 @@ function applyAlbumGridLayout(gallery) {
         setImportant(img, 'object-position', 'top center');
         setImportant(img, 'display', 'block');
         setImportant(img, 'border-radius', '0');
+        setImportant(img, 'image-rendering', '-webkit-optimize-contrast');
+        setImportant(img, 'image-rendering', 'high-quality');
+        setImportant(img, 'filter', 'contrast(1.04) saturate(1.02)');
         img.style.removeProperty('position');
         img.style.removeProperty('left');
         img.style.removeProperty('top');
