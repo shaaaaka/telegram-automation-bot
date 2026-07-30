@@ -110,15 +110,18 @@ function selectCustomOption(optionEl, event) {
     document.getElementById('custom-select-value').innerText = val;
     document.getElementById('custom-select-value').style.color = '#ffffff';
 
+    const form = document.getElementById('add-line-form');
     const emailInput = document.getElementById('add-email');
     if (emailInput) {
         if (val && val.toLowerCase().includes('pumb')) {
-            emailInput.style.display = 'inline-block';
+            emailInput.style.display = 'block';
             emailInput.required = true;
+            if (form) form.classList.add('has-email');
         } else {
             emailInput.style.display = 'none';
             emailInput.required = false;
             emailInput.value = '';
+            if (form) form.classList.remove('has-email');
         }
     }
 
@@ -163,7 +166,11 @@ async function handleAddLine(event) {
             body: JSON.stringify({ id: 0, line_id, phone_number, bank, email })
         });
         if (res.ok) {
-            document.getElementById('add-line-form').reset();
+            const form = document.getElementById('add-line-form');
+            if (form) {
+                form.reset();
+                form.classList.remove('has-email');
+            }
             document.getElementById('add-bank').value = '';
             document.getElementById('custom-select-value').innerText = 'Банк';
             document.getElementById('custom-select-value').style.color = 'rgba(255, 255, 255, 0.4)';
