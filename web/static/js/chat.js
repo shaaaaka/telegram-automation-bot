@@ -1990,11 +1990,21 @@ function handleIncomingWebSocketMessage(data) {
         if (bodyContainer) {
             const isNearBottom = bodyContainer.scrollHeight - bodyContainer.scrollTop - bodyContainer.clientHeight < 100;
             const isChatActiveAndVisible = (typeof currentTab !== 'undefined' && currentTab === 'chat');
+
+            // Normalise incoming photo payload so a single photo sent as photo_ids[0]
+            // (or a batch as photo_id) is handled uniformly.
+            if (data.photo_ids && data.photo_ids.length) {
+                if (!data.photo_id) data.photo_id = data.photo_ids[0];
+            } else if (data.photo_id) {
+                data.photo_ids = [data.photo_id];
+            }
+
             // Maintain chat cache in Telegram order.
             const logObj = {
                 sender: data.sender,
                 message_text: data.message_text,
                 photo_id: data.photo_id,
+                photo_ids: data.photo_ids,
                 message_id: data.message_id,
                 reply_to_message_id: data.reply_to_message_id,
                 created_at: data.created_at
@@ -2040,8 +2050,9 @@ function handleIncomingWebSocketMessage(data) {
                 return 'support';
             };
 
-            // Attempt to merge photos in real-time if received within 180 seconds (3 minutes)
-            if (data.photo_id && lastMsgContainer && lastMsgContainer._receivedAt && (Date.now() - lastMsgContainer._receivedAt < 180000)) {
+            // Attempt to merge a single photo in real-time if received within 180 seconds (3 minutes).
+            // Batches with multiple photo_ids are rendered as a new gallery so no photos are lost.
+            if (data.photo_id && (!data.photo_ids || data.photo_ids.length === 1) && lastMsgContainer && lastMsgContainer._receivedAt && (Date.now() - lastMsgContainer._receivedAt < 180000)) {
                 if (getLastMsgSenderGroup(lastMsgContainer) === getSenderGroup(data.sender)) {
                     const lastBubble = lastMsgContainer.querySelector('.chat-msg-bubble');
                     if (lastBubble) {
@@ -2431,56 +2442,72 @@ autocompleteStyle.textContent = `
 `;
 document.head.appendChild(autocompleteStyle);
 
-// Preprocess messages list to group consecutive photos from the same sender within 5s
+// Preprocess messages list to group consecutive photos from the same sender within 3 minutes.
 function groupPhotoLogs(logs) {
     const grouped = [];
     let i = 0;
-    
+
+    const getPhotoIds = (log) => {
+        if (log.photo_ids && log.photo_ids.length) return log.photo_ids;
+        if (log.photo_id) return [log.photo_id];
+        return [];
+    };
+
     while (i < logs.length) {
         const current = logs[i];
-        if (!current.photo_id) {
+        const currentPhotoIds = getPhotoIds(current);
+        if (currentPhotoIds.length === 0) {
             grouped.push(current);
             i++;
             continue;
         }
-        
+
         // It's a photo. Let's see if we can group it with subsequent photos.
-        const currentGroup = {
-            ...current,
-            photo_ids: [current.photo_id]
-        };
-        
+        const currentGroup = { ...current, photo_ids: currentPhotoIds };
+        if (currentGroup.photo_ids.length === 1) {
+            currentGroup.photo_id = currentGroup.photo_ids[0];
+        } else if (currentGroup.photo_id) {
+            delete currentGroup.photo_id;
+        }
+
         let j = i + 1;
-        const currentGroupTime = parseUtcToLocal(current.created_at);
-        
+        let lastGroupTime = parseUtcToLocal(current.created_at);
+
         while (j < logs.length) {
             const next = logs[j];
-            if (!next.photo_id) {
+            const nextPhotoIds = getPhotoIds(next);
+            if (nextPhotoIds.length === 0) {
                 break;
             }
             if (next.sender !== current.sender) {
                 break;
             }
-            
-            // Check time difference
+
+            // Check time difference against the *previous* grouped photo (sliding window),
+            // not the first one. This prevents albums from splitting if the first and last
+            // photo are far apart but every consecutive pair is close.
             const nextTime = parseUtcToLocal(next.created_at);
-            if (currentGroupTime && nextTime) {
-                const diffMs = Math.abs(nextTime.getTime() - currentGroupTime.getTime());
-                if (diffMs > 180000) { // 3 minutes threshold for grouping photos into album
+            if (lastGroupTime && nextTime) {
+                const diffMs = Math.abs(nextTime.getTime() - lastGroupTime.getTime());
+                if (diffMs > 180000) { // 3 minutes threshold
                     break;
                 }
+                lastGroupTime = nextTime;
             } else {
-                break; 
+                break;
             }
-            
+
             // Add to group
-            currentGroup.photo_ids.push(next.photo_id);
+            currentGroup.photo_ids = currentGroup.photo_ids.concat(nextPhotoIds);
+            if (!currentGroup.photo_id) {
+                currentGroup.photo_id = nextPhotoIds[0];
+            }
             if (next.message_text && !currentGroup.message_text) {
                 currentGroup.message_text = next.message_text;
             }
             j++;
         }
-        
+
         grouped.push(currentGroup);
         i = j;
     }
