@@ -74,7 +74,7 @@ function renderLines() {
 
         let phoneCellHtml = `<span class="phone-number-copy" onclick="copyToClipboard('+${line.phone_number}')">+${line.phone_number}</span>`;
         if (line.email) {
-            phoneCellHtml += `<div style="margin-top: 5px;"><span class="phone-number-copy" onclick="copyToClipboard('${line.email}')" title="Натисніть для копіювання пошти">${line.email}</span></div>`;
+            phoneCellHtml += `<div style="margin-top: 8px;"><span class="phone-number-copy" onclick="copyToClipboard('${line.email}')" title="Натисніть для копіювання пошти">${line.email}</span></div>`;
         }
 
         tr.innerHTML = `

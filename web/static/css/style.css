@@ -1109,9 +1109,18 @@ textarea:focus {
     table-layout: fixed !important;
 }
 
-.lines-table th, .lines-table td {
+.lines-table th {
     text-align: left;
-    padding: 8px 10px !important;
+    padding: 10px 10px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    vertical-align: middle;
+}
+
+.lines-table td {
+    text-align: left;
+    padding: 12px 10px !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
