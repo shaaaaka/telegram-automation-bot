@@ -2056,9 +2056,9 @@ function handleIncomingWebSocketMessage(data) {
             };
 
             // Real-time photo gallery merge:
-            // 1. If media_group_id is present, merge with existing same-album container.
-            // 2. Otherwise (or fallback), merge with the most recent photo container from the same sender within 180s,
-            //    even if bot text messages arrived in between.
+            // 1. If media_group_id is present, merge with existing container having the EXACT SAME media_group_id.
+            // 2. Loose photos (no media_group_id): merge only if lastMsgContainer is from same sender,
+            //    has no media_group_id, and arrived within 10 seconds.
             let targetContainer = null;
             const senderClass = getSenderGroup(data.sender);
             const containers = Array.from(bodyContainer.querySelectorAll('.chat-msg-container'));
@@ -2066,26 +2066,19 @@ function handleIncomingWebSocketMessage(data) {
             if (data.media_group_id && data.photo_id) {
                 for (let c = containers.length - 1; c >= 0; c--) {
                     const cont = containers[c];
-                    if (cont.dataset.mediaGroupId === data.media_group_id && getLastMsgSenderGroup(cont) === senderClass) {
+                    if (cont.dataset.mediaGroupId === String(data.media_group_id) && getLastMsgSenderGroup(cont) === senderClass) {
                         if (cont.querySelector('.chat-msg-img') || cont.querySelector('.chat-msg-gallery')) {
                             targetContainer = cont;
                             break;
                         }
                     }
                 }
-            }
-
-            if (!targetContainer && data.photo_id && (!data.photo_ids || data.photo_ids.length === 1)) {
-                for (let c = containers.length - 1; c >= 0; c--) {
-                    const cont = containers[c];
-                    if (getLastMsgSenderGroup(cont) === senderClass) {
-                        if (cont.querySelector('.chat-msg-img') || cont.querySelector('.chat-msg-gallery')) {
-                            if (cont._receivedAt && (Date.now() - cont._receivedAt < 180000)) {
-                                targetContainer = cont;
-                                break;
-                            }
-                        }
-                    }
+            } else if (data.photo_id && (!data.photo_ids || data.photo_ids.length === 1) &&
+                lastMsgContainer && !lastMsgContainer.dataset.mediaGroupId &&
+                lastMsgContainer._receivedAt &&
+                (Date.now() - lastMsgContainer._receivedAt < 10000)) {
+                if (getLastMsgSenderGroup(lastMsgContainer) === senderClass) {
+                    targetContainer = lastMsgContainer;
                 }
             }
 
@@ -2493,10 +2486,8 @@ autocompleteStyle.textContent = `
 document.head.appendChild(autocompleteStyle);
 
 // Preprocess messages list to group photos.
-// - Real Telegram albums share media_group_id: collect ALL photos with the same
-//   media_group_id across the entire log list (even if bot text is interleaved).
-// - Loose photos / consecutive photo batches: merge photos from the same sender
-//   within a 3-minute window, even if automated bot text messages are interleaved.
+// - Media groups (media_group_id): Collect ALL photos belonging to the exact same media_group_id.
+// - Loose photos (without media_group_id): Only group consecutive loose photos from the same sender within 10 seconds.
 function groupPhotoLogs(logs) {
     const getPhotoIds = (log) => {
         if (log.photo_ids && log.photo_ids.length) return log.photo_ids;
@@ -2504,44 +2495,81 @@ function groupPhotoLogs(logs) {
         return [];
     };
 
-    const processedIndices = new Set();
+    // First pass: build a map of complete media groups by media_group_id.
+    const mediaGroups = new Map();
+    logs.forEach((log, idx) => {
+        const mgid = log.media_group_id;
+        if (!mgid) return;
+        const pids = getPhotoIds(log);
+        if (pids.length === 0) return;
+
+        if (!mediaGroups.has(mgid)) {
+            mediaGroups.set(mgid, {
+                photoIds: [],
+                text: '',
+                sender: log.sender,
+                firstIndex: idx,
+                firstLog: log
+            });
+        }
+        const g = mediaGroups.get(mgid);
+        g.photoIds = g.photoIds.concat(pids);
+        if (!g.text && log.message_text) g.text = log.message_text;
+    });
+
     const grouped = [];
+    const outputMediaGroups = new Set();
+    let i = 0;
 
-    for (let i = 0; i < logs.length; i++) {
-        if (processedIndices.has(i)) continue;
-
+    while (i < logs.length) {
         const current = logs[i];
         const currentPhotoIds = getPhotoIds(current);
 
+        // Not a photo — pass through.
         if (currentPhotoIds.length === 0) {
             grouped.push(current);
-            processedIndices.add(i);
+            i++;
             continue;
         }
 
-        const currentSender = current.sender;
-        const currentGroup = { ...current, photo_ids: [...currentPhotoIds] };
-        processedIndices.add(i);
+        const currentMediaGroupId = current.media_group_id || null;
 
+        // Album photo: output the whole album the first time we see it, then skip
+        // subsequent photos of the same album.
+        if (currentMediaGroupId && mediaGroups.has(currentMediaGroupId)) {
+            if (!outputMediaGroups.has(currentMediaGroupId)) {
+                const g = mediaGroups.get(currentMediaGroupId);
+                const currentGroup = { ...g.firstLog, photo_ids: g.photoIds };
+                if (g.text && !currentGroup.message_text) currentGroup.message_text = g.text;
+                if (currentGroup.photo_ids.length === 1) {
+                    currentGroup.photo_id = currentGroup.photo_ids[0];
+                } else if (currentGroup.photo_id) {
+                    delete currentGroup.photo_id;
+                }
+                grouped.push(currentGroup);
+                outputMediaGroups.add(currentMediaGroupId);
+            }
+            i++;
+            continue;
+        }
+
+        // Loose photos (no media_group_id): time-based consecutive grouping (within 10s).
+        const currentGroup = { ...current, photo_ids: [...currentPhotoIds] };
+        let j = i + 1;
         let lastGroupTime = parseUtcToLocal(current.created_at);
 
-        // Scan ahead for subsequent photos from the same sender within 3 minutes window
-        for (let j = i + 1; j < logs.length; j++) {
-            if (processedIndices.has(j)) continue;
-
+        while (j < logs.length) {
             const next = logs[j];
             const nextPhotoIds = getPhotoIds(next);
 
-            // Skip non-photo logs (e.g., bot auto-reply text) so they pass through in sequence
-            if (nextPhotoIds.length === 0) continue;
-
-            // If a photo comes from another sender, stop photo grouping for currentSender
-            if (next.sender !== currentSender) break;
+            if (nextPhotoIds.length === 0) break; // Non-photo message stops loose grouping
+            if (next.sender !== current.sender) break; // Different sender stops grouping
+            if (next.media_group_id) break; // Don't mix loose photos with albums
 
             const nextTime = parseUtcToLocal(next.created_at);
             if (lastGroupTime && nextTime) {
                 const diffMs = Math.abs(nextTime.getTime() - lastGroupTime.getTime());
-                if (diffMs > 180000) { // 3 minutes window
+                if (diffMs > 10000) { // 10 seconds max window between loose photos
                     break;
                 }
                 lastGroupTime = nextTime;
@@ -2549,15 +2577,11 @@ function groupPhotoLogs(logs) {
                 break;
             }
 
-            // Merge photo(s) into current group
             currentGroup.photo_ids = currentGroup.photo_ids.concat(nextPhotoIds);
             if (next.message_text && !currentGroup.message_text) {
                 currentGroup.message_text = next.message_text;
             }
-            if (next.media_group_id && !currentGroup.media_group_id) {
-                currentGroup.media_group_id = next.media_group_id;
-            }
-            processedIndices.add(j);
+            j++;
         }
 
         if (currentGroup.photo_ids.length === 1) {
@@ -2567,6 +2591,7 @@ function groupPhotoLogs(logs) {
         }
 
         grouped.push(currentGroup);
+        i = j;
     }
 
     return grouped;
