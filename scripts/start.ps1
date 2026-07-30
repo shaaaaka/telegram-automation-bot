@@ -1,4 +1,4 @@
-Set-Location -Path $PSScriptRoot
+Set-Location -Path (Split-Path -Parent $PSScriptRoot)
 
 $python = $null
 if (Test-Path ".venv\Scripts\python.exe") {
@@ -9,5 +9,5 @@ if (Test-Path ".venv\Scripts\python.exe") {
     $python = "python"
 }
 
-& $python kill_port_8000.py
+& $python scripts\kill_port_8000.py
 & $python main.py

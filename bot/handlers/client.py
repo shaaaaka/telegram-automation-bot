@@ -25,6 +25,7 @@ _pumb_new_photo_tasks: dict[int, asyncio.Task] = {}
 _pumb_photo_locks: dict[int, asyncio.Lock] = {}
 
 PUMB_EXAMPLE_PHOTOS_DIR = r"C:\Users\oliks\Documents\PUMB"
+PUMB_REBIND_EXAMPLES_DIR = os.path.join(os.path.dirname(__file__), "..", "resources", "images", "pumb_rebind")
 
 def _get_pumb_example_photos() -> list[str]:
     """Повертає список прикладів фото для ПУМБ (скріншоти з Дії)."""
@@ -39,6 +40,39 @@ def _get_pumb_example_photos() -> list[str]:
         return [os.path.join(PUMB_EXAMPLE_PHOTOS_DIR, f) for f in files]
     except Exception:
         return []
+
+def _get_pumb_rebind_example(step_index: int) -> str | None:
+    """Повертає шлях до прикладу N-го скріншоту для перев'язу ПУМБ."""
+    try:
+        if not os.path.isdir(PUMB_REBIND_EXAMPLES_DIR):
+            return None
+        filename = f"pumb_rebind_{step_index + 1:02d}.jpg"
+        path = os.path.join(PUMB_REBIND_EXAMPLES_DIR, filename)
+        return path if os.path.exists(path) else None
+    except Exception:
+        return None
+
+PUMB_REBIND_INSTRUCTIONS = [
+    "Крок 1/7: відправте будь ласка Скрін з головного меню ПУМБ",
+    "Крок 2/7: надішліть, будь ласка, потрібний скріншот для перев'язу ПУМБ",
+    "Крок 3/7: надішліть, будь ласка, потрібний скріншот для перев'язу ПУМБ",
+    "Крок 4/7: надішліть, будь ласка, потрібний скріншот для перев'язу ПУМБ",
+    "Крок 5/7: надішліть, будь ласка, потрібний скріншот для перев'язу ПУМБ",
+    "Крок 6/7: надішліть, будь ласка, потрібний скріншот для перев'язу ПУМБ",
+    "Крок 7/7: надішліть, будь ласка, останній скріншот для перев'язу ПУМБ",
+]
+
+async def _send_pumb_rebind_step(bot: Bot, chat_id: int, step_index: int):
+    """Надсилає клієнту інструкцію та приклад для поточного кроку перев'язу ПУМБ."""
+    instruction = PUMB_REBIND_INSTRUCTIONS[step_index] if 0 <= step_index < len(PUMB_REBIND_INSTRUCTIONS) else "Надішліть, будь ласка, наступний скріншот."
+    example_path = _get_pumb_rebind_example(step_index)
+    if example_path and os.path.exists(example_path):
+        try:
+            await bot.send_photo(chat_id=chat_id, photo=FSInputFile(example_path), caption=instruction)
+            return
+        except Exception as e:
+            logger.warning(f"Не вдалося надіслати приклад фото ПУМБ-перев'язу: {e}")
+    await bot.send_message(chat_id=chat_id, text=instruction)
 
 def should_send_client_reply(client_id: int, key: str = "default", cooldown: float = 3.0) -> bool:
     """Перевіряє, чи не було аналогічної відповіді клієнту протягом останніх cooldown секунд (для захисту від дублів у альбомах/флуді)"""
@@ -1653,7 +1687,10 @@ async def handle_pumb_choice(callback: CallbackQuery, state: FSMContext):
         # Після прикладів очікуємо 3 скріншоти від клієнта
         await state.set_state(RegistrationStates.pumb_new_screenshots)
     else:
-        await callback.bot.send_message(chat_id=chat_id, text="Надішліть отаке одне фото")
+        # Послідовний збір 7 скріншотів для перев'язу ПУМБ
+        await state.set_state(RegistrationStates.pumb_rebind_screenshots)
+        await state.update_data(pumb_rebind_step=0, pumb_rebind_photos=[])
+        await _send_pumb_rebind_step(callback.bot, chat_id, 0)
 
     await callback.answer()
 
@@ -1766,3 +1803,30 @@ async def process_pumb_new_screenshots(message: Message, state: FSMContext, bot:
                 _delayed_pumb_photos_check(client_id, message.chat.id, state, bot)
             )
             _pumb_new_photo_tasks[client_id] = task
+
+
+@router.message(RegistrationStates.pumb_rebind_screenshots, F.chat.type == "private", F.photo)
+async def process_pumb_rebind_screenshots(message: Message, state: FSMContext, bot: Bot):
+    """Послідовний збір 7 скріншотів від ПУМБ-клієнта для перев'язу."""
+    client_id = message.from_user.id
+    file_id = message.photo[-1].file_id
+
+    data = await state.get_data()
+    step = data.get("pumb_rebind_step", 0)
+    photos = data.get("pumb_rebind_photos", [])
+
+    if file_id not in photos:
+        photos.append(file_id)
+    step += 1
+    await state.update_data(pumb_rebind_step=step, pumb_rebind_photos=photos)
+
+    if step >= len(PUMB_REBIND_INSTRUCTIONS):
+        client_data = "Тип: Перев'яз ПУМБ\nОтримано 7 скріншотів"
+        await db.update_session_client_data(client_id, client_data, status='registered')
+        await db.update_session_verification_data(client_id, success_photo_id=",".join(photos))
+        await db.set_session_verified(client_id, 1)
+        await message.answer("Дякую! Всі скріншоти для перев'язу прийнято.")
+        await state.clear()
+        return
+
+    await _send_pumb_rebind_step(bot, message.chat.id, step)

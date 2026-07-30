@@ -13,7 +13,7 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 LOG_BOT_TOKEN = os.getenv("LOG_BOT_TOKEN")
-DB_FILE = os.getenv("DB_FILE", "bot.db")
+DB_FILE = os.getenv("DB_FILE", "data/bot.db")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-flash-1.5")
 

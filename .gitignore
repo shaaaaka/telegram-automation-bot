@@ -10,8 +10,6 @@ __pycache__/
 *.pyd
 
 # Local database
-bot.db
-database.db
 *.db
 *.db.bak
 *.sqlite

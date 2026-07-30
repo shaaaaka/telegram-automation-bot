@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-cd /d "%~dp0"
+cd /d "%~dp0\.."
 
 python --version >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (

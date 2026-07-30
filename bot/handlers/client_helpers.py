@@ -21,6 +21,7 @@ class RegistrationStates(StatesGroup):
     waiting_relink_choice = State()
     waiting_relink_initial_screenshot = State()
     pumb_new_screenshots = State()
+    pumb_rebind_screenshots = State()
 async def register_reg_msg(state: FSMContext, msg_id: int):
     data = await state.get_data()
     msg_ids = data.get("registration_msg_ids", [])
