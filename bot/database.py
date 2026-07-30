@@ -98,7 +98,21 @@ async def init_db():
                 await db.execute("CREATE UNIQUE INDEX idx_lines_line_bank ON lines(line_id, bank)")
                 logging.info("Додано унікальний індекс на (line_id, bank) для таблиці lines")
             except Exception as e:
-                logging.error(f"Помилка при додаванні унікального індексу: {e}")
+                logging.warning(f"Не вдалося створити унікальний індекс: {e}")
+
+        # Перевірка наявності колонки email
+        has_email = False
+        async with db.execute("PRAGMA table_info(lines)") as cursor:
+            async for col in cursor:
+                if col[1] == 'email':
+                    has_email = True
+                    break
+        if not has_email:
+            try:
+                await db.execute("ALTER TABLE lines ADD COLUMN email TEXT")
+                await db.commit()
+            except Exception as col_err:
+                logging.warning(f"Не вдалося додати колонку email у lines: {col_err}")
         
         # Таблиця для збереження активних сесій верифікації
         await db.execute("""

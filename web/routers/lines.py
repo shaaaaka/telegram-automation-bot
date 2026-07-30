@@ -37,7 +37,7 @@ async def add_line(body: LineAdd):
                             max_id = row["max_id"] if row and row["max_id"] is not None else 0
                             line_id = max_id + 1
         
-        await db.add_or_update_line(line_id, body.phone_number, body.bank)
+        await db.add_or_update_line(line_id, body.phone_number, body.bank, body.email)
         return {"status": "success"}
     except Exception as e:
         import sys

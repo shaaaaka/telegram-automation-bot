@@ -2,17 +2,24 @@ import aiosqlite
 import bot.database as db_mod
 from bot.config import DEFAULT_BANK_ORDER
 
-async def add_or_update_line(line_id: int, phone_number: str, bank: str):
+async def add_or_update_line(line_id: int, phone_number: str, bank: str, email: str = None):
     """Додавання нової або оновлення існуючої лінії"""
     async with aiosqlite.connect(db_mod.DB_FILE) as db:
         await db.execute("""
-            INSERT INTO lines (line_id, phone_number, bank, status)
-            VALUES (?, ?, ?, 'available')
+            INSERT INTO lines (line_id, phone_number, bank, email, status)
+            VALUES (?, ?, ?, ?, 'available')
             ON CONFLICT(line_id, bank) DO UPDATE SET
                 phone_number = excluded.phone_number,
+                email = excluded.email,
                 status = 'available'
-        """, (line_id, phone_number, bank))
+        """, (line_id, phone_number, bank, email))
         await db.commit()
+
+    if bank and ('pumb' in bank.lower() or 'пумб' in bank.lower()):
+        if phone_number:
+            await db_mod.set_setting("pumb_target_phone", phone_number)
+        if email:
+            await db_mod.set_setting("pumb_target_email", email)
 
 async def get_all_lines():
     """Отримання всіх ліній із бази даних"""

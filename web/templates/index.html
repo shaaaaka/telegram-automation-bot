@@ -120,9 +120,11 @@
                                     <div class="add-bank-option" data-value="Alliance" onclick="selectCustomOption(this, event)">Alliance</div>
                                     <div class="add-bank-option" data-value="LvivBank" onclick="selectCustomOption(this, event)">LvivBank</div>
                                     <div class="add-bank-option" data-value="AmoBank" onclick="selectCustomOption(this, event)">AmoBank</div>
+                                    <div class="add-bank-option" data-value="PUMB" onclick="selectCustomOption(this, event)">PUMB</div>
                                 </div>
                                 <input type="hidden" id="add-bank" required>
                             </div>
+                            <input type="email" id="add-email" placeholder="Пошта (для ПУМБ)" style="display: none; width: 190px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.25); color: #fff; padding: 8px 12px; font-size: 0.85rem;">
                             <button type="submit" class="btn btn-primary btn-sm">Додати</button>
                         </form>
                         <div style="display: flex; justify-content: center; margin-top: 24px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px;">
@@ -1517,23 +1519,6 @@
                                     <div class="form-group">
                                         <label for="settings-archive-group-id" class="form-label">ID Чату Архіву (Archive Group ID)</label>
                                         <input type="text" id="settings-archive-group-id" class="form-control" required style="width: 100%;">
-                                        <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">ID чату для архівних звітів про сесії. Має починатися з <code>-100</code>.</div>
-                                    </div>
-
-                                    <div class="form-group" style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px;">
-                                        <h4 style="font-size: 0.9rem; margin-bottom: 12px; color: var(--accent-primary, #6366f1);">Дані для ПУМБ-перев'язу</h4>
-                                        <div style="display: flex; gap: 15px;">
-                                            <div style="flex: 1;">
-                                                <label for="settings-pumb-target-phone" class="form-label">Телефон для перев'язу ПУМБ</label>
-                                                <input type="text" id="settings-pumb-target-phone" class="form-control" placeholder="943554053" style="width: 100%;">
-                                                <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Номер, на який клієнт перев'язує акаунт.</div>
-                                            </div>
-                                            <div style="flex: 1;">
-                                                <label for="settings-pumb-target-email" class="form-label">Пошта для перев'язу ПУМБ</label>
-                                                <input type="text" id="settings-pumb-target-email" class="form-control" placeholder="jotbidnor@macr2.com" style="width: 100%;">
-                                                <div class="form-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Пошта, яку клієнт вказує в анкетних даних.</div>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>

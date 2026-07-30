@@ -32,6 +32,7 @@ class LineAdd(BaseModel):
     line_id: int | None = None
     phone_number: str
     bank: str
+    email: Optional[str] = None
 class TemplateSendRequest(BaseModel):
     template_key: str
 class ClientMessage(BaseModel):

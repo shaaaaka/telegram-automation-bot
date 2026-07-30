@@ -66,9 +66,20 @@ function renderLines() {
         if (window.bankTemplates && window.bankTemplates[line.bank]) {
             displayName = window.bankTemplates[line.bank].display_name || line.bank;
         }
+
+        let lineLabel = line.line_id;
+        if (line.bank && line.bank.toLowerCase().includes('pumb')) {
+            lineLabel = 'PUMB';
+        }
+
+        let phoneCellHtml = `<span class="phone-number-copy" onclick="copyToClipboard('+${line.phone_number}')">+${line.phone_number}</span>`;
+        if (line.email) {
+            phoneCellHtml += `<div style="font-size: 0.75rem; color: rgba(255,255,255,0.6); margin-top: 2px;">${line.email}</div>`;
+        }
+
         tr.innerHTML = `
-            <td>${line.line_id}</td>
-            <td><span class="phone-number-copy" onclick="copyToClipboard('+${line.phone_number}')">+${line.phone_number}</span></td>
+            <td>${lineLabel}</td>
+            <td>${phoneCellHtml}</td>
             <td>${displayName}</td>
             <td><div class="status-wrapper"><span class="line-status-dot ${statusClass}"></span><span>${statusText}</span></div></td>
             <td>
@@ -98,11 +109,23 @@ function selectCustomOption(optionEl, event) {
     document.getElementById('add-bank').value = val;
     document.getElementById('custom-select-value').innerText = val;
     document.getElementById('custom-select-value').style.color = '#ffffff';
-    
+
+    const emailInput = document.getElementById('add-email');
+    if (emailInput) {
+        if (val && val.toLowerCase().includes('pumb')) {
+            emailInput.style.display = 'inline-block';
+            emailInput.required = true;
+        } else {
+            emailInput.style.display = 'none';
+            emailInput.required = false;
+            emailInput.value = '';
+        }
+    }
+
     const options = document.querySelectorAll('#custom-select-options-list .add-bank-option');
     options.forEach(opt => opt.classList.remove('selected'));
     optionEl.classList.add('selected');
-    
+
     const container = document.getElementById('bank-select-container');
     if (container) container.classList.remove('active');
 }
@@ -130,21 +153,24 @@ async function handleAddLine(event) {
     }
 
     const bank = document.getElementById('add-bank').value.trim();
+    const emailEl = document.getElementById('add-email');
+    const email = (emailEl && emailEl.style.display !== 'none') ? emailEl.value.trim() : null;
 
     try {
         const res = await fetch('/api/lines', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: 0, line_id, phone_number, bank })
+            body: JSON.stringify({ id: 0, line_id, phone_number, bank, email })
         });
         if (res.ok) {
             document.getElementById('add-line-form').reset();
             document.getElementById('add-bank').value = '';
             document.getElementById('custom-select-value').innerText = 'Банк';
             document.getElementById('custom-select-value').style.color = 'rgba(255, 255, 255, 0.4)';
+            if (emailEl) emailEl.style.display = 'none';
             const options = document.querySelectorAll('#custom-select-options-list .add-bank-option');
             options.forEach(opt => opt.classList.remove('selected'));
-            
+
             showToast("Лінію додано успішно!", "success");
             pollData();
         } else {
