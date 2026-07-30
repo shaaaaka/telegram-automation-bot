@@ -8320,10 +8320,9 @@ html body .chat-msg-gallery {
     justify-items: stretch !important;
 }
 
-html body .chat-msg-gallery.album-count-2,
 html body .chat-msg-gallery.album-count-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    grid-template-rows: minmax(380px, 520px) !important;
+    grid-template-rows: 620px !important;
 }
 
 html body .chat-msg-gallery.album-count-3 {
