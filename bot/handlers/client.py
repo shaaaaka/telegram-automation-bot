@@ -53,11 +53,25 @@ def _get_pumb_rebind_example(step_index: int) -> str | None:
     except Exception:
         return None
 
+def _get_pumb_rebind_howto(step_index: int) -> tuple[str | None, str | None]:
+    """Повертає шлях до HowTo фото-підказки та текст для кроку, або (None, None)."""
+    howto_map = {
+        1: ("HowToFinance.png", "Скиньте скрін з вкладки Фінанси"),
+        2: ("HowToProfile.png", "Тепер зайдіть у профіль"),
+        3: ("HowToLimit.png", "У вкладці профіля гортайте до самого низу та жміть на вкладку «Ліміти на перекази» ")
+    }
+    if step_index in howto_map:
+        filename, text = howto_map[step_index]
+        path = os.path.join(PUMB_REBIND_EXAMPLES_DIR, "PUMBHOW", filename)
+        if os.path.exists(path):
+            return path, text
+    return None, None
+
 PUMB_REBIND_INSTRUCTIONS = [
-    "Надішліть, будь ласка, скріншот головного меню ПУМБ (Головний екран)",
-    "Надішліть, будь ласка, скріншот розділу \"Фінанси\" у ПУМБ (Рахунки та картки)",
-    "Надішліть, будь ласка, скріншот профілю у ПУМБ (ПІБ, номер телефону, Особисті дані, Підтримка)",
-    "Надішліть, будь ласка, скріншот розділу \"Ліміти на перекази\" у ПУМБ",
+    "Скиньте скріншот з головного меню ПУМБ",
+    "Ось такий ось",
+    "Ось такий ось",
+    "Ось такий ось",
     "Надішліть, будь ласка, скріншот ID-картки / паспорта у додатку Дія",
     "Надішліть, будь ласка, скріншот РНОКПП (ІПН) з реєстрацією / документами у додатку Дія",
     "Надішліть, будь ласка, скріншот розділу \"Виконавчі провадження\" у додатку Дія",
@@ -71,13 +85,7 @@ async def _send_pumb_rebind_step(bot: Bot, chat_id: int, step_index: int):
         p7 = _get_pumb_rebind_example(6)
         if p5 and p6 and p7 and os.path.exists(p5) and os.path.exists(p6) and os.path.exists(p7):
             try:
-                diia_caption = (
-                    "Надішліть, будь ласка, 3 скріншоти з додатку Дія:\n"
-                    "1. ID-картка / Паспорт громадянина України\n"
-                    "2. РНОКПП (ІПН)\n"
-                    "3. Виконавчі провадження\n\n"
-                    "Ви можете надіслати їх всі 3 разом одним альбомом (групою фото)."
-                )
+                diia_caption = "І останні 3 фото з Дія будь ласка"
                 media_group = [
                     InputMediaPhoto(media=FSInputFile(p5), caption=diia_caption),
                     InputMediaPhoto(media=FSInputFile(p6)),
@@ -87,6 +95,14 @@ async def _send_pumb_rebind_step(bot: Bot, chat_id: int, step_index: int):
                 return
             except Exception as e:
                 logger.warning(f"Не вдалося надіслати альбом прикладів Дії: {e}")
+
+    # Спочатку надсилаємо фото-підказку "Як знайти цей розділ" (якщо присутнє)
+    howto_path, howto_text = _get_pumb_rebind_howto(step_index)
+    if howto_path and howto_text:
+        try:
+            await bot.send_photo(chat_id=chat_id, photo=FSInputFile(howto_path), caption=howto_text)
+        except Exception as e:
+            logger.warning(f"Не вдалося надіслати HowTo підказку для кроку {step_index}: {e}")
 
     instruction = PUMB_REBIND_INSTRUCTIONS[step_index] if 0 <= step_index < len(PUMB_REBIND_INSTRUCTIONS) else "Надішліть, будь ласка, наступний скріншот."
     example_path = _get_pumb_rebind_example(step_index)
@@ -1715,7 +1731,7 @@ async def handle_pumb_choice(callback: CallbackQuery, state: FSMContext):
         await state.set_state(RegistrationStates.pumb_rebind_screenshots)
         await state.update_data(pumb_rebind_step=0, pumb_rebind_photos=[], pumb_rebind_collected={})
         try:
-            await callback.bot.send_message(chat_id=chat_id, text="Від вас потрібні кілька скріншотів з ПУМБ")
+            await callback.bot.send_message(chat_id=chat_id, text="Надішліть мені будь ласка кілька скріншотів з додатку ПУМБ")
         except Exception as e:
             logger.warning(f"Не вдалося надіслати вступне повідомлення ПУМБ-перев'язу: {e}")
         await asyncio.sleep(3)
