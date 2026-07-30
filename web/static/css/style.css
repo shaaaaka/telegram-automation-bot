@@ -8311,7 +8311,7 @@ html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-phot
 html body div.chat-page-layout div.chat-msg-container .chat-msg-caption-box,
 html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-caption-box {
     position: relative !important;
-    padding: 6px 48px 6px 10px !important;
+    padding: 6px 52px 6px 10px !important;
     display: block !important;
     width: 100% !important;
     box-sizing: border-box !important;
@@ -8327,8 +8327,9 @@ html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-capt
     left: auto !important;
     float: none !important;
     margin: 0 !important;
-    font-size: 0.84rem !important;
-    font-weight: 700 !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.02em !important;
     font-family: var(--font-mono, 'JetBrains Mono', monospace) !important;
     opacity: 0.85 !important;
     white-space: nowrap !important;
