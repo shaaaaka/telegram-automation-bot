@@ -832,12 +832,13 @@ function getBankAccordionItemHTML(itemKey, bankKey, template, activeSubTab, opti
                                         <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{dob}')">{dob}</div>
                                         <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{ipn}')">{ipn}</div>
                                         <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{phone}')">{phone}</div>
-                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{username}')">{username}</div>
                                         <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{line}')">{line}</div>
                                         <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{line_id}')">{line_id}</div>
                                         <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{line_phone}')">{line_phone}</div>
                                         <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{code}')">{code}</div>
                                         <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{card}')">{card}</div>
+                                        `}
+                                        <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{username}')">{username}</div>
                                         <div class="tag-pill" onclick="insertPlaceholderTag('${itemKey}', '{bank}')">{bank}</div>
                                     </div>
                                 </div>
