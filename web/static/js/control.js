@@ -74,7 +74,7 @@ function renderLines() {
 
         let phoneCellHtml = `<span class="phone-number-copy" onclick="copyToClipboard('+${line.phone_number}')">+${line.phone_number}</span>`;
         if (line.email) {
-            phoneCellHtml += `<div style="margin-top: 6px;"><span class="phone-number-copy" style="border-color: rgba(99, 102, 241, 0.35); background: rgba(99, 102, 241, 0.1); color: #e0e7ff; font-size: 0.78rem; padding: 3px 9px;" onclick="copyToClipboard('${line.email}')" title="Натисніть для копіювання пошти">${line.email}</span></div>`;
+            phoneCellHtml += `<div style="margin-top: 5px;"><span class="phone-number-copy" onclick="copyToClipboard('${line.email}')" title="Натисніть для копіювання пошти">${line.email}</span></div>`;
         }
 
         tr.innerHTML = `
