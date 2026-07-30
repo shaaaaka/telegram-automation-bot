@@ -1199,15 +1199,45 @@ textarea:focus {
 
 /* Custom Grid manual add form */
 .add-line-form {
-    display: grid;
-    grid-template-columns: 2.7fr 1.6fr auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 10px;
     margin-top: 15px;
 }
 
+.add-line-form #add-phone {
+    flex: 2;
+    min-width: 150px;
+}
+
+.add-line-form .add-bank-select-container {
+    flex: 1.2;
+    min-width: 120px;
+}
+
+.add-line-form #add-email {
+    flex: 2;
+    min-width: 170px;
+}
+
+.add-line-form button[type="submit"] {
+    flex: 0 0 auto;
+    padding: 10px 22px !important;
+    height: 42px;
+}
+
 @media (max-width: 768px) {
     .add-line-form {
-        grid-template-columns: 1fr;
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .add-line-form #add-phone,
+    .add-line-form .add-bank-select-container,
+    .add-line-form #add-email,
+    .add-line-form button[type="submit"] {
+        width: 100% !important;
+        flex: 1 1 100%;
     }
 }
 
