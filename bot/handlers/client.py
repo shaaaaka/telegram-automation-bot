@@ -2263,6 +2263,7 @@ async def process_pumb_rebind_deletion_screenshot(message: Message, state: FSMCo
     pib_str = pib_val if (pib_val and pib_val not in ('—', '-')) else "Не вказано"
 
     final_report_text = (
+        f"Перев'яз ПУМБ\n\n"
         f"{pib_str}\n\n"
         f"{target_phone}\n"
         f"{target_email}\n\n"
@@ -2295,7 +2296,7 @@ async def process_pumb_rebind_deletion_screenshot(message: Message, state: FSMCo
                 media_group = []
                 for idx, b_file in enumerate(buffered_photos):
                     if idx == 0:
-                        media_group.append(InputMediaPhoto(media=b_file, caption="Перев'яз ПУМБ", parse_mode="HTML"))
+                        media_group.append(InputMediaPhoto(media=b_file, caption=final_report_text))
                     else:
                         media_group.append(InputMediaPhoto(media=b_file))
 
@@ -2309,9 +2310,8 @@ async def process_pumb_rebind_deletion_screenshot(message: Message, state: FSMCo
                         if len(media_group) > 1:
                             await s_bot.send_media_group(chat_id=target_chat, media=media_group)
                         else:
-                            await s_bot.send_photo(chat_id=target_chat, photo=buffered_photos[0], caption="Перев'яз ПУМБ", parse_mode="HTML")
+                            await s_bot.send_photo(chat_id=target_chat, photo=buffered_photos[0], caption=final_report_text)
 
-                        await s_bot.send_message(chat_id=target_chat, text=final_report_text)
                         logger.info(f"Фінальний звіт ПУМБ успішно надіслано в чат {target_chat}")
                         break
                     except Exception as send_err:
