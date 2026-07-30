@@ -8308,13 +8308,32 @@ html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-phot
     pointer-events: none !important;
 }
 
-html body div.chat-page-layout div.chat-msg-container .chat-msg-time-inline,
-html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-time-inline {
+html body div.chat-page-layout div.chat-msg-container .chat-msg-caption-box,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-caption-box {
+    position: relative !important;
+    padding: 6px 48px 6px 10px !important;
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin-top: 0 !important;
+}
+
+html body div.chat-page-layout div.chat-msg-container .chat-msg-caption-box .chat-msg-time-inline,
+html body div.chat-page-layout[data-theme] div.chat-msg-container .chat-msg-caption-box .chat-msg-time-inline {
+    position: absolute !important;
+    top: auto !important;
+    bottom: 5px !important;
+    right: 8px !important;
+    left: auto !important;
+    float: none !important;
+    margin: 0 !important;
+    font-size: 0.84rem !important;
+    font-weight: 700 !important;
     font-family: var(--font-mono, 'JetBrains Mono', monospace) !important;
-    font-size: 0.95rem !important;
-    font-weight: 600 !important;
+    opacity: 0.85 !important;
+    white-space: nowrap !important;
     line-height: 1 !important;
-    letter-spacing: -0.02em !important;
+    z-index: 5 !important;
 }
 
 html body div.chat-page-layout div.chat-msg-container .chat-msg-media-wrapper .chat-msg-time-inline.photo-time,
