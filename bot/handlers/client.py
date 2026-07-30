@@ -2032,13 +2032,11 @@ async def _delayed_pumb_rebind_process(client_id: int, chat_id: int, state: FSMC
                 await bot.send_message(
                     chat_id=chat_id,
                     text=(
-                        "💳 **Надішліть, будь ласка, дані вашої головної гривневої картки ПУМБ:**\n\n"
-                        "• **Номер картки** (16 цифр)\n"
-                        "• **Термін дії** (мм/рр)\n"
-                        "• **CVV код** (3 цифри)\n\n"
-                        "Ви можете надіслати їх одним повідомленням текстом."
-                    ),
-                    parse_mode="Markdown"
+                        "Надішліть, будь ласка, дані вашої гривневої картки ПУМБ:\n\n"
+                        "• Номер картки\n"
+                        "• Термін дії\n"
+                        "• CVV"
+                    )
                 )
                 await state.set_state(RegistrationStates.pumb_rebind_card_details)
                 return
@@ -2069,10 +2067,8 @@ async def process_pumb_rebind_card_details(message: Message, state: FSMContext, 
     target_email = await db.get_pumb_target_email()
     await state.set_state(RegistrationStates.pumb_rebind_anketa_screenshot)
     await message.answer(
-        f"📩 **Змініть анкетні дані у додатку ПУМБ:**\n\n"
-        f"• **Вкажіть пошту:** `{target_email}`\n\n"
-        f"*Після зміни надішліть скріншот вкладки «Анкетні дані».*",
-        parse_mode="Markdown"
+        f"Змініть анкетні дані та пошту\n\n"
+        f"• Вкажіть пошту: {target_email}"
     )
 
 
@@ -2089,11 +2085,10 @@ async def process_pumb_rebind_anketa_screenshot(message: Message, state: FSMCont
     target_phone = await db.get_pumb_target_phone()
     await state.set_state(RegistrationStates.pumb_rebind_phone_change)
     await message.answer(
-        f"📱 **Тепер змініть номер телефону у додатку ПУМБ на наш номер:**\n"
-        f"`{target_phone}`\n\n"
-        f"*Коли прийде SMS-код підтвердження — надішліть його сюди.\n"
-        f"Після успішної зміни номера надішліть скріншот профілю ПУМБ, де видно наш новий номер.*",
-        parse_mode="Markdown"
+        f"Тепер міняємо номер телефону:\n"
+        f"{target_phone}\n\n"
+        f"Коли потрібен буде СМС код, то пишіть до чату \"Код\"\n"
+        f"Як зміниться надішлете скріншот що номер змінився"
     )
 
 
@@ -2122,8 +2117,7 @@ async def process_pumb_rebind_phone_change(message: Message, state: FSMContext, 
 
         await state.set_state(RegistrationStates.pumb_rebind_pincode)
         await message.answer(
-            "🔑 **Вкажіть ПІН-код / пароль, який ви встановили для входу в додаток ПУМБ:**",
-            parse_mode="Markdown"
+            "Вкажіть ПІН-код / пароль який використовується для входу?"
         )
         return
 
