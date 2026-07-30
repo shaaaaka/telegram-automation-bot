@@ -11,7 +11,8 @@ client = None
 if OPENROUTER_API_KEY:
     client = AsyncOpenAI(
         api_key=OPENROUTER_API_KEY,
-        base_url="https://openrouter.ai/api/v1"
+        base_url="https://openrouter.ai/api/v1",
+        timeout=30.0
     )
 else:
     logger.warning("OPENROUTER_API_KEY не знайдено в конфігурації. ШІ-підтримка буде неактивною.")
@@ -33,6 +34,12 @@ async def verify_deletion_proof(media_bytes: bytes, media_type: str, bank_name: 
 
 async def verify_relink_initial_screenshot(media_bytes: bytes, bank_name: str = None) -> tuple[bool, str]:
     return await vision_mod.verify_relink_initial_screenshot(client, media_bytes, bank_name)
+
+async def verify_pumb_rebind_step(user_bytes: bytes, example_bytes: bytes | None, step_index: int, instruction: str) -> tuple[bool, str]:
+    return await vision_mod.verify_pumb_rebind_step(client, user_bytes, example_bytes, step_index, instruction)
+
+async def classify_pumb_rebind_album(photos_bytes: list[bytes], example_photos: list[bytes] | None = None) -> list[tuple[int | None, str]]:
+    return await vision_mod.classify_pumb_rebind_album(client, photos_bytes, example_photos=example_photos)
 
 async def extract_pumb_registration_data(images: list[bytes]) -> dict | None:
     return await vision_mod.extract_pumb_registration_data(client, images)

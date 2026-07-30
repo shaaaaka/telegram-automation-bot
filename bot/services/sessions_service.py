@@ -34,6 +34,7 @@ async def create_registering_session(client_id: int, username: str, bot_username
                 card_first4 = NULL,
                 card_last4 = NULL,
                 card_photo_id = NULL,
+                pumb_rebind_collected = NULL,
                 sent_codes_count = 0,
                 is_verified = 0,
                 verifier_message_id = NULL,
@@ -61,12 +62,22 @@ async def create_or_update_session(client_id: int, username: str, client_data: s
                 card_first4 = NULL,
                 card_last4 = NULL,
                 card_photo_id = NULL,
+                pumb_rebind_collected = NULL,
                 sent_codes_count = 0,
                 is_verified = 0,
                 verifier_message_id = NULL,
                 notified_banks = '',
                 bot_username = COALESCE(excluded.bot_username, sessions.bot_username)
         """, (client_id, username, client_data, bot_username))
+        await db.commit()
+
+async def update_session_pumb_rebind_collected(client_id: int, collected_json: str | None):
+    """Зберігає JSON-стан pumb_rebind_collected у БД."""
+    async with aiosqlite.connect(db_mod.DB_FILE) as db:
+        await db.execute(
+            "UPDATE sessions SET pumb_rebind_collected = ? WHERE client_id = ?",
+            (collected_json, client_id)
+        )
         await db.commit()
 
 async def update_session_verification_data(client_id: int, success_photo_id: str = None, card_first4: str = None, card_last4: str = None, card_photo_id: str = None):

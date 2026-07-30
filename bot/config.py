@@ -15,7 +15,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 LOG_BOT_TOKEN = os.getenv("LOG_BOT_TOKEN")
 DB_FILE = os.getenv("DB_FILE", "data/bot.db")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-flash-1.5")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash")
 
 # Мульти-бот конфігурація: BOTS='[{"username":"@pumbverifbot","token":"111:..."}, ...]'
 BOTS = os.getenv("BOTS")

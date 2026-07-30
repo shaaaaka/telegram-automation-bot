@@ -34,3 +34,8 @@ async def test_vision_service_no_client():
 
     is_valid_relink, reason_relink = await vision_service.verify_relink_initial_screenshot(None, b"fake_bytes")
     assert is_valid_relink is True
+
+    is_valid_pumb, reason_pumb = await vision_service.verify_pumb_rebind_step(None, b"fake_bytes", b"example", 0, "test")
+    assert is_valid_pumb is True
+    assert "пропускаємо" in reason_pumb
+

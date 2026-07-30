@@ -476,27 +476,22 @@ async def _extract_pumb_from_images(client, images: list[bytes]) -> dict | None:
         {
             "type": "text",
             "text": (
-                "You are an OCR and data extraction assistant. "
-                "You receive one or more screenshots from the Ukrainian 'Дія' app. "
-                "Some screenshots may be irrelevant (e.g. 'Виконавчі провадження' or a QR code); ignore those. "
-                "Find the passport/ID card (it contains full name and date of birth) and the taxpayer card (РНОКПП/ІПН, it contains a 10-digit number).\n\n"
-                "Return ONLY a valid JSON object. Do not use markdown, do not use code blocks, do not add explanations. "
-                "The JSON must have exactly these keys: pib, dob, ipn.\n\n"
-                'Example: {"pib":"ПРИЗВИЩЕ ІМ\'Я ПО БАТЬКОВІ","dob":"01.01.1990","ipn":"1234567890"}\n\n'
-                "Rules:\n"
-                "- pib = full name in Ukrainian exactly as shown in the passport/ID (3 words).\n"
-                "- dob = date of birth in DD.MM.YYYY format.\n"
-                "- ipn = 10-digit tax number (РНОКПП/ІПН).\n"
-                "- Use null (without quotes) for any missing field. "
-                "- Output must be a single JSON object on one line, no backticks."
+                "You are a precise OCR assistant for Ukrainian banking & Diia app screenshots. "
+                "You receive up to 7 screenshots (PUMB mobile bank screens and Diia app screens).\n"
+                "Extract the following details if present on any screenshot:\n"
+                "1. pib: Full name in Ukrainian (3 words: Surname Name Patronymic, e.g. 'Петриченко Дмитро Юрійович'). Check PUMB Profile screen (large text at top) or Diia Passport/ID card.\n"
+                "2. dob: Date of birth in DD.MM.YYYY format.\n"
+                "3. ipn: 10-digit tax identification number (РНОКПП / ІПН).\n\n"
+                "Return ONLY a valid JSON object with keys: pib, dob, ipn.\n"
+                'Example: {"pib":"ПЕТРИЧЕНКО ДМИТРО ЮРІЙОВИЧ","dob":"25.03.2004","ipn":"3807000556"}\n'
+                "Use null for any field not found. Output must be a single raw JSON object on one line."
             )
         }
     ]
 
-    for img in images[:3]:
+    for img in images[:7]:
         try:
-            # Збільшуємо розмір для кращого читання дрібного тексту
-            compressed = resize_and_compress_image(img, max_side=1600, quality=85)
+            compressed = resize_and_compress_image(img, max_side=1024, quality=80)
             b64 = base64.b64encode(compressed).decode('utf-8')
             content.append({
                 "type": "image_url",
@@ -558,12 +553,10 @@ async def extract_pumb_registration_data(client, images: list[bytes]) -> dict | 
     if not images:
         return None
 
-    # Спроба 1: усі 3 скріншоти разом
     extracted = await _extract_pumb_from_images(client, images) or {}
     if all(extracted.values()):
         return extracted
 
-    # Спроба 2: fallback по одному скріншоту, якщо разом не вдалося
     for img in images:
         single = await _extract_pumb_from_images(client, [img]) or {}
         if single.get('pib') and not extracted.get('pib'):
@@ -576,3 +569,180 @@ async def extract_pumb_registration_data(client, images: list[bytes]) -> dict | 
             break
 
     return extracted if any(extracted.values()) else None
+
+
+async def classify_pumb_rebind_album(
+    client,
+    photos_bytes: list[bytes],
+    example_photos: list[bytes] | None = None
+) -> list[tuple[int | None, str]]:
+    """
+    Універсальний Vision-класифікатор скріншотів ПУМБ та Дії з підтримкою еталонних зображень.
+    Приймає список байтів фото (від 1 до 7+), повертає для кожного фото (step_index 0..6 або None, reason).
+    """
+    if not photos_bytes:
+        return []
+
+    if not client:
+        return [(None, "ШІ-клієнт не ініціалізований (пропущено авто-перевірку)")] * len(photos_bytes)
+
+    from bot.services.ai_economy_service import (
+        resize_and_compress_image,
+        record_ai_usage,
+        check_daily_limit_exceeded
+    )
+
+    if await check_daily_limit_exceeded():
+        logger.warning("AI daily limit exceeded in classify_pumb_rebind_album")
+        return [(None, "Перевищено денний ліміт ШІ")] * len(photos_bytes)
+
+    try:
+        content: list[dict] = []
+
+        if example_photos and len(example_photos) == 7:
+            prompt_text = (
+                "Спочатку йдуть 7 еталонних зображень Reference 0..6 "
+                "(Reference 0: Головне меню ПУМБ, Reference 1: Фінанси ПУМБ, Reference 2: Профіль ПУМБ, Reference 3: Ліміти ПУМБ, Reference 4: Паспорт у Дії, Reference 5: ІПН у Дії, Reference 6: Виконавчі провадження у Дії), "
+                "потім User image 1..N. Для кожного User image визнач, на який Reference воно найбільше схоже. Якщо не схоже — step_index: null. "
+                'Поверни СТРОГО JSON-масив: [{"image_index": 1, "step_index": 0, "reason": "..."}, ...]. Нічого зайвого не пиши.'
+            )
+            content.append({"type": "text", "text": prompt_text})
+
+            for i, ex_bytes in enumerate(example_photos):
+                try:
+                    ex_comp = resize_and_compress_image(ex_bytes, max_side=1024, quality=80)
+                    ex_b64 = base64.b64encode(ex_comp).decode('utf-8')
+                    content.append({"type": "text", "text": f"Reference {i}:"})
+                    content.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{ex_b64}"}
+                    })
+                except Exception as ex_err:
+                    logger.error(f"Error compressing reference image {i}: {ex_err}")
+
+            for idx, p_bytes in enumerate(photos_bytes):
+                try:
+                    p_comp = resize_and_compress_image(p_bytes, max_side=1024, quality=80)
+                    p_b64 = base64.b64encode(p_comp).decode('utf-8')
+                    content.append({"type": "text", "text": f"User image {idx + 1}:"})
+                    content.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{p_b64}"}
+                    })
+                except Exception as p_err:
+                    logger.error(f"Error compressing user image {idx}: {p_err}")
+        else:
+            prompt_text = (
+                "Ти — точний і безпомилковий класифікатор мобільних скріншотів додатка ПУМБ та застосунку Дія.\n"
+                "Користувач надав одне або кілька зображень (Зображення 1, Зображення 2, ...).\n\n"
+                "КЛАСИФІКУЙ КОЖНЕ ЗОБРАЖЕННЯ ДО ОДНОГО З 7 КРОКІВ:\n"
+                "• КРОК 0 (Головне меню ПУМБ / Home Screen): Нижнє меню з 5 іконками ('Головна' 🏠, 'Кредити', 'Накопичення', 'Платежі', 'Вигоди'), круглі червоні кнопки дій ('Перекази', 'Поповнити мобільний', 'Мої адреси'), картка з доступним балансом у ₴.\n"
+                "• КРОК 1 (Розділ 'Фінанси' ПУМБ): Заголовок 'Фінанси' вгорі, кнопки '+ Відкрити нову картку' та 'Додати рахунок', блоки 'Витрати за місяць', 'Статистика' 📊, 'Фінансові підказки' 💡, 'всеМОЖУ Віртуальна'.\n"
+                "• КРОК 2 (Профіль ПУМБ / Налаштування): Круглий аватар з ініціалами (напр. 'ВК', 'ДП'), ПІБ користувача, номер телефону (+380...), блоки 'Особисті дані' 👤, 'Налаштування' ⚙️, 'Підтримка' з синіми кнопками 'Написати у чат' 💬 та 'Зателефонувати' 📞.\n"
+                "• КРОК 3 (Ліміти на перекази ПУМБ): Заголовок 'Ліміти на перекази' з хрестиком 'X' вгорі, рожево-червоне коло ⬆️ з сумою '100 000 ₴', 'Місячний ліміт на перекази', червоне 'ПІДВИЩИТИ ЛІМІТ', 'ЛІМІТ НА 1 ПЕРЕКАЗ', 'ЛІМІТ НА ДОБУ'.\n"
+                "• КРОК 4 (ID-картка / Паспорт у Дії): ID-картка, Паспорт громадянина України або єДокумент у Дії. Фото обличчя, ПІБ укр/лат, 9-значний номер документа, стрічка оновлення.\n"
+                "• КРОК 5 (РНОКПП / ІПН у Дії): Картка платника податків (РНОКПП / ІПН), або зворотний бік ID-картки з податковим номером. Є 10-значний номер, квадратний QR-код або статус ДПС / Податкової служби.\n"
+                "• КРОК 6 (Виконавчі провадження у Дії): Заголовок 'Виконавчі провадження' у Дії, 3 вкладки ('Відкриті', 'Зупинені', 'Закриті'), смайлик 🤷 або статус 'У вас усе добре' / 'Відкритих проваджень немає'.\n\n"
+                "КРИТИЧНО ВАЖЛИВІ ПРАВИЛА:\n"
+                "1. ТЕМА: Світла (біла) та Темна (чорна) теми додатка ПУМБ та Дії однаково валідні!\n"
+                "2. ДАНІ: Ім'я, фото, номер телефону, баланс у всіх різні. Ігноруй їх.\n"
+                "3. Якщо зображення відповідає одному з кроків 0..6 — встанови `step_index` від 0 до 6.\n"
+                "4. Якщо зображення не є жодним із цих 7 екранів — встанови `step_index: null`.\n\n"
+                "Поверни СТРОГО JSON-масив об'єктів для кожного зображення за порядком:\n"
+                "[\n"
+                '  {"image_index": 1, "step_index": 0, "reason": "Головне меню ПУМБ"},\n'
+                '  {"image_index": 2, "step_index": 1, "reason": "Розділ Фінанси ПУМБ"}\n'
+                "]"
+            )
+            content.append({"type": "text", "text": prompt_text})
+
+            for idx, p_bytes in enumerate(photos_bytes):
+                p_compressed = resize_and_compress_image(p_bytes, max_side=1024, quality=80)
+                p_b64 = base64.b64encode(p_compressed).decode('utf-8')
+                content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{p_b64}"}
+                })
+
+        response = await client.chat.completions.create(
+            model=OPENROUTER_MODEL,
+            messages=[{"role": "user", "content": content}],
+            max_tokens=1200,
+            extra_headers={
+                "HTTP-Referer": "https://github.com/shaaaaka/telegram-automation-bot",
+                "X-Title": "Verification Support Bot"
+            }
+        )
+
+        if hasattr(response, 'usage') and response.usage:
+            await record_ai_usage(response.usage.prompt_tokens, response.usage.completion_tokens)
+
+        res_text = (response.choices[0].message.content or "").strip()
+        logger.info(f"classify_pumb_rebind_album raw response: {res_text}")
+
+        import json
+        clean_text = re.sub(r'```(?:json)?', '', res_text).replace('```', '').strip()
+        start = clean_text.find('[')
+        data_arr = None
+        if start != -1:
+            try:
+                data_arr, _ = json.JSONDecoder().raw_decode(clean_text, start)
+            except Exception as e:
+                logger.warning(f"JSON parse error: {e}")
+
+        results = []
+        if isinstance(data_arr, list):
+            for item in data_arr:
+                if not isinstance(item, dict):
+                    results.append((None, "Некоректний елемент у відповіді"))
+                    continue
+                s_idx = item.get("step_index")
+                rsn = item.get("reason", "Скріншот опрацьовано")
+
+                if isinstance(s_idx, str):
+                    s_idx = s_idx.strip()
+                    if s_idx.isdigit():
+                        s_idx = int(s_idx)
+                    elif s_idx.lower() in ("null", "none"):
+                        s_idx = None
+
+                if isinstance(s_idx, int):
+                    # Валідні індекси 0..6 (якщо модель повернула 7 для 1-based, коригуємо до 6)
+                    if 0 <= s_idx <= 6:
+                        results.append((s_idx, rsn))
+                    elif s_idx == 7:
+                        results.append((6, rsn))
+                    else:
+                        results.append((None, rsn))
+                else:
+                    results.append((None, rsn))
+
+        if len(results) == len(photos_bytes):
+            return results
+        elif len(results) < len(photos_bytes):
+            results.extend([(None, "Не вдалося розпізнати скріншот")] * (len(photos_bytes) - len(results)))
+            return results
+        else:
+            return results[:len(photos_bytes)]
+
+    except Exception as e:
+        logger.error(f"Error in classify_pumb_rebind_album: {e}")
+
+    return [(None, "Не вдалося розпізнати скріншот")] * len(photos_bytes)
+
+
+async def verify_pumb_rebind_step(
+    client,
+    user_bytes: bytes,
+    example_bytes: bytes | None,
+    step_index: int,
+    instruction: str
+) -> tuple[bool, str]:
+    """Сумісність: викликає універсальний класифікатор для 1 фото."""
+    if not client:
+        return True, "ШІ-клієнт не ініціалізований (пропускаємо авто-перевірку)"
+    results = await classify_pumb_rebind_album(client, [user_bytes])
+    if results and results[0][0] == step_index:
+        return True, results[0][1]
+    return False, "Скріншот не відповідає вимогам цього кроку."
+

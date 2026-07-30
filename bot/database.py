@@ -113,7 +113,8 @@ async def init_db():
                 status TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 assigned_at TIMESTAMP,
-                last_reminder_sent_at TIMESTAMP
+                last_reminder_sent_at TIMESTAMP,
+                pumb_rebind_collected TEXT
             )
         """)
         
@@ -142,7 +143,8 @@ async def init_db():
             ("proceedings_question_msg_id", "INTEGER"),
             ("notified_banks", "TEXT DEFAULT ''"),
             ("bot_username", "TEXT"),
-            ("is_relink", "INTEGER")
+            ("is_relink", "INTEGER"),
+            ("pumb_rebind_collected", "TEXT")
         ]
         
         for col_name, col_type in new_columns:
@@ -503,6 +505,7 @@ from bot.services.sessions_service import (
     unassign_line_from_session,
     add_notified_bank,
     delete_session_completely,
+    update_session_pumb_rebind_collected,
 )
 
 # --- Налаштування (Settings) ---
