@@ -1741,21 +1741,36 @@ function showTelegramContextMenu(e, log) {
     removeContextMenu();
 
     let targetImgSrc = null;
+    let targetPhotoId = null;
+    let targetMsgId = null;
     const target = e.target;
     if (target) {
-        if (target.tagName === 'IMG' && target.src) {
-            targetImgSrc = target.src;
+        let img = null;
+        if (target.tagName === 'IMG') {
+            img = target;
         } else {
             const moreCell = target.closest ? target.closest('.chat-msg-gallery-more-cell') : null;
             if (moreCell) {
-                const img = moreCell.querySelector('img.chat-msg-gallery-img');
-                if (img) targetImgSrc = img.src;
+                img = moreCell.querySelector('img.chat-msg-gallery-img');
             } else {
-                const img = target.closest ? target.closest('.chat-msg-img, .chat-msg-gallery-img, .chat-msg-photo-wrapper') : null;
-                if (img && img.querySelector) {
-                    const foundImg = img.tagName === 'IMG' ? img : img.querySelector('img');
-                    if (foundImg) targetImgSrc = foundImg.src;
+                img = target.closest ? target.closest('img, .chat-msg-img, .chat-msg-gallery-img, .chat-msg-photo-wrapper') : null;
+                if (img && img.tagName !== 'IMG') {
+                    img = img.querySelector('img');
                 }
+            }
+        }
+
+        if (img) {
+            if (img.src) {
+                targetImgSrc = img.src;
+                const match = img.src.match(/\/api\/photos\/([^?#/]+)/);
+                if (match && match[1]) targetPhotoId = match[1];
+            }
+            if (img.dataset && img.dataset.photoId) {
+                targetPhotoId = img.dataset.photoId;
+            }
+            if (img.dataset && img.dataset.msgId) {
+                targetMsgId = img.dataset.msgId;
             }
         }
     }
@@ -1808,7 +1823,7 @@ function showTelegramContextMenu(e, log) {
         replyBtn.onclick = function(ev) {
             ev.stopPropagation();
             removeContextMenu();
-            setChatReplyTo(log);
+            setChatReplyTo(log, targetPhotoId, targetMsgId);
         };
     }
 
